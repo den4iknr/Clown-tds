@@ -57,23 +57,36 @@ MAX_WAVES   = 20
 # ── Changelog ─────────────────────────────────────────────────────────────────
 CHANGELOG = [
     {
+        "version": "v1.7",
+        "date": "27 Apr 2026",
+        "title": "Loadout Redesign & Shadow Step Rework",
+        "entries": [
+            ("NEW",    C_GREEN,  "[v1.7] Loadout screen fully redesigned — modern TDS-style layout"),
+            ("NEW",    C_GREEN,  "[v1.7] Loadout: left panel with tower list + right detail panel"),
+            ("NEW",    C_GREEN,  "[v1.7] Loadout: stat bars (DMG/SPD/RNG) per tower in detail view"),
+            ("NEW",    C_GREEN,  "[v1.7] Loadout: ability list shown in detail panel"),
+            ("NEW",    C_GREEN,  "[v1.7] Loadout: tower tags (MELEE, AoE, HIDDEN etc.) displayed"),
+            ("CHANGE", C_GOLD,   "[v1.7] Loadout: click tower row to preview, then Add/Remove"),
+            ("CHANGE", C_GOLD,   "[v1.7] Loadout: bottom deck bar replaces old slot row"),
+            ("CHANGE", C_GOLD,   "[v1.7] Assassin ability: Whirlwind Slash → Shadow Step"),
+            ("NEW",    C_GREEN,  "[v1.7] Shadow Step: teleport to highest-HP enemy in range"),
+            ("NEW",    C_GREEN,  "[v1.7] Shadow Step: marks target — double damage for 3s"),
+            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step base damage: 40 → 80"),
+            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step Lv3 bonus: +15 → +30"),
+            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step Lv4 bonus: +10 → +25"),
+        ],
+    },
+    {
         "version": "v1.6",
         "date": "27 Apr 2026",
-        "title": "Hell HP Overhaul",
+        "title": "Hell Difficulty Rebalance",
         "entries": [
-            ("FIX",    C_CYAN,  "[v1.6] HellHound/AbyssalSpawn теперь попадают в difficulty HP патч"),
-            ("FIX",    C_CYAN,  "[v1.6] Все Hell-эксклюзивные враги добавлены в _patch_enemies"),
-            ("CHANGE", C_GOLD,  "[v1.6] Hell enemy_hp_mult: 1.1 → 0.9"),
-            ("CHANGE", C_RED,   "[v1.6] HellHound: 55+(w-1)×4 → 22+(w-1)×2"),
-            ("CHANGE", C_RED,   "[v1.6] AbyssalSpawn: 30+(w-1)×2 → 14+(w-1)×1"),
-            ("CHANGE", C_RED,   "[v1.6] DemonKnight: 600+(w-1)×30 → 180+(w-1)×14"),
-            ("CHANGE", C_RED,   "[v1.6] InfernoWyrm: 180+(w-1)×10 → 70+(w-1)×5"),
-            ("CHANGE", C_RED,   "[v1.6] AshWraith: 160+(w-1)×9 → 60+(w-1)×4"),
-            ("CHANGE", C_RED,   "[v1.6] CursedWitch: 220+(w-1)×12 → 80+(w-1)×5"),
-            ("CHANGE", C_RED,   "[v1.6] SoulReaper: 350+(w-1)×18 → 120+(w-1)×8"),
-            ("CHANGE", C_RED,   "[v1.6] BrimstoneGolem: 1200+(w-1)×50 → 400+(w-1)×30"),
-            ("CHANGE", C_RED,   "[v1.6] DoomBringer: 8000+(w-1)×400 → 2500+(w-1)×180"),
-            ("CHANGE", C_RED,   "[v1.6] HellGateKeeper: 30000+(w-1)×2000 → 8000+(w-1)×600"),
+            ("CHANGE", C_GOLD,  "[v1.6] Hell mode: enemy HP now scales progressively by wave"),
+            ("CHANGE", C_GOLD,  "[v1.6] Hell wave 1-3:  enemy HP x0.55 (was x1.1)"),
+            ("CHANGE", C_GOLD,  "[v1.6] Hell wave 4-6:  enemy HP x0.70"),
+            ("CHANGE", C_GOLD,  "[v1.6] Hell wave 7-10: enemy HP x0.85"),
+            ("CHANGE", C_GOLD,  "[v1.6] Hell wave 11-14: enemy HP x1.0 (full difficulty)"),
+            ("CHANGE", C_GOLD,  "[v1.6] Hell wave 15-20: enemy HP x1.1 (brutal endgame)"),
         ],
     },
     {
@@ -81,11 +94,11 @@ CHANGELOG = [
         "date": "26 Apr 2026",
         "title": "Assassin QoL",
         "entries": [
-            ("CHANGE", C_GOLD,   "[v1.5] Assassin ability widget: smaller size, no longer overlaps UI"),
-            ("CHANGE", C_GOLD,   "[v1.5] Assassin ability panel anchored above slot bar (not top-right)"),
+            ("CHANGE", C_GOLD,   "[v1.5] Assassin Shadow Step: teleport+mark ability"),
+            ("CHANGE", C_GOLD,   "[v1.5] Assassin ability panel anchored above slot bar"),
             ("CHANGE", C_GOLD,   "[v1.5] Assassin range: 4 tiles at Lv1-Lv4 (was 3)"),
             ("CHANGE", C_GOLD,   "[v1.5] Assassin range: 5 tiles at Lv5 max (was 4)"),
-            ("NEW",    C_GREEN,  "[v1.5] Assassin Whirlwind Slash keybind: F"),
+            ("NEW",    C_GREEN,  "[v1.5] Assassin Shadow Step keybind: F"),
             ("NEW",    C_GREEN,  "[v1.5] F keybind works in Sandbox mode too"),
             ("CHANGE", C_GOLD,   "[v1.5] Ability button label now shows [F] hint when ready"),
             ("CHANGE", C_GOLD,   "[v1.5] Archer buff: dmg 4→5/6/7/10/12/15 across all levels"),
@@ -141,7 +154,7 @@ CHANGELOG = [
         "title": "Initial Release",
         "entries": [
             ("NEW",    C_GREEN,  "Tower Defense Simulator — first public release"),
-            ("NEW",    C_GREEN,  "Assassin tower with Whirlwind Slash ability"),
+            ("NEW",    C_GREEN,  "Assassin tower with Shadow Step ability"),
             ("NEW",    C_GREEN,  "Accelerator tower with laser beam mechanic"),
             ("NEW",    C_GREEN,  "20-wave progression system"),
             ("NEW",    C_GREEN,  "GraveDigger boss on Wave 20"),
@@ -231,25 +244,46 @@ class SwordEffect:
                              (int(self.ox),int(self.oy)),(int(ex),int(ey)),3)
         surf.blit(s,(0,0))
 
-class WhirlwindEffect:
-    def __init__(self, ox, oy, radius):
-        self.ox=ox; self.oy=oy; self.radius=radius
-        self.life=1.0; self.t=0.0; self.spin=0.0
+class ShadowStepEffect:
+    """Dark teleport burst: vanish at origin, reappear at target."""
+    def __init__(self, ox, oy, tx, ty):
+        self.ox=ox; self.oy=oy; self.tx=tx; self.ty=ty
+        self.life=0.7; self.t=0.0
     def update(self, dt):
-        self.t+=dt; self.spin+=dt*720; return self.t<self.life
+        self.t+=dt; return self.t<self.life
     def draw(self, surf):
-        progress=self.t/self.life; alpha=int(200*(1-progress))
+        p=self.t/self.life
         s=pygame.Surface((SCREEN_W,SCREEN_H),pygame.SRCALPHA)
-        for i in range(6):
-            base_a=math.radians(self.spin+i*60)
-            for j in range(5):
-                a=base_a+math.radians(j*8); r1=10+j*4; r2=r1+36*(1-progress*0.5)
-                sx2=self.ox+math.cos(a)*r1; sy2=self.oy+math.sin(a)*r1
-                ex=self.ox+math.cos(a)*r2; ey=self.oy+math.sin(a)*r2
-                pygame.draw.line(s,(200,200,255,max(0,alpha-j*30)),
-                                 (int(sx2),int(sy2)),(int(ex),int(ey)),3-min(2,j//2))
-        pygame.draw.circle(s,(160,160,255,max(0,alpha//2)),
-                           (int(self.ox),int(self.oy)),int(self.radius*TILE),2)
+        # vanish ring at origin
+        if p<0.4:
+            rp=p/0.4; a=int(180*(1-rp))
+            rad=int(8+rp*30)
+            pygame.draw.circle(s,(120,60,200,a),(int(self.ox),int(self.oy)),rad,3)
+            for i in range(8):
+                ang=math.radians(i*45+rp*360)
+                px2=self.ox+math.cos(ang)*rad; py2=self.oy+math.sin(ang)*rad
+                pygame.draw.circle(s,(200,120,255,max(0,a-40)),(int(px2),int(py2)),4)
+        # travel trail line
+        if 0.15<p<0.75:
+            tp=(p-0.15)/0.6; a=int(120*(1-abs(tp-0.5)*2))
+            mx2=self.ox+(self.tx-self.ox)*tp; my2=self.oy+(self.ty-self.oy)*tp
+            for seg in range(5):
+                frac=seg/5
+                sx2=self.ox+(self.tx-self.ox)*max(0,tp-frac*0.3)
+                sy2=self.oy+(self.ty-self.oy)*max(0,tp-frac*0.3)
+                pygame.draw.circle(s,(140,70,220,max(0,a-seg*18)),(int(sx2),int(sy2)),max(1,4-seg))
+        # impact burst at target
+        if p>0.55:
+            rp2=(p-0.55)/0.45; a2=int(220*(1-rp2))
+            rad2=int(6+rp2*40)
+            pygame.draw.circle(s,(80,30,160,max(0,a2//2)),(int(self.tx),int(self.ty)),rad2)
+            pygame.draw.circle(s,(200,140,255,max(0,a2)),(int(self.tx),int(self.ty)),rad2,3)
+            for i in range(6):
+                ang=math.radians(i*60+rp2*180)
+                ex2=self.tx+math.cos(ang)*(12+rp2*22)
+                ey2=self.ty+math.sin(ang)*(12+rp2*22)
+                pygame.draw.line(s,(220,160,255,max(0,a2)),
+                    (int(self.tx),int(self.ty)),(int(ex2),int(ey2)),2)
         surf.blit(s,(0,0))
 
 # ── Clown Effects ──────────────────────────────────────────────────────────────
@@ -384,6 +418,7 @@ class Enemy:
         self._stun_immune_timer = 0.0   # stun immunity CD after being stunned (Zigres CD)
         self._slow_factor  = 1.0   # multiplier (< 1 = slower), reset each frame by aura
         self._laugh_debuff   = False  # takes 20% more damage from all towers
+        self._shadow_marked  = 0.0     # Shadow Step: takes double dmg while > 0
         self._clown_pushback = False  # flag: Clown Lv3 pushback chance pending
 
     def update(self, dt):
@@ -408,6 +443,9 @@ class Enemy:
         # Laugh debuff: 20% extra damage from all sources
         if self._laugh_debuff:
             dmg *= 1.20
+        # Shadow Step mark: double incoming damage
+        if getattr(self, '_shadow_marked', 0) > 0:
+            dmg *= 2.0
         self.hp -= dmg * (1.0 - self.ARMOR)
         if self.hp <= 0: self.alive = False
 
@@ -1411,7 +1449,7 @@ class HellHound(Enemy):
     DISPLAY_NAME = "Hell Hound"; BASE_HP = 25; BASE_SPEED = 155; KILL_REWARD = 0
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 22 + (wave-1)*2); self.maxhp = self.hp
+        self.hp = max(1, 55 + (wave-1)*4); self.maxhp = self.hp
         self.speed = self.BASE_SPEED + (wave-1)*5; self.radius = 17
         self._dash_cd = random.uniform(4.0, 7.0)
         self._flame = 0.0; self._run = 0.0
@@ -1464,7 +1502,7 @@ class BrimstoneGolem(Enemy):
     ARMOR = 0.60
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 400 + (wave-1)*30); self.maxhp = self.hp
+        self.hp = max(1, 1200 + (wave-1)*50); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 40
         self._erupt_cd = 6.0; self._erupt_t = 0.0; self._rot = 0.0
         self.erupt_fired = False
@@ -1511,7 +1549,7 @@ class SoulReaper(Enemy):
     IS_HIDDEN = True
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 120 + (wave-1)*8); self.maxhp = self.hp
+        self.hp = max(1, 350 + (wave-1)*18); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 26
         self._drain_cd = 4.0; self._drain_t = 0.0; self._rot = 0.0
     def update(self, dt):
@@ -1563,7 +1601,7 @@ class DemonKnight(Enemy):
     ARMOR = 0.45
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 180 + (wave-1)*14); self.maxhp = self.hp
+        self.hp = max(1, 600 + (wave-1)*30); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 30
         self._shield_cd = 5.0; self._shield_t = 0.0; self._rot = 0.0
         self.shielded = False
@@ -1623,7 +1661,7 @@ class InfernoWyrm(Enemy):
     DISPLAY_NAME = "Inferno Wyrm"; BASE_HP = 70; BASE_SPEED = 145; KILL_REWARD = 0
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 70 + (wave-1)*5); self.maxhp = self.hp
+        self.hp = max(1, 180 + (wave-1)*10); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 20
         self._wave2 = 0.0; self._trail = []
     def update(self, dt):
@@ -1675,7 +1713,7 @@ class CursedWitch(Enemy):
     PULSE_RADIUS = 160; PULSE_INTERVAL = 5.0; PULSE_DURATION = 1.5
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 80 + (wave-1)*5); self.maxhp = self.hp
+        self.hp = max(1, 220 + (wave-1)*12); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 22
         self._pulse_cd = self.PULSE_INTERVAL; self._spin = 0.0
         self.pulse_fired = False
@@ -1727,7 +1765,7 @@ class AbyssalSpawn(Enemy):
     DISPLAY_NAME = "Abyssal Spawn"; BASE_HP = 12; BASE_SPEED = 170; KILL_REWARD = 0
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 14 + (wave-1)*1); self.maxhp = self.hp
+        self.hp = max(1, 30 + (wave-1)*2); self.maxhp = self.hp
         self.speed = self.BASE_SPEED + (wave-1)*4; self.radius = 14
         self._wing = 0.0
     def update(self, dt):
@@ -1772,7 +1810,7 @@ class DoomBringer(Enemy):
     PULSE_RADIUS = 200; PULSE_INTERVAL = 7.0; PULSE_DURATION = 3.0
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 2500 + (wave-1)*180); self.maxhp = self.hp
+        self.hp = max(1, 8000 + (wave-1)*400); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 48
         self._rot = 0.0; self._pulse_cd = self.PULSE_INTERVAL
         self._pulse_t = 0.0; self.pulse_fired = False
@@ -1847,7 +1885,7 @@ class AshWraith(Enemy):
     IS_HIDDEN = True
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 60 + (wave-1)*4); self.maxhp = self.hp
+        self.hp = max(1, 160 + (wave-1)*9); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 20
         self._phase_cd = 3.0; self._phased = False; self._phase_t = 0.0
         self._drift = 0.0
@@ -1905,7 +1943,7 @@ class HellGateKeeper(Enemy):
     PULSE_RADIUS = 220; PULSE_INTERVAL = 8.0; PULSE_DURATION = 2.0
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 8000 + (wave-1)*600); self.maxhp = self.hp
+        self.hp = max(1, 30000 + (wave-1)*2000); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 54
         self._rot = 0.0; self._pulse_cd = self.PULSE_INTERVAL
         self._pulse_t = 0.0; self.pulse_fired = False
@@ -2206,24 +2244,36 @@ class WaveManager:
         return 0
 
 # ── Ability ────────────────────────────────────────────────────────────────────
-class WhirlwindAbility:
-    name="Whirlwind Slash"; cooldown=10.0; dmg_base=15
+class ShadowStepAbility:
+    """Teleport to the highest-HP enemy in range, deal heavy strike,
+    and mark it: vulnerable (double damage) for 3 seconds."""
+    name="Shadow Step"; cooldown=12.0; dmg_base=80
     def __init__(self, owner): self.owner=owner; self.cd_left=0.0
     @property
-    def damage(self): return self.dmg_base+self.owner._whirl_bonus
+    def damage(self): return self.dmg_base + self.owner._shadow_bonus
     def update(self, dt):
         if self.cd_left>0: self.cd_left-=dt
     def ready(self): return self.cd_left<=0
     def activate(self, enemies, effects):
         if not self.ready(): return
-        self.cd_left=self.cooldown
-        ox,oy=self.owner.px,self.owner.py; r=self.owner.range_tiles*TILE
-        hd=getattr(self.owner,'hidden_detection',False)
-        for e in enemies:
-            if e.alive and dist((e.x,e.y),(ox,oy))<=r:
-                if e.IS_HIDDEN and not hd: continue
-                e.take_damage(self.damage)
-        effects.append(WhirlwindEffect(ox,oy,self.owner.range_tiles))
+        self.cd_left = self.cooldown
+        ox, oy = self.owner.px, self.owner.py
+        r = self.owner.range_tiles * TILE
+        hd = getattr(self.owner, 'hidden_detection', False)
+        candidates = [
+            e for e in enemies
+            if e.alive and dist((e.x,e.y),(ox,oy)) <= r
+            and not (e.IS_HIDDEN and not hd)
+        ]
+        if not candidates:
+            return
+        # pick highest HP target
+        target = max(candidates, key=lambda e: e.hp)
+        # deal damage
+        target.take_damage(self.damage)
+        # mark vulnerable: double incoming damage for 3s
+        target._shadow_marked = 3.0
+        effects.append(ShadowStepEffect(ox, oy, target.x, target.y))
 
 # ── Unit base ──────────────────────────────────────────────────────────────────
 class Unit:
@@ -2260,17 +2310,17 @@ class Unit:
 ASSASSIN_LEVELS=[(3,0.608,4,None),(5,0.508,4,450),(5,0.508,4,550),(15,0.358,4,1500),(27,0.358,5,2500)]
 
 class Assassin(Unit):
-    PLACE_COST=300; COLOR=C_ASSASSIN; NAME="Assassin"; _whirl_bonus=0
+    PLACE_COST=300; COLOR=C_ASSASSIN; NAME="Assassin"; _shadow_bonus=0
     def __init__(self, px, py): super().__init__(px,py); self._apply_level()
     def _apply_level(self):
         d,fr,r,_=ASSASSIN_LEVELS[self.level]
         self.damage=d; self.firerate=fr; self.range_tiles=r
         self.hidden_detection=(self.level>=2)
-        if self.level>=2 and self.ability is None: self.ability=WhirlwindAbility(self)
+        if self.level>=2 and self.ability is None: self.ability=ShadowStepAbility(self)
         b=0
-        if self.level>=3: b+=15
-        if self.level>=4: b+=10
-        self._whirl_bonus=b
+        if self.level>=3: b+=30
+        if self.level>=4: b+=25
+        self._shadow_bonus=b
     def upgrade_cost(self):
         if self.level>=len(ASSASSIN_LEVELS)-1: return None
         return ASSASSIN_LEVELS[self.level+1][3]
@@ -4607,7 +4657,7 @@ DIFFICULTIES = {
     "Hell": {
         "hp_mult": 0.7,
         "money_mult": 0.9,
-        "enemy_hp_mult": 0.9,
+        "enemy_hp_mult": 1.1,
         "enemy_speed_mult": 1.0,
         "start_money": 700,
         "color": (220, 60, 60),
@@ -4808,26 +4858,50 @@ class Lobby:
         self._build_loadout_rects()
 
     def _build_loadout_rects(self):
-        # Palette: wider cards with more breathing room
-        self.palette_rects = []
-        pw, ph = 252, 290
-        pg = 36
-        total_p = len(self.all_towers)*(pw+pg)-pg
-        sx = (SCREEN_W-total_p)//2
-        for i in range(len(self.all_towers)):
-            self.palette_rects.append(pygame.Rect(sx+i*(pw+pg), 100, pw, ph))
+        # LEFT PANEL — tower list (scrollable column)
+        self._lo_list_x = 52
+        self._lo_list_y = 120
+        self._lo_list_item_h = 96
+        self._lo_list_item_w = 340
+        self._lo_list_gap = 10
+        self._lo_list_scroll = 0  # pixel scroll offset
 
-        # Slots at bottom — wider and taller for clarity
+        # RIGHT PANEL — tower detail/preview panel
+        self._lo_detail_x = 430
+        self._lo_detail_y = 100
+        self._lo_detail_w = SCREEN_W - 430 - 52
+        self._lo_detail_h = SCREEN_H - 260
+
+        # BOTTOM BAR — 5 deck slots
+        deck_y = SCREEN_H - 148
+        deck_h = 130
+        sw = 186
+        sg = 14
+        total_s = 5 * sw + 4 * sg
+        ssx = (SCREEN_W - total_s) // 2
         self.loadout_slot_rects = []
-        sw, sh = 180, 155
-        sg = 22
-        total_s = 5*(sw+sg)-sg
-        ssx = (SCREEN_W-total_s)//2
         for i in range(5):
-            self.loadout_slot_rects.append(pygame.Rect(ssx+i*(sw+sg), SCREEN_H-278, sw, sh))
+            self.loadout_slot_rects.append(pygame.Rect(ssx + i * (sw + sg), deck_y, sw, deck_h))
 
-        self.btn_lo_back = pygame.Rect(29, 29, 158, 52)
-        self.btn_lo_save = pygame.Rect(SCREEN_W//2-200, SCREEN_H-100, 400, 68)
+        # Selected tower in list (for detail panel)
+        if not hasattr(self, '_lo_selected_tower'):
+            self._lo_selected_tower = self.all_towers[0] if self.all_towers else None
+
+        self.btn_lo_back = pygame.Rect(29, 29, 140, 46)
+        self.btn_lo_save = pygame.Rect(SCREEN_W - 240, SCREEN_H - 68, 210, 50)
+        # "Add to loadout" button inside detail panel
+        self._lo_btn_add = pygame.Rect(
+            self._lo_detail_x, SCREEN_H - 210, self._lo_detail_w, 54)
+
+        # palette_rects kept for click compat — map to list items
+        self.palette_rects = []
+        for i in range(len(self.all_towers)):
+            self.palette_rects.append(pygame.Rect(
+                self._lo_list_x,
+                self._lo_list_y + i * (self._lo_list_item_h + self._lo_list_gap) - self._lo_list_scroll,
+                self._lo_list_item_w,
+                self._lo_list_item_h,
+            ))
 
     def _draw_bg(self):
         surf = self.screen
@@ -5217,311 +5291,311 @@ class Lobby:
         surf = self.screen
         mx, my = pygame.mouse.get_pos()
 
-        # ── Header bar with gradient-ish underline ──
-        hdr_font = pygame.font.SysFont("consolas", 44, bold=True)
-        sub_font = pygame.font.SysFont("consolas", 13)
-        txt(surf, "LOADOUT", (SCREEN_W//2, 38), C_WHITE, hdr_font, center=True)
+        # ─── helpers ───────────────────────────────────────────────────────────
+        def panel(r, bg=(18, 22, 38), alpha=240, brad=14):
+            draw_rect_alpha(surf, bg, r, alpha, brad=brad)
+            pygame.draw.rect(surf, (40, 50, 78), r, 1, border_radius=brad)
 
-        # Glowing line under title
-        for lw in range(6, 0, -2):
-            alpha = 30 + lw * 20
-            ls = pygame.Surface((500, 4), pygame.SRCALPHA)
-            pygame.draw.rect(ls, (*C_CYAN[:3], alpha), (0, 0, 500, 4), border_radius=2)
-            surf.blit(ls, (SCREEN_W//2 - 250, 76))
-        pygame.draw.line(surf, C_CYAN, (SCREEN_W//2 - 250, 78), (SCREEN_W//2 + 250, 78), 2)
+        def glabel(text, x, y, col=(70, 85, 125), fsize=11, bold=False):
+            f = pygame.font.SysFont("consolas", fsize, bold=bold)
+            txt(surf, text, (x, y), col, f)
 
-        txt(surf, "Choose up to 5 towers  ·  Click card to assign  ·  Click slot to clear",
-            (SCREEN_W//2, 94), (80, 95, 130), sub_font, center=True)
+        def gcenter(text, cx, y, col=C_WHITE, fsize=14, bold=False):
+            f = pygame.font.SysFont("consolas", fsize, bold=bold)
+            txt(surf, text, (cx, y), col, f, center=True)
 
-        # ── "AVAILABLE TOWERS" section label ──
-        sec_font = pygame.font.SysFont("consolas", 12, bold=True)
-        txt(surf, "▸  AVAILABLE TOWERS", (self.palette_rects[0].x, 86),
-            (80, 100, 150), sec_font)
+        # ─── rebuild list rects (scroll-aware) ────────────────────────────────
+        self.palette_rects = []
+        for i in range(len(self.all_towers)):
+            ry = (self._lo_list_y + i * (self._lo_list_item_h + self._lo_list_gap)
+                  - self._lo_list_scroll)
+            self.palette_rects.append(pygame.Rect(
+                self._lo_list_x, ry, self._lo_list_item_w, self._lo_list_item_h))
 
-        tower_desc = {
-            Assassin:    ["Fast melee attacker", "Whirlwind Slash (Lv2, F key)",
-                          "Detects hidden (Lv2)"],
-            Accelerator: ["Long-range laser sniper", "Dual target (Lv3)",
-                          "Always detects hidden"],
-            Clown:       ["Homing projectiles + auras", "Slow aura (Lv2)",
-                          "Laugh debuff (Lv4)", "Confetti burst (Lv5)"],
-            Archer:      ["Piercing arrows — on-road!", "Ice Arrow (Lv2)",
-                          "Flame Arrow (Lv3)", "Detects hidden (Lv4)"],
-            Zigres:      ["Summons Static Sentinels", "Resonance AoE (Lv3)",
-                          "Sentinel Thorns (Lv4)", "COLOSSUS form (Lv6)"],
+        # ─── tower data tables ─────────────────────────────────────────────────
+        tower_tags = {
+            Assassin:    ["MELEE", "HIDDEN", "ABILITY"],
+            Accelerator: ["LONG RANGE", "HIDDEN", "LASER"],
+            Clown:       ["AoE AURA", "SLOW", "DEBUFF"],
+            Archer:      ["ON-ROAD", "PIERCE", "ELEMENTS"],
+            Zigres:      ["SUMMONS", "AoE", "COLOSSUS"],
+        }
+        tower_stats = {
+            Assassin:    [("DMG", "HIGH"), ("SPD", "FAST"), ("RNG", "MELEE")],
+            Accelerator: [("DMG", "MED"),  ("SPD", "SLOW"), ("RNG", "MAX")],
+            Clown:       [("DMG", "MED"),  ("SPD", "MED"),  ("RNG", "WIDE")],
+            Archer:      [("DMG", "MED"),  ("SPD", "FAST"), ("RNG", "LONG")],
+            Zigres:      [("DMG", "HIGH"), ("SPD", "SLOW"), ("RNG", "MED")],
+        }
+        tower_abilities = {
+            Assassin:    ["Lv2: Shadow Step  (F key)", "Lv2: Detects Hidden"],
+            Accelerator: ["Lv3: Dual-Target Lock", "Always Detects Hidden"],
+            Clown:       ["Lv2: Slow Aura", "Lv4: Laugh Debuff", "Lv5: Confetti Burst"],
+            Archer:      ["Lv2: Ice Arrow", "Lv3: Flame Arrow", "Lv4: Detects Hidden"],
+            Zigres:      ["Lv3: Resonance AoE", "Lv4: Sentinel Thorns",
+                          "Lv6: COLOSSUS Form"],
         }
 
-        # ── Palette cards ──
+        # ─── BACKGROUND PANELS ─────────────────────────────────────────────────
+        # Left panel background
+        lp = pygame.Rect(self._lo_list_x - 14, 96,
+                         self._lo_list_item_w + 28,
+                         SCREEN_H - 96 - 168)
+        panel(lp, (14, 18, 30), 200, 16)
+
+        # Right detail panel
+        dp = pygame.Rect(self._lo_detail_x - 14, 96,
+                         self._lo_detail_w + 28,
+                         self._lo_detail_h + 14)
+        panel(dp, (14, 18, 30), 200, 16)
+
+        # Bottom deck bar
+        deck_bg = pygame.Rect(40, SCREEN_H - 168, SCREEN_W - 80, 158)
+        panel(deck_bg, (10, 13, 24), 235, 18)
+        pygame.draw.rect(surf, (30, 38, 65), deck_bg, 1, border_radius=18)
+
+        # ─── HEADER ────────────────────────────────────────────────────────────
+        hf = pygame.font.SysFont("consolas", 36, bold=True)
+        txt(surf, "LOADOUT", (SCREEN_W // 2, 34), C_WHITE, hf, center=True)
+        pygame.draw.line(surf, (35, 45, 75),
+                         (48, 60), (SCREEN_W - 48, 60), 1)
+
+        # column labels
+        glabel("TOWERS", self._lo_list_x, 76, (100, 120, 170), 11, bold=True)
+        glabel("TOWER DETAILS",
+               self._lo_detail_x, 76, (100, 120, 170), 11, bold=True)
+        filled = sum(1 for t in self.loadout if t is not None)
+        glabel(f"DECK  {filled}/5",
+               deck_bg.x + 24, SCREEN_H - 160, (100, 120, 170), 11, bold=True)
+
+        # ─── LEFT: tower list ──────────────────────────────────────────────────
+        clip = pygame.Rect(self._lo_list_x - 14, 96,
+                           self._lo_list_item_w + 28,
+                           SCREEN_H - 96 - 168)
+        old_clip = surf.get_clip()
+        surf.set_clip(clip)
+
         for i, TType in enumerate(self.all_towers):
             r = self.palette_rects[i]
+            if r.bottom < clip.top or r.top > clip.bottom:
+                continue
+            is_sel = (TType is self._lo_selected_tower)
             is_hov = r.collidepoint(mx, my)
-            in_loadout = TType in self.loadout
+            in_deck = TType in self.loadout
 
-            # Card shadow
-            shadow = pygame.Surface((r.w + 8, r.h + 8), pygame.SRCALPHA)
-            pygame.draw.rect(shadow, (0, 0, 0, 60), (4, 4, r.w, r.h), border_radius=16)
-            surf.blit(shadow, (r.x - 2, r.y))
-
-            # Card background — tinted by tower color when hovered
-            if is_hov:
-                base_col = tuple(min(255, int(c * 0.18 + 30)) for c in TType.COLOR)
-                draw_rect_alpha(surf, base_col, r, 240, brad=14)
+            # card bg
+            if is_sel:
+                bg_col = tuple(min(255, int(c * 0.25 + 18)) for c in TType.COLOR)
+                draw_rect_alpha(surf, bg_col, r, 245, brad=12)
+                pygame.draw.rect(surf, TType.COLOR, r, 2, border_radius=12)
+            elif is_hov:
+                draw_rect_alpha(surf, (30, 36, 60), r, 240, brad=12)
+                pygame.draw.rect(surf, (60, 75, 120), r, 1, border_radius=12)
             else:
-                draw_rect_alpha(surf, (24, 30, 48), r, 235, brad=14)
+                draw_rect_alpha(surf, (20, 25, 42), r, 220, brad=12)
+                pygame.draw.rect(surf, (32, 40, 65), r, 1, border_radius=12)
 
-            # Border — colored when in loadout, cyan on hover, muted otherwise
-            if is_hov:
-                brd = tuple(min(255, c + 60) for c in TType.COLOR)
-                bw = 2
-            elif in_loadout:
-                brd = tuple(min(255, c + 20) for c in TType.COLOR)
-                bw = 2
-            else:
-                brd = (55, 65, 95)
-                bw = 1
-            pygame.draw.rect(surf, brd, r, bw, border_radius=14)
+            # mini icon on left
+            icon_x = r.x + 44
+            icon_y = r.centery
+            self._draw_tower_icon(surf, TType, icon_x, icon_y, 30)
 
-            # "IN LOADOUT" badge
-            if in_loadout:
-                badge_s = pygame.Surface((r.w, 18), pygame.SRCALPHA)
-                pygame.draw.rect(badge_s, (*TType.COLOR[:3], 60), (0, 0, r.w, 18),
-                                 border_radius=14)
-                surf.blit(badge_s, (r.x, r.y))
-                badge_font = pygame.font.SysFont("consolas", 10, bold=True)
-                txt(surf, "✔ IN LOADOUT", (r.centerx, r.y + 9),
-                    tuple(min(255, c + 80) for c in TType.COLOR), badge_font, center=True)
+            # name
+            nf = pygame.font.SysFont("consolas", 17, bold=True)
+            ncol = TType.COLOR if is_sel else C_WHITE
+            txt(surf, TType.NAME, (r.x + 84, r.y + 18), ncol, nf)
 
-            # Tower icon in upper 40% of card
-            icon_cy = r.y + (118 if in_loadout else 110)
-            self._draw_tower_icon(surf, TType, r.centerx, icon_cy, 52)
-
-            # Tower name
-            name_font = pygame.font.SysFont("consolas", 20, bold=True)
-            name_y = r.y + 176
-            txt(surf, TType.NAME, (r.centerx, name_y), TType.COLOR, name_font, center=True)
-
-            # Price badge
-            price_y = r.y + 202
-            price_col = (C_GOLD[0], C_GOLD[1], C_GOLD[2])
+            # cost row
+            cf = pygame.font.SysFont("consolas", 12)
+            cost_str = f"${TType.PLACE_COST}"
             if ICO_COIN:
-                coin_lo = pygame.transform.smoothscale(ICO_COIN, (20, 20))
-                cost_str_lo = f"${TType.PLACE_COST}"
-                cost_w_lo = font_sm.size(cost_str_lo)[0]
-                lo_total = 20 + 4 + cost_w_lo
-                lo_x = r.centerx - lo_total // 2
-                surf.blit(coin_lo, (lo_x, price_y))
-                txt(surf, cost_str_lo, (lo_x + 24, price_y + 3), price_col, font_sm)
+                ci = pygame.transform.smoothscale(ICO_COIN, (16, 16))
+                surf.blit(ci, (r.x + 84, r.y + 42))
+                txt(surf, cost_str, (r.x + 104, r.y + 44), C_GOLD, cf)
             else:
-                txt(surf, f"${TType.PLACE_COST}", (r.centerx, price_y), price_col, font_sm, center=True)
+                txt(surf, cost_str, (r.x + 84, r.y + 44), C_GOLD, cf)
 
-            # Thin separator
-            sep_y = r.y + 228
-            sep_surf = pygame.Surface((r.w - 28, 1), pygame.SRCALPHA)
-            pygame.draw.line(sep_surf, (*brd, 130), (0, 0), (r.w - 28, 0))
-            surf.blit(sep_surf, (r.x + 14, sep_y))
+            # tags
+            tf_s = pygame.font.SysFont("consolas", 10, bold=True)
+            tx = r.x + 84
+            ty = r.y + 62
+            for tag in tower_tags.get(TType, [])[:3]:
+                tw_px = tf_s.size(tag)[0] + 10
+                tag_r = pygame.Rect(tx, ty, tw_px, 17)
+                tag_col = tuple(min(255, int(c * 0.45 + 10)) for c in TType.COLOR)
+                draw_rect_alpha(surf, tag_col, tag_r, 200, brad=4)
+                txt(surf, tag, (tx + 5, ty + 3), TType.COLOR, tf_s)
+                tx += tw_px + 6
 
-            # Feature bullets
-            lines = tower_desc.get(TType, [])
-            bullet_font = pygame.font.SysFont("consolas", 12)
-            for li, line in enumerate(lines):
-                line_y = sep_y + 10 + li * 18
-                if line_y + 14 <= r.bottom - 8:
-                    dot_col = tuple(min(255, c + 40) for c in TType.COLOR)
-                    txt(surf, "·", (r.x + 14, line_y), dot_col, bullet_font)
-                    txt(surf, line, (r.x + 24, line_y), (155, 168, 200), bullet_font)
+            # IN DECK badge on right
+            if in_deck:
+                bd_r = pygame.Rect(r.right - 72, r.y + 10, 64, 22)
+                draw_rect_alpha(surf, (20, 100, 50), bd_r, 210, brad=5)
+                bf = pygame.font.SysFont("consolas", 10, bold=True)
+                txt(surf, "IN DECK", (bd_r.centerx, bd_r.centery),
+                    (80, 230, 130), bf, center=True)
 
-        # ── Divider between palette and slots ──
-        div_y = self.loadout_slot_rects[0].y - 46
-        pygame.draw.line(surf, (40, 50, 72), (80, div_y), (SCREEN_W - 80, div_y), 1)
+            # selected indicator bar on left edge
+            if is_sel:
+                sel_r = pygame.Rect(r.x, r.y + 8, 3, r.h - 16)
+                pygame.draw.rect(surf, TType.COLOR, sel_r, border_radius=2)
 
-        # ── "YOUR LOADOUT" label ──
-        lo_lbl_font = pygame.font.SysFont("consolas", 13, bold=True)
-        filled = sum(1 for t in self.loadout if t is not None)
-        txt(surf, f"▸  YOUR LOADOUT   ({filled}/5 filled)",
-            (self.loadout_slot_rects[0].x, div_y + 10), (80, 100, 150), lo_lbl_font)
+        surf.set_clip(old_clip)
 
-        # Key hint on right
-        txt(surf, "Keys: 1–5 to place in-game",
-            (self.loadout_slot_rects[-1].right, div_y + 10),
-            (55, 70, 100), pygame.font.SysFont("consolas", 11), right=False)
+        # ─── RIGHT: detail panel ───────────────────────────────────────────────
+        T = self._lo_selected_tower
+        if T:
+            dx = self._lo_detail_x
+            dw = self._lo_detail_w
+            dy = self._lo_detail_y
 
-        # ── Loadout slots ──
-        hov_tower_desc = None
-        for i, r2 in enumerate(self.loadout_slot_rects):
-            TType = self.loadout[i]
-            is_hov2 = r2.collidepoint(mx, my)
+            # large tower icon
+            big_icon_y = dy + 90
+            self._draw_tower_icon(surf, T, dx + dw // 2, big_icon_y, 72)
 
-            # Slot shadow
-            sh2 = pygame.Surface((r2.w + 6, r2.h + 6), pygame.SRCALPHA)
-            pygame.draw.rect(sh2, (0, 0, 0, 50), (3, 3, r2.w, r2.h), border_radius=12)
-            surf.blit(sh2, (r2.x - 1, r2.y + 1))
-
-            # Slot background
-            if TType:
-                base2 = tuple(min(255, int(c * 0.15 + 22)) for c in TType.COLOR)
-                draw_rect_alpha(surf, base2, r2, 235, brad=12)
+            # name + cost
+            nf2 = pygame.font.SysFont("consolas", 26, bold=True)
+            txt(surf, T.NAME, (dx + dw // 2, dy + 162), T.COLOR, nf2, center=True)
+            cf2 = pygame.font.SysFont("consolas", 14)
+            if ICO_COIN:
+                ci2 = pygame.transform.smoothscale(ICO_COIN, (20, 20))
+                coin_tx = dx + dw // 2 - 40
+                surf.blit(ci2, (coin_tx, dy + 186))
+                txt(surf, f"${T.PLACE_COST}", (coin_tx + 24, dy + 188), C_GOLD, cf2)
             else:
-                draw_rect_alpha(surf, (20, 26, 42), r2, 200, brad=12)
+                txt(surf, f"${T.PLACE_COST}", (dx + dw // 2, dy + 188), C_GOLD, cf2, center=True)
 
-            # Border
-            if is_hov2 and TType:
-                pygame.draw.rect(surf, (220, 70, 70), r2, 2, border_radius=12)
-            elif TType:
-                tc = tuple(min(255, c + 10) for c in TType.COLOR)
-                pygame.draw.rect(surf, tc, r2, 2, border_radius=12)
+            # tags row centered
+            tags = tower_tags.get(T, [])
+            tf2 = pygame.font.SysFont("consolas", 11, bold=True)
+            tag_total = sum(tf2.size(tg)[0] + 14 for tg in tags) + max(0, len(tags)-1)*8
+            tx2 = dx + dw // 2 - tag_total // 2
+            for tg in tags:
+                tw2 = tf2.size(tg)[0] + 14
+                tgr = pygame.Rect(tx2, dy + 210, tw2, 20)
+                tg_bg = tuple(min(255, int(c * 0.4 + 8)) for c in T.COLOR)
+                draw_rect_alpha(surf, tg_bg, tgr, 210, brad=4)
+                txt(surf, tg, (tx2 + 7, dy + 212), T.COLOR, tf2)
+                tx2 += tw2 + 8
+
+            # divider
+            pygame.draw.line(surf, (30, 38, 62),
+                             (dx + 12, dy + 242), (dx + dw - 12, dy + 242))
+
+            # stat bars
+            stat_labels = {"NONE": 0, "LOW": 1, "MED": 2, "FAST": 2,
+                           "HIGH": 3, "LONG": 3, "WIDE": 3, "MAX": 4}
+            stats = tower_stats.get(T, [])
+            sf = pygame.font.SysFont("consolas", 12)
+            for si, (sname, sval) in enumerate(stats):
+                sy = dy + 256 + si * 38
+                txt(surf, sname, (dx + 16, sy), (90, 110, 160), sf)
+                bar_x = dx + 70
+                bar_w = dw - 90
+                bar_h = 10
+                bar_bg = pygame.Rect(bar_x, sy + 1, bar_w, bar_h)
+                draw_rect_alpha(surf, (25, 32, 52), bar_bg, 240, brad=5)
+                filled_frac = stat_labels.get(sval, 2) / 4
+                fill_w = max(6, int(bar_w * filled_frac))
+                fill_col = T.COLOR
+                bar_fill = pygame.Rect(bar_x, sy + 1, fill_w, bar_h)
+                draw_rect_alpha(surf, fill_col, bar_fill, 230, brad=5)
+                txt(surf, sval, (dx + dw - 6, sy), (100, 120, 170), sf, right=True)
+
+            # divider 2
+            pygame.draw.line(surf, (30, 38, 62),
+                             (dx + 12, dy + 375), (dx + dw - 12, dy + 375))
+
+            # abilities / perks list
+            glabel("ABILITIES", dx + 16, dy + 384, (80, 100, 155), 10, bold=True)
+            af = pygame.font.SysFont("consolas", 12)
+            for ai, ab in enumerate(tower_abilities.get(T, [])):
+                ay = dy + 400 + ai * 24
+                if ay + 16 < self._lo_detail_y + self._lo_detail_h - 20:
+                    dot_col = tuple(min(255, c + 20) for c in T.COLOR)
+                    pygame.draw.circle(surf, dot_col, (dx + 20, ay + 7), 3)
+                    txt(surf, ab, (dx + 30, ay), (160, 175, 210), af)
+
+            # ── ADD/REMOVE button ──
+            ab_r = self._lo_btn_add
+            in_deck_now = T in self.loadout
+            deck_full = all(t is not None for t in self.loadout)
+            if in_deck_now:
+                btn_bg = (80, 22, 22)
+                btn_brd = (200, 50, 50)
+                btn_lbl = "✕  REMOVE FROM DECK"
+                btn_col = (220, 80, 80)
+            elif deck_full:
+                btn_bg = (28, 32, 50)
+                btn_brd = (50, 60, 85)
+                btn_lbl = "DECK FULL  (remove a slot first)"
+                btn_col = (60, 70, 100)
             else:
-                style = (80, 100, 160) if is_hov2 else (40, 50, 72)
-                # Dashed border via corners
-                pygame.draw.rect(surf, style, r2, 1, border_radius=12)
+                btn_bg = (18, 75, 38)
+                btn_brd = (50, 200, 100)
+                btn_lbl = "+  ADD TO DECK"
+                btn_col = (80, 220, 130)
+            btn_hov = ab_r.collidepoint(mx, my)
+            bg2 = tuple(min(255, c + 15) for c in btn_bg) if btn_hov else btn_bg
+            draw_rect_alpha(surf, bg2, ab_r, 240, brad=10)
+            pygame.draw.rect(surf, btn_brd, ab_r, 2, border_radius=10)
+            bf2 = pygame.font.SysFont("consolas", 16, bold=True)
+            txt(surf, btn_lbl, ab_r.center, btn_col, bf2, center=True)
 
-            # Slot key number badge
-            num_badge_r = pygame.Rect(r2.x + 5, r2.y + 5, 24, 20)
-            num_col = (60, 80, 140) if not TType else tuple(min(255, int(c * 0.6 + 20)) for c in TType.COLOR)
-            draw_rect_alpha(surf, num_col, num_badge_r, 180, brad=5)
-            num_font = pygame.font.SysFont("consolas", 13, bold=True)
-            txt(surf, str(i + 1), num_badge_r.center, C_WHITE, num_font, center=True)
+        # ─── BOTTOM: deck slots ────────────────────────────────────────────────
+        for i, r3 in enumerate(self.loadout_slot_rects):
+            T3 = self.loadout[i]
+            is_hov3 = r3.collidepoint(mx, my)
 
-            if TType:
-                # Tower icon
-                icon_y2 = r2.y + r2.h // 2 - 20
-                self._draw_tower_icon(surf, TType, r2.centerx, icon_y2, 28)
-
-                # Name
-                nm_font2 = pygame.font.SysFont("consolas", 13, bold=True)
-                txt(surf, TType.NAME, (r2.centerx, r2.bottom - 36), C_WHITE, nm_font2, center=True)
-
-                # Price
-                if ICO_COIN:
-                    coin_ls = pygame.transform.smoothscale(ICO_COIN, (16, 16))
-                    cs_str = f"${TType.PLACE_COST}"
-                    cs_w = font_sm.size(cs_str)[0]
-                    ls_total = 16 + 3 + cs_w
-                    ls_x = r2.centerx - ls_total // 2
-                    surf.blit(coin_ls, (ls_x, r2.bottom - 22))
-                    txt(surf, cs_str, (ls_x + 19, r2.bottom - 19), C_GOLD, font_sm)
-                else:
-                    txt(surf, f"${TType.PLACE_COST}", (r2.centerx, r2.bottom - 16), C_GOLD, font_sm, center=True)
-
-                if is_hov2:
-                    # Red tint overlay
-                    ov = pygame.Surface((r2.w, r2.h), pygame.SRCALPHA)
-                    pygame.draw.rect(ov, (200, 40, 40, 55), (0, 0, r2.w, r2.h), border_radius=12)
-                    surf.blit(ov, r2.topleft)
-                    rm_font = pygame.font.SysFont("consolas", 12, bold=True)
-                    txt(surf, "✕  REMOVE", (r2.centerx, r2.y + 14), (255, 100, 100), rm_font, center=True)
-                    hov_tower_desc = TType
+            if T3:
+                bg3 = tuple(min(255, int(c * 0.22 + 14)) for c in T3.COLOR)
+                brd3 = T3.COLOR
+                brd_w = 2
             else:
-                # Empty slot
-                empty_font = pygame.font.SysFont("consolas", 13)
-                if is_hov2:
-                    txt(surf, "← assign tower", (r2.centerx, r2.centery - 8),
-                        (80, 120, 200), empty_font, center=True)
-                    txt(surf, "click a card above", (r2.centerx, r2.centery + 12),
-                        (55, 80, 130), pygame.font.SysFont("consolas", 11), center=True)
-                else:
-                    # Dimmed empty icon
-                    ec = pygame.Surface((40, 40), pygame.SRCALPHA)
-                    pygame.draw.rect(ec, (50, 60, 90, 80), (0, 0, 40, 40), border_radius=8)
-                    pygame.draw.rect(ec, (50, 60, 90, 120), (0, 0, 40, 40), 1, border_radius=8)
-                    txt(ec, "+", (20, 20), (70, 90, 140, 180),
-                        pygame.font.SysFont("consolas", 22, bold=True), center=True)
-                    surf.blit(ec, (r2.centerx - 20, r2.centery - 24))
-                    txt(surf, "Empty", (r2.centerx, r2.centery + 22),
-                        (45, 58, 85), empty_font, center=True)
+                bg3 = (18, 22, 38)
+                brd3 = (50, 60, 90) if is_hov3 else (32, 40, 62)
+                brd_w = 1
 
-        # ── Tower description tooltip on slot hover ──
-        TOWER_FULL_DESC = {
-            Assassin: {
-                "role": "Melee Assassin",
-                "color": C_ASSASSIN,
-                "lines": [
-                    "Attacks the frontmost enemy with sword slashes.",
-                    "Lv1 — Damage: 3  |  Rate: 0.6s  |  Range: 4 tiles",
-                    "Lv2 — Whirlwind Slash ability (10s CD, F) + Hidden Detection",
-                    "Lv3 — Damage: 5  |  Whirlwind +15 dmg",
-                    "Lv4 — Whirlwind +10 dmg",
-                    "Lv5 — Damage: 27  |  Range: 5 tiles  |  Full upgrade",
-                    "Upgrade cost: $450 → $550 → $1500 → $2500",
-                ],
-            },
-            Accelerator: {
-                "role": "Laser Sniper",
-                "color": C_ACCEL,
-                "lines": [
-                    "Long-range laser that always detects hidden enemies.",
-                    "Lv1 — Damage: 12  |  Range: 7 tiles  |  Rate: 0.21s",
-                    "Lv2 — Damage: 15  |  Rate: 0.18s",
-                    "Lv3 — Damage: 20  |  Rate: 0.16s",
-                    "Lv4 — Dual target: hits 2 enemies simultaneously",
-                    "Lv5 — Damage: 33  |  Rate: 0.16s",
-                    "Lv6 — Damage: 38  |  Range: 8 tiles  |  Rate: 0.11s",
-                    "Upgrade cost: $2000 → $3500 → $6000 → $8250 → $15000",
-                ],
-            },
-            Clown: {
-                "role": "Crowd Controller",
-                "color": C_RED,
-                "lines": [
-                    "Shoots homing projectiles + emits powerful auras.",
-                    "Lv1 — Damage: 5  |  Homing projectiles, confuse aura",
-                    "Lv2 — Damage: 8  |  Slow aura: enemies 40% slower",
-                    "Lv3 — Damage: 12  |  Detects hidden + pushback chance",
-                    "Lv4 — Damage: 20  |  Laugh debuff: +20% dmg taken",
-                    "Lv5 — Damage: 35  |  Confetti Explosion on kill in aura",
-                    "Upgrade cost: $400 → $850 → $1800 → $4500 → $12000",
-                ],
-            },
-            Archer: {
-                "role": "Ranged Archer",
-                "color": C_ORANGE,
-                "lines": [
-                    "Only tower placeable ON the road! Piercing shots.",
-                    "Lv1 — Damage: 5  |  Rate: 0.58s  |  Range: 6 tiles  |  Pierce: 2",
-                    "Lv2 — Ice Arrow: freezes enemies hit for 1.2s  |  Pierce: 3",
-                    "Lv3 — Flame Arrow: fire DOT (3 dmg/s for 3s)  |  Dmg: 10  |  Pierce: 4",
-                    "Lv4 — Detects hidden enemies  |  Dmg: 12  |  Range: 7 tiles  |  Pierce: 5",
-                    "Lv5 — Damage: 15  |  Range: 7.5 tiles  |  Pierce: 7",
-                    "Upgrade cost: $350 → $600 → $800 → $1300 → $1700",
-                ],
-            },
-            Zigres: {
-                "role": "Sentinel Summoner",
-                "color": C_PURPLE,
-                "lines": [
-                    "Summons Static, Pulse & Chain Sentinels.",
-                    "Lv1 — Beam dmg: 15  |  Sentinel HP: 70  |  Sent. dmg: 8",
-                    "Lv2 — Beam dmg: 18  |  Sentinel HP: 100  |  Detects hidden",
-                    "Lv3 — Resonance AoE  |  Pulse Sentinel: slow AoE every 3s",
-                    "Lv4 — Beam dmg: 50  |  Sentinel Thorns: reflect damage",
-                    "Lv5 — Death Explosion  |  Chain Sentinel: 3-target lightning",
-                    "Lv6 — COLOSSUS mode + Duck Throw (Sent. HP: 8000)",
-                    "Upgrade cost: $2250 → $3000 → $6000 → $12000 → $24000 → $50000",
-                ],
-            },
-        }
-        if hov_tower_desc and hov_tower_desc in TOWER_FULL_DESC:
-            info = TOWER_FULL_DESC[hov_tower_desc]
-            tp_w, tp_h = 480, 30 + len(info["lines"]) * 22 + 14
-            tp_x = min(mx + 14, SCREEN_W - tp_w - 10)
-            tp_y = max(10, my - tp_h - 10)
-            draw_rect_alpha(surf, (16, 20, 34), (tp_x, tp_y, tp_w, tp_h), 240, brad=10)
-            pygame.draw.rect(surf, info["color"], (tp_x, tp_y, tp_w, tp_h), 2, border_radius=10)
-            role_f = pygame.font.SysFont("consolas", 14, bold=True)
-            txt(surf, f"{hov_tower_desc.NAME}  —  {info['role']}",
-                (tp_x + 12, tp_y + 7), info["color"], role_f)
-            for li2, line2 in enumerate(info["lines"]):
-                txt(surf, line2, (tp_x + 12, tp_y + 28 + li2 * 22),
-                    (180, 190, 210), font_sm)
+            draw_rect_alpha(surf, bg3, r3, 240, brad=12)
+            pygame.draw.rect(surf, brd3, r3, brd_w, border_radius=12)
 
-        self._draw_button(self.btn_lo_back, "← BACK", (30, 34, 56), C_WHITE, font_md,
-                          border=(60, 70, 110))
-        # Save button — glowing green
-        sv = self.btn_lo_save
-        glow_s = pygame.Surface((sv.w + 20, sv.h + 20), pygame.SRCALPHA)
-        pygame.draw.rect(glow_s, (30, 200, 80, 35), (0, 0, sv.w + 20, sv.h + 20), border_radius=14)
-        surf.blit(glow_s, (sv.x - 10, sv.y - 10))
-        self._draw_button(sv, "✔  SAVE LOADOUT", (22, 110, 55), C_WHITE, font_xl,
-                          border=(60, 230, 110))
+            # slot number badge top-left
+            nb_r = pygame.Rect(r3.x + 6, r3.y + 6, 22, 18)
+            nb_col = tuple(min(255, int(c * 0.5)) for c in brd3) if T3 else (30, 38, 62)
+            draw_rect_alpha(surf, nb_col, nb_r, 200, brad=4)
+            nf3 = pygame.font.SysFont("consolas", 11, bold=True)
+            txt(surf, str(i + 1), nb_r.center, C_WHITE, nf3, center=True)
+
+            if T3:
+                self._draw_tower_icon(surf, T3, r3.centerx, r3.centery - 16, 26)
+                nf4 = pygame.font.SysFont("consolas", 12, bold=True)
+                txt(surf, T3.NAME, (r3.centerx, r3.bottom - 36), C_WHITE, nf4, center=True)
+                cf4 = pygame.font.SysFont("consolas", 11)
+                txt(surf, f"${T3.PLACE_COST}", (r3.centerx, r3.bottom - 20), C_GOLD, cf4, center=True)
+                if is_hov3:
+                    ov3 = pygame.Surface((r3.w, r3.h), pygame.SRCALPHA)
+                    pygame.draw.rect(ov3, (180, 30, 30, 70), (0, 0, r3.w, r3.h), border_radius=12)
+                    surf.blit(ov3, r3.topleft)
+                    rf3 = pygame.font.SysFont("consolas", 11, bold=True)
+                    txt(surf, "CLICK TO REMOVE", (r3.centerx, r3.y + 14),
+                        (240, 80, 80), rf3, center=True)
+            else:
+                ef = pygame.font.SysFont("consolas", 26, bold=True)
+                txt(surf, "+", (r3.centerx, r3.centery - 8), (40, 52, 85), ef, center=True)
+                ef2 = pygame.font.SysFont("consolas", 10)
+                txt(surf, "EMPTY", (r3.centerx, r3.bottom - 22), (45, 58, 88), ef2, center=True)
+
+        # ─── NAV BUTTONS ──────────────────────────────────────────────────────
+        self._draw_button(self.btn_lo_back, "← BACK",
+                          (22, 28, 48), C_WHITE, font_md, border=(55, 68, 105))
+        sv2 = self.btn_lo_save
+        sv2_hov = sv2.collidepoint(mx, my)
+        sv2_bg = (20, 115, 58) if sv2_hov else (16, 90, 45)
+        draw_rect_alpha(surf, sv2_bg, sv2, 245, brad=10)
+        pygame.draw.rect(surf, (55, 220, 105), sv2, 2, border_radius=10)
+        sf3 = pygame.font.SysFont("consolas", 15, bold=True)
+        txt(surf, "SAVE LOADOUT", sv2.center, (90, 240, 140), sf3, center=True)
+
 
     # ── SANDBOX SCREEN ─────────────────────────────────────────────────────────
     def _build_sandbox_rects(self):
@@ -5839,18 +5913,28 @@ class Lobby:
             elif self.btn_lo_save.collidepoint(pos):
                 self.state = "main"
             else:
-                # Click on palette → fill next empty slot (max 1 per type)
+                # Click on tower list row → select for detail panel
                 for i, r in enumerate(self.palette_rects):
                     if r.collidepoint(pos):
-                        TType = self.all_towers[i]
-                        # Only add if not already in loadout
-                        if TType in self.loadout:
-                            break
-                        for si in range(5):
-                            if self.loadout[si] is None:
-                                self.loadout[si] = TType
-                                break
-                # Click on loadout slot → clear it
+                        self._lo_selected_tower = self.all_towers[i]
+                        break
+
+                # Click ADD/REMOVE button in detail panel
+                if hasattr(self, '_lo_btn_add') and self._lo_btn_add.collidepoint(pos):
+                    T = self._lo_selected_tower
+                    if T is not None:
+                        if T in self.loadout:
+                            for si in range(5):
+                                if self.loadout[si] is T:
+                                    self.loadout[si] = None
+                                    break
+                        else:
+                            for si in range(5):
+                                if self.loadout[si] is None:
+                                    self.loadout[si] = T
+                                    break
+
+                # Click on deck slot → clear it
                 for i, r in enumerate(self.loadout_slot_rects):
                     if r.collidepoint(pos) and self.loadout[i] is not None:
                         self.loadout[i] = None
@@ -6012,9 +6096,7 @@ class Game:
                    BreakerEnemy, ArmoredEnemy, SlowBoss, HiddenBoss, Necromancer, GraveDigger,
                    MirrorShield, ShadowStepper, VoltCrawler, IronMaiden, TimeBender,
                    GlassEnemy, SteelGolem, RegeneratorEnemy, PhantomBoss,
-                   SwarmBoss, AbyssLord, BlobEnemy, PaperEnemy, ZombieEnemy, BabyDragonEnemy,
-                   HellHound, AbyssalSpawn, BrimstoneGolem, SoulReaper, DemonKnight,
-                   InfernoWyrm, CursedWitch, AshWraith, DoomBringer, HellGateKeeper]
+                   SwarmBoss, AbyssLord, BlobEnemy, PaperEnemy, ZombieEnemy, BabyDragonEnemy]
         for cls in classes:
             orig = cls.__init__
             self._orig_enemy_inits[cls] = orig
@@ -6422,6 +6504,8 @@ class Game:
         dead_reached=[]
         for e in self.enemies:
             if e.alive and e.update(dt): dead_reached.append(e)
+            if e.alive and getattr(e, '_shadow_marked', 0) > 0:
+                e._shadow_marked = max(0.0, e._shadow_marked - dt)
         for e in dead_reached:
             self.player_hp=max(0,self.player_hp-max(1,int(e.hp))); e.alive=False
         if dead_reached: self._defeat_this_frame=True
