@@ -431,6 +431,18 @@ MAX_WAVES   = 20
 # ── Changelog ─────────────────────────────────────────────────────────────────
 CHANGELOG = [
     {
+        "version": "v2.2",
+        "date": "28 Apr 2026",
+        "title": "Gunner Visual Rework + Price Increase",
+        "entries": [
+            ("CHANGE", C_GOLD,   "[v2.2] Gunner: полностью новый дизайн — стальной sci-fi, двойной ствол, синие энергоузлы"),
+            ("CHANGE", C_GOLD,   "[v2.2] Gunner: цвет башни изменён с оранжево-золотого на стальной синий"),
+            ("CHANGE", C_GOLD,   "[v2.2] Gunner: трассер пуль теперь синий вместо жёлтого"),
+            ("CHANGE", C_GOLD,   "[v2.2] Gunner: PLACE_COST 600 → 900 монет"),
+            ("CHANGE", C_GOLD,   "[v2.2] Gunner: Shop price 600 → 1200 shop-монет"),
+        ],
+    },
+    {
         "version": "v2.1",
         "date": "28 Apr 2026",
         "title": "Hidden Detection Rework + Gunner Nerf + Console Fix",
@@ -4786,7 +4798,7 @@ class Zigres(Unit):
 
 # ── Gunner ─────────────────────────────────────────────────────────────────────
 # Простая пушечная башня — доступна только через Shop за монеты
-C_GUNNER = (220, 140, 40)   # оранжево-золотой
+C_GUNNER = (80, 160, 220)    # стальной синий (премиальный)
 
 GUNNER_LEVELS = [
     {"dmg": 14, "fr": 0.92,  "rng": 5.5, "cost": None},   # 0 base  (нерф: 18→14, fr 0.85→0.92)
@@ -4796,10 +4808,10 @@ GUNNER_LEVELS = [
     {"dmg": 62, "fr": 0.46,  "rng": 7.5, "cost": 5000},   # 4  max  (нерф: 80→62)
 ]
 
-GUNNER_SHOP_PRICE = 600   # цена покупки в Shop за shop_coins
+GUNNER_SHOP_PRICE = 1200   # цена покупки в Shop за shop_coins
 
 class Gunner(Unit):
-    PLACE_COST = 600
+    PLACE_COST = 900
     COLOR = C_GUNNER
     NAME = "Gunner"
     hidden_detection = False
@@ -4852,61 +4864,265 @@ class Gunner(Unit):
     def draw(self, surf):
         cx, cy = int(self.px), int(self.py)
         t = self._anim_t
-
-        # shadow
-        pygame.draw.ellipse(surf, (20, 12, 5), (cx - 24, cy + 20, 48, 14))
-
-        # base platform
-        pygame.draw.ellipse(surf, (60, 40, 15), (cx - 26, cy + 10, 52, 18))
-        pygame.draw.ellipse(surf, (90, 65, 25), (cx - 24, cy + 10, 48, 14))
-
-        # rotating turret base
-        pygame.draw.circle(surf, (50, 35, 12), (cx, cy), 28)
-        pygame.draw.circle(surf, (110, 80, 30), (cx, cy), 24)
-        # rivets
-        for i in range(6):
-            a = math.radians(i * 60 + t * 20)
-            rx = cx + int(math.cos(a) * 20)
-            ry = cy + int(math.sin(a) * 20)
-            pygame.draw.circle(surf, (160, 120, 50), (rx, ry), 3)
-            pygame.draw.circle(surf, (200, 170, 80), (rx, ry), 1)
-
-        # barrel (rotates toward last target)
         ang_r = math.radians(self._barrel_angle)
-        barrel_len = 28
-        barrel_end_x = cx + int(math.cos(ang_r) * barrel_len)
-        barrel_end_y = cy + int(math.sin(ang_r) * barrel_len)
-        perp_x = -math.sin(ang_r) * 5
-        perp_y =  math.cos(ang_r) * 5
-        pts = [
-            (cx + int(perp_x * 1.6), cy + int(perp_y * 1.6)),
-            (cx - int(perp_x * 1.6), cy - int(perp_y * 1.6)),
-            (barrel_end_x - int(perp_x), barrel_end_y - int(perp_y)),
-            (barrel_end_x + int(perp_x), barrel_end_y + int(perp_y)),
-        ]
-        pygame.draw.polygon(surf, (70, 50, 18), pts)
-        pygame.draw.polygon(surf, (140, 105, 45), pts, 2)
-        # barrel ring
-        mid_x = cx + int(math.cos(ang_r) * 14)
-        mid_y = cy + int(math.sin(ang_r) * 14)
-        pygame.draw.circle(surf, (160, 120, 50), (mid_x, mid_y), 6)
-        pygame.draw.circle(surf, (200, 160, 70), (mid_x, mid_y), 4)
+        lv = self.level
 
-        # muzzle flash
+        # ── shadow ────────────────────────────────────────────────────────────
+        pygame.draw.ellipse(surf, (5, 8, 18), (cx - 26, cy + 18, 52, 16))
+
+        # ── armoured base platform (hexagonal look via thick ellipse) ────────
+        pygame.draw.ellipse(surf, (18, 24, 38), (cx - 28, cy + 8, 56, 20))
+        pygame.draw.ellipse(surf, (35, 50, 75), (cx - 25, cy + 9, 50, 16))
+        pygame.draw.ellipse(surf, (55, 80, 120), (cx - 22, cy + 11, 44, 10))
+
+        # ── outer ring – dark steel with blue edge ────────────────────────────
+        pygame.draw.circle(surf, (20, 28, 44), (cx, cy), 30)
+        pygame.draw.circle(surf, (38, 58, 90), (cx, cy), 27)
+
+        # ── armour panels (6 wedges via arc-like segments) ───────────────────
+        for i in range(6):
+            a0 = math.radians(i * 60 + t * 15)
+            a1 = math.radians(i * 60 + 38 + t * 15)
+            pts_panel = [(cx, cy)]
+            for step in range(5):
+                aa = a0 + (a1 - a0) * step / 4
+                pts_panel.append((cx + int(math.cos(aa) * 25),
+                                  cy + int(math.sin(aa) * 25)))
+            col = (48, 70, 105) if i % 2 == 0 else (30, 45, 72)
+            pygame.draw.polygon(surf, col, pts_panel)
+
+        # ── inner ring border ─────────────────────────────────────────────────
+        pygame.draw.circle(surf, (60, 100, 160), (cx, cy), 25, 2)
+
+        # ── energy nodes at panel edges (Color scales with level) ─────────────
+        node_col = (20, 60, 110)
+        node_glow = (80, 180, 255)
+        if lv >= 3:
+            node_col = (40, 120, 200)
+            node_glow = (120, 220, 255)
+        if lv == 4:
+            node_col = (140, 40, 200)
+            node_glow = (220, 100, 255)
+
+        for i in range(6):
+            a = math.radians(i * 60 + t * 15)
+            nx = cx + int(math.cos(a) * 22)
+            ny = cy + int(math.sin(a) * 22)
+            pygame.draw.circle(surf, node_col, (nx, ny), 4 + (1 if lv>=4 else 0))
+            pygame.draw.circle(surf, node_glow, (nx, ny), 2 + (1 if lv>=4 else 0))
+
+        # ── Barrels (length and style scale with level) ───────────────────────
+        perp_x = -math.sin(ang_r)
+        perp_y =  math.cos(ang_r)
+        barrel_len = 34 + lv * 2  
+
+        # Level 4 gets quad barrels
+        offsets = (-6.0, -2.0, 2.0, 6.0) if lv == 4 else (-3.5, 3.5)
+
+        for offset in offsets:
+            bx0 = cx + int(perp_x * offset)
+            by0 = cy + int(perp_y * offset)
+            
+            # Outer barrels (for quad) are slightly shorter
+            is_main_barrel = abs(offset) < 4.0
+            blen = barrel_len if is_main_barrel else barrel_len - 6
+            bx1 = bx0 + int(math.cos(ang_r) * blen)
+            by1 = by0 + int(math.sin(ang_r) * blen)
+            w = 4 if is_main_barrel else 3
+
+            pts = [
+                (bx0 + int(perp_x * w), by0 + int(perp_y * w)),
+                (bx0 - int(perp_x * w), by0 - int(perp_y * w)),
+                (bx1 - int(perp_x * (w - 1)), by1 - int(perp_y * (w - 1))),
+                (bx1 + int(perp_x * (w - 1)), by1 + int(perp_y * (w - 1))),
+            ]
+            
+            bcol = (22, 32, 52)
+            b_edge = (100, 160, 220) if (lv >= 3 and is_main_barrel) else (70, 120, 190)
+
+            pygame.draw.polygon(surf, bcol, pts)
+            pygame.draw.polygon(surf, b_edge, pts, 2)
+
+            # Lv3+ Thicker base sleeve for main barrels
+            if lv >= 3 and is_main_barrel:
+                slen = 16
+                sx1 = bx0 + int(math.cos(ang_r) * slen)
+                sy1 = by0 + int(math.sin(ang_r) * slen)
+                sw = w + 2
+                spts = [
+                    (bx0 + int(perp_x * sw), by0 + int(perp_y * sw)),
+                    (bx0 - int(perp_x * sw), by0 - int(perp_y * sw)),
+                    (sx1 - int(perp_x * sw), sy1 - int(perp_y * sw)),
+                    (sx1 + int(perp_x * sw), sy1 + int(perp_y * sw)),
+                ]
+                pygame.draw.polygon(surf, (40, 50, 70), spts)
+                pygame.draw.polygon(surf, (90, 140, 200), spts, 2)
+
+            # barrel tip ring
+            pygame.draw.circle(surf, (40, 80, 140), (bx1, by1), w)
+            pygame.draw.circle(surf, (100, 180, 255) if lv < 4 else (180, 100, 255), (bx1, by1), max(1, w-2))
+
+        # barrel centre bridge ring
+        mid_x = cx + int(math.cos(ang_r) * 16)
+        mid_y = cy + int(math.sin(ang_r) * 16)
+        pygame.draw.circle(surf, (30, 55, 90), (mid_x, mid_y), 7 + (1 if lv>=4 else 0))
+        pygame.draw.circle(surf, (80, 150, 230) if lv < 4 else (140, 80, 220), (mid_x, mid_y), 4 + (1 if lv>=4 else 0))
+        pygame.draw.circle(surf, (160, 220, 255) if lv < 4 else (220, 160, 255), (mid_x, mid_y), 2)
+
+        # ── muzzle flash ──────────────────────────────────────────────────────
         if self._muzzle_flash > 0:
             frac = self._muzzle_flash / 0.18
-            fs = pygame.Surface((50, 50), pygame.SRCALPHA)
-            pygame.draw.circle(fs, (255, 220, 80, int(200 * frac)), (25, 25), int(10 * frac + 4))
-            pygame.draw.circle(fs, (255, 255, 180, int(255 * frac)), (25, 25), int(5 * frac + 2))
-            surf.blit(fs, (barrel_end_x - 25, barrel_end_y - 25))
+            fs = pygame.Surface((60, 60), pygame.SRCALPHA)
+            m_col1 = (100, 180, 255, int(180 * frac)) if lv < 4 else (180, 100, 255, int(180 * frac))
+            m_col2 = (200, 235, 255, int(255 * frac)) if lv < 4 else (240, 200, 255, int(255 * frac))
+            pygame.draw.circle(fs, m_col1, (30, 30), int(12 * frac + 4))
+            pygame.draw.circle(fs, m_col2, (30, 30), int(6 * frac + 2))
+            for offset in offsets:
+                blen = barrel_len if abs(offset) < 4.0 else barrel_len - 6
+                flash_x = cx + int(math.cos(ang_r) * blen) + int(perp_x * offset)
+                flash_y = cy + int(math.sin(ang_r) * blen) + int(perp_y * offset)
+                surf.blit(fs, (flash_x - 30, flash_y - 30))
 
-        # turret top dome
-        pygame.draw.circle(surf, (90, 65, 25), (cx, cy), 14)
-        pygame.draw.circle(surf, (200, 160, 70), (cx - 4, cy - 4), 6)
+        # ── turret dome ───────────────────────────────────────────────────────
+        dome_r = 16 + (1 if lv>=3 else 0)
+        pygame.draw.circle(surf, (25, 38, 62), (cx, cy), dome_r)
+        pygame.draw.circle(surf, (50, 90, 150), (cx, cy), dome_r - 3)
+        pygame.draw.circle(surf, (80, 140, 210), (cx, cy), dome_r - 6)
 
-        # level pips
+        # ── Level Details on Dome ─────────────────────────────────────────────
+        fw_x = math.cos(ang_r); fw_y = math.sin(ang_r)
+        
+        if lv >= 1:
+            # Armored Stripe
+            stripe_col = (120, 180, 240)
+            pygame.draw.line(surf, stripe_col, 
+                             (cx - int(fw_x * 8), cy - int(fw_y * 8)),
+                             (cx + int(fw_x * 8), cy + int(fw_y * 8)), 4)
+                             
+        if lv >= 2:
+            # Side sensors / radars
+            for sign in (-1, 1):
+                sens_x = cx + int(perp_x * sign * 12)
+                sens_y = cy + int(perp_y * sign * 12)
+                pygame.draw.circle(surf, (40, 60, 90), (sens_x, sens_y), 5)
+                pygame.draw.circle(surf, (150, 200, 255), (sens_x, sens_y), 2)
+                
+        if lv >= 3:
+            # Rear energy vents
+            vent_x = cx - int(fw_x * 12)
+            vent_y = cy - int(fw_y * 12)
+            pygame.draw.circle(surf, (20, 80, 140), (vent_x, vent_y), 6)
+            pygame.draw.circle(surf, (100, 220, 255), (vent_x, vent_y), 3)
+            # Glow
+            glow_s = pygame.Surface((20, 20), pygame.SRCALPHA)
+            pygame.draw.circle(glow_s, (80, 200, 255, 100), (10, 10), 8)
+            surf.blit(glow_s, (vent_x - 10, vent_y - 10))
+
+        if lv == 4:
+            # Max level plasma core
+            core_pulse = int(abs(math.sin(t * 8)) * 3)
+            pygame.draw.circle(surf, (40, 20, 80), (cx, cy), 10)
+            pygame.draw.circle(surf, (160, 60, 255), (cx, cy), 8 + core_pulse // 2)
+            pygame.draw.circle(surf, (220, 160, 255), (cx, cy), 5)
+            pygame.draw.circle(surf, (255, 255, 255), (cx, cy), 2)
+            
+            cg_s = pygame.Surface((40, 40), pygame.SRCALPHA)
+            pygame.draw.circle(cg_s, (180, 80, 255, 80), (20, 20), 16 + core_pulse)
+            surf.blit(cg_s, (cx - 20, cy - 20))
+        else:
+            # glint (if not max level)
+            pygame.draw.circle(surf, (180, 220, 255), (cx - 4, cy - 4), 4)
+            pygame.draw.circle(surf, (240, 250, 255), (cx - 5, cy - 5), 2)
+
+        # ── level pips ────────────────────────────────────────────────────────
+        pip_col1 = (60, 140, 220) if lv < 4 else (140, 60, 220)
+        pip_col2 = (180, 220, 255) if lv < 4 else (220, 180, 255)
         for i in range(self.level):
-            pygame.draw.circle(surf, C_GOLD, (cx - 8 + i * 7, cy + 30), 3)
+            px2 = cx - 10 + i * 7
+            py2 = cy + 33 + (2 if lv >= 3 else 0)
+            pygame.draw.polygon(surf, pip_col1,
+                [(px2, py2 - 4), (px2 + 3, py2), (px2, py2 + 4), (px2 - 3, py2)])
+            pygame.draw.polygon(surf, pip_col2,
+                [(px2, py2 - 4), (px2 + 3, py2), (px2, py2 + 4), (px2 - 3, py2)], 1)
+
+    def get_info(self):
+        return {"Damage": self.damage, "Range": self.range_tiles,
+                "Firerate": f"{self.firerate:.2f}"}
+
+    def get_next_info(self):
+        nl = self.level + 1
+        if nl >= len(GUNNER_LEVELS): return None
+        cfg = GUNNER_LEVELS[nl]
+        return {"Damage": cfg["dmg"], "Range": cfg["rng"],
+                "Firerate": f"{cfg['fr']:.2f}"}
+
+        # ── inner ring border ─────────────────────────────────────────────────
+        pygame.draw.circle(surf, (60, 100, 160), (cx, cy), 25, 2)
+
+        # ── blue energy nodes at panel edges ─────────────────────────────────
+        for i in range(6):
+            a = math.radians(i * 60 + t * 15)
+            nx = cx + int(math.cos(a) * 22)
+            ny = cy + int(math.sin(a) * 22)
+            pygame.draw.circle(surf, (20, 60, 110), (nx, ny), 4)
+            pygame.draw.circle(surf, (80, 180, 255), (nx, ny), 2)
+
+        # ── double barrel (twin guns offset perpendicularly) ──────────────────
+        perp_x = -math.sin(ang_r)
+        perp_y =  math.cos(ang_r)
+        barrel_len = 34
+        for offset in (-3.5, 3.5):
+            bx0 = cx + int(perp_x * offset)
+            by0 = cy + int(perp_y * offset)
+            bx1 = bx0 + int(math.cos(ang_r) * barrel_len)
+            by1 = by0 + int(math.sin(ang_r) * barrel_len)
+            w = 4
+            pts = [
+                (bx0 + int(perp_x * w), by0 + int(perp_y * w)),
+                (bx0 - int(perp_x * w), by0 - int(perp_y * w)),
+                (bx1 - int(perp_x * (w - 1)), by1 - int(perp_y * (w - 1))),
+                (bx1 + int(perp_x * (w - 1)), by1 + int(perp_y * (w - 1))),
+            ]
+            pygame.draw.polygon(surf, (22, 32, 52), pts)
+            pygame.draw.polygon(surf, (70, 120, 190), pts, 2)
+            # barrel tip ring
+            pygame.draw.circle(surf, (40, 80, 140), (bx1, by1), 4)
+            pygame.draw.circle(surf, (100, 180, 255), (bx1, by1), 2)
+
+        # barrel centre bridge ring
+        mid_x = cx + int(math.cos(ang_r) * 16)
+        mid_y = cy + int(math.sin(ang_r) * 16)
+        pygame.draw.circle(surf, (30, 55, 90), (mid_x, mid_y), 7)
+        pygame.draw.circle(surf, (80, 150, 230), (mid_x, mid_y), 4)
+        pygame.draw.circle(surf, (160, 220, 255), (mid_x, mid_y), 2)
+
+        # ── muzzle flash (blue-white) ─────────────────────────────────────────
+        if self._muzzle_flash > 0:
+            frac = self._muzzle_flash / 0.18
+            fs = pygame.Surface((60, 60), pygame.SRCALPHA)
+            pygame.draw.circle(fs, (100, 180, 255, int(180 * frac)), (30, 30), int(12 * frac + 4))
+            pygame.draw.circle(fs, (200, 235, 255, int(255 * frac)), (30, 30), int(6 * frac + 2))
+            for offset in (-3.5, 3.5):
+                flash_x = cx + int(math.cos(ang_r) * barrel_len) + int(perp_x * offset)
+                flash_y = cy + int(math.sin(ang_r) * barrel_len) + int(perp_y * offset)
+                surf.blit(fs, (flash_x - 30, flash_y - 30))
+
+        # ── turret dome – dark glossy ─────────────────────────────────────────
+        pygame.draw.circle(surf, (25, 38, 62), (cx, cy), 16)
+        pygame.draw.circle(surf, (50, 90, 150), (cx, cy), 13)
+        pygame.draw.circle(surf, (80, 140, 210), (cx, cy), 10)
+        # glint
+        pygame.draw.circle(surf, (180, 220, 255), (cx - 4, cy - 4), 4)
+        pygame.draw.circle(surf, (240, 250, 255), (cx - 5, cy - 5), 2)
+
+        # ── level pips (blue diamonds) ────────────────────────────────────────
+        for i in range(self.level):
+            px2 = cx - 10 + i * 7
+            py2 = cy + 33
+            pygame.draw.polygon(surf, (60, 140, 220),
+                [(px2, py2 - 4), (px2 + 3, py2), (px2, py2 + 4), (px2 - 3, py2)])
+            pygame.draw.polygon(surf, (180, 220, 255),
+                [(px2, py2 - 4), (px2 + 3, py2), (px2, py2 + 4), (px2 - 3, py2)], 1)
 
     def get_info(self):
         return {"Damage": self.damage, "Range": self.range_tiles,
@@ -4934,9 +5150,9 @@ class GunnerBulletEffect:
         frac = 1.0 - self.t / self.life
         a = int(200 * frac)
         s = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-        pygame.draw.line(s, (255, 220, 80, a), (int(self.ox), int(self.oy)),
+        pygame.draw.line(s, (80, 180, 255, a), (int(self.ox), int(self.oy)),
                          (int(self.tx), int(self.ty)), 3)
-        pygame.draw.line(s, (255, 255, 200, min(255, a + 55)), (int(self.ox), int(self.oy)),
+        pygame.draw.line(s, (200, 235, 255, min(255, a + 55)), (int(self.ox), int(self.oy)),
                          (int(self.tx), int(self.ty)), 1)
         surf.blit(s, (0, 0))
 
@@ -5841,7 +6057,7 @@ class ClownBossArena:
       - Паттерны атак меняются на каждой фазе
     """
 
-    BOSS_MAX_HP   = 2400
+    BOSS_MAX_HP   = 3000
     PLAYER_LIVES  = 5
     BOSS_RADIUS   = 52
     DMG_PER_CLICK = 45
@@ -7091,6 +7307,19 @@ class Lobby:
         self.state = "main"          # "main" | "difficulty" | "loadout" | "changelog" | "sandbox"
         self.selected_difficulty = None
         self.anim_t = 0.0
+        
+        # ── Загрузка кастомного фона ───────────────────────────────────
+        theme_path = os.path.join(ASSETS_DIR, "Lobby_theme.png")
+        try:
+            self.bg_image = pygame.image.load(theme_path).convert()
+            self.bg_image = pygame.transform.smoothscale(self.bg_image, (SCREEN_W, SCREEN_H))
+        except Exception as e:
+            print(f"[lobby] failed to load Lobby_theme.png: {e}")
+            self.bg_image = None
+        # ───────────────────────────────────────────────────────────────
+
+        self._changelog_scroll = 0   # pixel scroll offset for changelog
+        # ... остальной код __init__ ...
         self._changelog_scroll = 0   # pixel scroll offset for changelog
         self._changelog_open_idx = None  # index of expanded entry (None = all collapsed)
         self._sandbox_cfg = {        # sandbox configuration
@@ -7109,7 +7338,127 @@ class Lobby:
         self.drag_tower = None
         self.drag_from_slot = None
 
+        # ── Частицы главного меню ─────────────────────────────────────────
+        self._menu_particles = []
+        self._mp_spawn_timer = 0.0
+        # Предзаполняем сцену частицами
+        for _ in range(120):
+            self._spawn_menu_particle(preplace=True)
+        # ─────────────────────────────────────────────────────────────────
+
         self._build_rects()
+
+    # ── Частицы главного меню ────────────────────────────────────────────────
+    def _spawn_menu_particle(self, preplace=False):
+        """Создаём красивую частицу, которая плавно улетает к центру или от него."""
+        # Цветовые темы: синие, фиолетовые, голубые, белые — сочетаются с любым тёмным фоном
+        palettes = [
+            (100, 140, 255),   # синий
+            (140, 100, 255),   # фиолетовый
+            (80,  200, 255),   # голубой
+            (200, 140, 255),   # лавандовый
+            (255, 255, 255),   # белый
+            (60,  220, 200),   # бирюзовый
+            (255, 180, 100),   # золотой
+        ]
+        col = random.choice(palettes)
+
+        # Частицы рождаются по краям экрана
+        edge = random.randint(0, 3)
+        if edge == 0:   x, y = random.uniform(0, SCREEN_W), -8.0
+        elif edge == 1: x, y = random.uniform(0, SCREEN_W), SCREEN_H + 8.0
+        elif edge == 2: x, y = -8.0,           random.uniform(0, SCREEN_H)
+        else:           x, y = SCREEN_W + 8.0, random.uniform(0, SCREEN_H)
+
+        # Если preplace — ставим в случайное место экрана
+        if preplace:
+            x = random.uniform(0, SCREEN_W)
+            y = random.uniform(0, SCREEN_H)
+
+        # Частица медленно дрейфует к центру с лёгким случайным отклонением
+        cx2 = SCREEN_W / 2 + random.uniform(-180, 180)
+        cy2 = SCREEN_H / 2 + random.uniform(-180, 180)
+        dx = cx2 - x
+        dy = cy2 - y
+        dist_val = max(1, math.hypot(dx, dy))
+        speed = random.uniform(18, 55)
+        vx = dx / dist_val * speed + random.uniform(-8, 8)
+        vy = dy / dist_val * speed + random.uniform(-8, 8)
+
+        size   = random.uniform(1.2, 4.5)
+        alpha  = random.uniform(60, 210)
+        life   = random.uniform(4.0, 14.0)
+        max_life = life
+        twinkle_speed = random.uniform(1.5, 4.0)
+        twinkle_phase = random.uniform(0, math.pi * 2)
+        glow   = random.random() < 0.18   # 18% частиц имеют свечение
+
+        self._menu_particles.append({
+            'x': x, 'y': y, 'vx': vx, 'vy': vy,
+            'size': size, 'col': col,
+            'alpha': alpha, 'life': life, 'max_life': max_life,
+            'twinkle_speed': twinkle_speed, 'twinkle_phase': twinkle_phase,
+            'glow': glow,
+        })
+
+    def _update_menu_particles(self, dt):
+        self._mp_spawn_timer += dt
+        # Спавним 3-5 частиц в секунду
+        while self._mp_spawn_timer > 0.22:
+            self._mp_spawn_timer -= 0.22
+            self._spawn_menu_particle()
+
+        live = []
+        for p in self._menu_particles:
+            p['life'] -= dt
+            if p['life'] <= 0:
+                continue
+            p['x'] += p['vx'] * dt
+            p['y'] += p['vy'] * dt
+            # Лёгкое притяжение к центру
+            dx = SCREEN_W / 2 - p['x']
+            dy = SCREEN_H / 2 - p['y']
+            d = max(1, math.hypot(dx, dy))
+            p['vx'] += dx / d * 4 * dt
+            p['vy'] += dy / d * 4 * dt
+            # Затухание у концов жизни
+            fade = min(1.0, p['life'] / 1.2, (p['max_life'] - p['life']) / 0.6)
+            p['_fade'] = fade
+            live.append(p)
+        self._menu_particles = live
+
+        # Поддерживаем минимум 80 частиц
+        while len(self._menu_particles) < 80:
+            self._spawn_menu_particle(preplace=True)
+
+    def _draw_menu_particles(self, surf):
+        t = self.anim_t
+        for p in self._menu_particles:
+            fade = p.get('_fade', 1.0)
+            twinkle = 0.6 + 0.4 * math.sin(t * p['twinkle_speed'] + p['twinkle_phase'])
+            a = int(p['alpha'] * fade * twinkle)
+            if a <= 0:
+                continue
+            a = min(255, a)
+            col = p['col']
+            ix, iy = int(p['x']), int(p['y'])
+            sz = p['size']
+
+            if p['glow']:
+                # Мягкое свечение: рисуем несколько концентрических кругов
+                for gi, (gr, ga_mul) in enumerate([(sz*4, 0.10), (sz*2.5, 0.22), (sz*1.5, 0.50), (sz, 1.0)]):
+                    ga = int(a * ga_mul)
+                    if ga <= 0:
+                        continue
+                    gs2 = pygame.Surface((int(gr*2)+2, int(gr*2)+2), pygame.SRCALPHA)
+                    pygame.draw.circle(gs2, (*col, ga), (int(gr)+1, int(gr)+1), max(1, int(gr)))
+                    surf.blit(gs2, (ix - int(gr) - 1, iy - int(gr) - 1), special_flags=pygame.BLEND_RGBA_ADD)
+            else:
+                # Обычная частица: маленький светлый кружок
+                ps2 = pygame.Surface((int(sz*2)+2, int(sz*2)+2), pygame.SRCALPHA)
+                pygame.draw.circle(ps2, (*col, a), (int(sz)+1, int(sz)+1), max(1, int(sz)))
+                surf.blit(ps2, (ix - int(sz) - 1, iy - int(sz) - 1), special_flags=pygame.BLEND_RGBA_ADD)
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _build_rects(self):
         cx = SCREEN_W // 2
@@ -7186,6 +7535,22 @@ class Lobby:
 
     def _draw_bg(self):
         surf = self.screen
+        
+        # Если картинка загрузилась — рисуем её
+        if hasattr(self, 'bg_image') and self.bg_image:
+            surf.blit(self.bg_image, (0, 0))
+            
+            # Лёгкая виньетка поверх картинки — текст и кнопки лучше читаются
+            sv = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            for r in range(700, 0, -70):
+                a = max(0, int(26*(1-r/700)))
+                pygame.draw.circle(sv, (50,80,200,a), (SCREEN_W//2, SCREEN_H//2), r)
+            surf.blit(sv, (0, 0))
+            # Частицы поверх фона
+            self._draw_menu_particles(surf)
+            return
+
+        # --- Резервный старый фон, если картинки нет ---
         # Deep space gradient background
         draw_rect_gradient(surf, (8,10,22), (14,18,32), (0,0,SCREEN_W,SCREEN_H), alpha=255)
         # Static twinkling stars
@@ -7207,19 +7572,14 @@ class Lobby:
             gs = pygame.Surface((SCREEN_W, 1), pygame.SRCALPHA)
             pygame.draw.line(gs, (255,255,255,7), (0,0), (SCREEN_W,0))
             surf.blit(gs, (0, oy))
-        # Floating colour orbs
-        orb_cols = [(80,100,255),(60,200,180),(180,80,255),(80,160,255),(120,255,160),(200,120,255)]
-        for i in range(6):
-            ang = self.anim_t * 0.28 + i * math.pi / 3
-            ox2 = SCREEN_W//2 + int(math.cos(ang) * (200 + i*55))
-            oy2 = SCREEN_H//2 + int(math.sin(ang * 0.7) * 110)
-            draw_glow_circle(surf, orb_cols[i], (ox2, oy2), 20+i*2, 32)
-        # Central vignette glow
+        # Central vignette glow (кружочки-orbs убраны)
         sv = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         for r in range(700, 0, -70):
             a = max(0, int(26*(1-r/700)))
             pygame.draw.circle(sv, (50,80,200,a), (SCREEN_W//2, SCREEN_H//2), r)
         surf.blit(sv, (0, 0))
+        # Частицы поверх фона
+        self._draw_menu_particles(surf)
 
     def _draw_button(self, rect, label, color, text_color=C_WHITE, font=font_lg,
                      hover=False, border=None, alpha=200):
@@ -8142,9 +8502,9 @@ class Lobby:
             (HellGateKeeper,   "HellKeeper",  (220, 20,  50)),
         ]
         self._sb_enemy_list = ENEMY_LIST
-        ew, eh = 190, 44   # компактные чипы (было 220x68)
-        eg = 8
-        cols = 7           # 7 колонок вместо 5
+        ew, eh = 220, 54   # крупнее для лучшей читаемости
+        eg = 10
+        cols = 6           # 6 колонок — шире карточки
         total_ew = cols * (ew + eg) - eg
         ex0 = SCREEN_W//2 - total_ew//2
         self._sb_enemy_rects = []
@@ -8152,7 +8512,7 @@ class Lobby:
             col_i = i % cols
             row_i = i // cols
             self._sb_enemy_rects.append(
-                pygame.Rect(ex0 + col_i*(ew+eg), 210 + row_i*(eh+7), ew, eh)
+                pygame.Rect(ex0 + col_i*(ew+eg), 210 + row_i*(eh+8), ew, eh)
             )
 
         # How many rows of enemies
@@ -8181,8 +8541,8 @@ class Lobby:
         self._sb_count_rects_plus  = []
         for r2 in self._sb_enemy_rects:
             # Place [-] [count] [+] at right side of compact chip
-            self._sb_count_rects_minus.append(pygame.Rect(r2.right - 58, r2.centery - 9, 18, 18))
-            self._sb_count_rects_plus.append( pygame.Rect(r2.right - 22, r2.centery - 9, 18, 18))
+            self._sb_count_rects_minus.append(pygame.Rect(r2.right - 64, r2.centery - 11, 22, 22))
+            self._sb_count_rects_plus.append( pygame.Rect(r2.right - 24, r2.centery - 11, 22, 22))
 
         # Enemy counts dict
         if not hasattr(self, '_sb_enemy_counts'):
@@ -8241,21 +8601,22 @@ class Lobby:
         txt(surf, "ENEMIES  (click to toggle, +/- to set count)", (SCREEN_W//2, ey_label_y),
             (120,130,160), font_sm, center=True)
 
-        name_f2   = pygame.font.SysFont("consolas", 13, bold=True)
-        hp_f      = pygame.font.SysFont("consolas", 11)
-        spin_f    = pygame.font.SysFont("consolas", 13, bold=True)
-        ICON_R    = 13   # меньший радиус для компактного чипа
+        name_f2   = pygame.font.SysFont("consolas", 15, bold=True)
+        hp_f      = pygame.font.SysFont("consolas", 13)
+        spin_f    = pygame.font.SysFont("consolas", 15, bold=True)
+        ICON_R    = 17   # крупнее иконка
 
         for i, (ecls, ename, ecol) in enumerate(self._sb_enemy_list):
             r = self._sb_enemy_rects[i]
             count  = self._sb_enemy_counts.get(ecls, 0)
             active = count > 0
-            draw_rect_alpha(surf, ecol, r, 55 if active else 18, brad=8)
-            pygame.draw.rect(surf, ecol if active else C_BORDER, r,
+            # Более контрастный фон для активных и неактивных карточек
+            draw_rect_alpha(surf, ecol, r, 75 if active else 28, brad=8)
+            pygame.draw.rect(surf, ecol if active else (70, 80, 100), r,
                              2 if active else 1, border_radius=8)
 
-            # ── Иконка врага (слева, маленькая) ──
-            icon_cx = r.x + ICON_R + 6
+            # ── Иконка врага (слева, крупная) ──
+            icon_cx = r.x + ICON_R + 8
             icon_cy = r.centery
             icon_surf = pygame.Surface((ICON_R*4, ICON_R*4), pygame.SRCALPHA)
             try:
@@ -8282,27 +8643,27 @@ class Lobby:
                 pygame.draw.circle(icon_surf, ecol, (ICON_R*2, ICON_R*2), ICON_R)
             surf.blit(icon_surf, (icon_cx - ICON_R*2, icon_cy - ICON_R*2))
 
-            # ── Имя + HP в одну-две строки ──
-            tx = icon_cx + ICON_R + 6
+            # ── Имя + HP ──
+            tx = icon_cx + ICON_R + 8
             base_hp = ecls.BASE_HP
-            # Область для текста: от tx до спиннеров (r.right - 68)
-            txt(surf, ename, (tx, r.centery - 9),
-                ecol if active else (180, 190, 210), name_f2)
-            txt(surf, f"HP: {base_hp}", (tx, r.centery + 4),
-                (120, 130, 155), hp_f)
+            name_col = (255, 255, 255) if active else (190, 200, 220)
+            txt(surf, ename, (tx, r.centery - 10),
+                name_col, name_f2)
+            txt(surf, f"HP: {base_hp}", (tx, r.centery + 7),
+                (160, 175, 200) if active else (110, 120, 145), hp_f)
 
             # ── Компактный спиннер справа ──
             rm = self._sb_count_rects_minus[i]
             rp = self._sb_count_rects_plus[i]
-            draw_rect_alpha(surf, (60, 15, 15), rm, 210, brad=4)
-            draw_rect_alpha(surf, (15, 60, 15), rp, 210, brad=4)
-            pygame.draw.rect(surf, (180, 50, 50),  rm, 1, border_radius=4)
-            pygame.draw.rect(surf, (50, 180, 50),  rp, 1, border_radius=4)
-            txt(surf, "-", rm.center, (240, 80,  80),  spin_f, center=True)
-            txt(surf, "+", rp.center, (80,  240, 80),  spin_f, center=True)
+            draw_rect_alpha(surf, (80, 15, 15), rm, 230, brad=5)
+            draw_rect_alpha(surf, (15, 80, 15), rp, 230, brad=5)
+            pygame.draw.rect(surf, (220, 60, 60),  rm, 1, border_radius=5)
+            pygame.draw.rect(surf, (60, 220, 60),  rp, 1, border_radius=5)
+            txt(surf, "-", rm.center, (255, 90,  90),  spin_f, center=True)
+            txt(surf, "+", rp.center, (90,  255, 90),  spin_f, center=True)
             cnt_cx = rm.right + (rp.x - rm.right) // 2
             txt(surf, str(count), (cnt_cx, rm.centery),
-                (220, 220, 220), spin_f, center=True)
+                (240, 240, 240) if active else (160, 170, 190), spin_f, center=True)
 
         # ── Section: Towers (loadout) ──
         tow_label_y = self._sb_tower_rects[0].y - 20
@@ -8694,6 +9055,7 @@ class Lobby:
                     }
 
             if self.state == "main":
+                self._update_menu_particles(dt)
                 self._draw_main()
             elif self.state == "difficulty":
                 self._draw_difficulty()
