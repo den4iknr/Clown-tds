@@ -5915,6 +5915,35 @@ class ClownBossArena:
         # Конец боя
         self._end_t = 0.0
 
+        # ── НОВЫЕ СПОСОБНОСТИ ────────────────────────────────────────────────
+        # Зеркальный снаряд (фаза 1+): снаряды отражаются от стен
+        self._mirror_cd = 0.0
+
+        # Карточный бросок (фаза 1+): веер «карт»-снарядов
+        self._card_cd = 0.0
+
+        # Лазерный луч (фаза 2+)
+        self._laser_active = False
+        self._laser_angle  = 0.0
+        self._laser_t      = 0.0     # время активности луча
+        self._laser_cd     = 0.0
+        self._laser_warn_t = 0.0     # предупреждение перед лазером
+        self._laser_warn_angle = 0.0
+
+        # Бомбы-клоуны (фаза 2+)
+        self._bombs        = []      # [{x,y,vx,vy,t,alive}]
+        self._bomb_cd      = 0.0
+
+        # Гравитационный притяг (фаза 3)
+        self._gravity_active = False
+        self._gravity_t    = 0.0
+        self._gravity_cd   = 0.0
+
+        # Финальный взрыв (фаза 3, 1 раз)
+        self._nova_fired   = False
+        self._nova_t       = 0.0    # анимация вспышки
+        self._nova_warn_t  = 0.0    # предупреждение
+
     # ── хелперы фаз ──────────────────────────────────────────────────────────
     @property
     def _hp_frac(self):
@@ -6009,7 +6038,228 @@ class ClownBossArena:
             "color": random.choice(self.PROJ_COLORS),
             "r": r, "alive": True, "t": 0.0,
             "homing": homing,
+            "bounces": 0,   # количество отражений от стен
         })
+
+    # ── Зеркальный снаряд: отражается от стен ────────────────────────────────
+    def _fire_mirror_volley(self, cx, cy):
+        """Пускает снаряды которые отражаются от краёв экрана (до 2 раз)."""
+        bx, by = self._boss_x, self._boss_y
+        ph = self._get_phase()
+        n = {1: 5, 2: 8, 3: 12}[ph]
+        for i in range(n):
+            a = math.pi * 2 * i / n
+            spd = random.uniform(220, 320)
+            p = {
+                "x": bx + math.cos(a)*64, "y": by + math.sin(a)*64,
+                "vx": math.cos(a)*spd, "vy": math.sin(a)*spd,
+                "color": (100, 220, 255),
+                "r": 9, "alive": True, "t": 0.0,
+                "homing": False, "bounces": 2,   # ← будет отражаться 2 раза
+            }
+            self._projectiles.append(p)
+
+    # ── Карточный бросок ─────────────────────────────────────────────────────
+    def _fire_card_throw(self, cx, cy):
+        """Веер «карт»-снарядов (вытянутых ромбов) к курсору."""
+        bx, by = self._boss_x, self._boss_y
+        ph = self._get_phase()
+        base = math.atan2(cy - by, cx - bx)
+        n = {1: 7, 2: 11, 3: 15}[ph]
+        spread = math.pi / 3
+        for i in range(n):
+            a = base - spread/2 + spread * i / max(1, n-1)
+            spd = random.uniform(300, 420)
+            self._projectiles.append({
+                "x": bx + math.cos(a)*60, "y": by + math.sin(a)*60,
+                "vx": math.cos(a)*spd, "vy": math.sin(a)*spd,
+                "color": (255, 215, 50),
+                "r": 8, "alive": True, "t": 0.0,
+                "homing": False, "bounces": 0, "card": True,
+            })
+
+    # ── Лазерный луч ─────────────────────────────────────────────────────────
+    def _update_laser(self, dt, cx, cy):
+        if self._laser_warn_t > 0:
+            self._laser_warn_t -= dt
+            if self._laser_warn_t <= 0:
+                self._laser_active = True
+                self._laser_t = 2.0   # луч активен 2 сек
+        if self._laser_active:
+            self._laser_t -= dt
+            self._laser_angle += (1.8 if self._get_phase() == 3 else 1.2) * dt
+            # проверяем попадание по игроку
+            lx = self._boss_x + math.cos(self._laser_angle) * 2000
+            ly = self._boss_y + math.sin(self._laser_angle) * 2000
+            # точка ближайшая к курсору на луче
+            dx = lx - self._boss_x; dy = ly - self._boss_y
+            dl = math.hypot(dx, dy) or 1
+            t_proj = ((cx - self._boss_x)*dx + (cy - self._boss_y)*dy) / (dl*dl)
+            t_proj = max(0.0, min(1.0, t_proj))
+            closest_x = self._boss_x + t_proj*dx
+            closest_y = self._boss_y + t_proj*dy
+            if math.hypot(cx - closest_x, cy - closest_y) < 18:
+                self._take_damage(cx, cy)
+            if self._laser_t <= 0:
+                self._laser_active = False
+                self._laser_cd = {2: 9.0, 3: 6.0}.get(self._get_phase(), 9.0)
+
+    def _draw_laser(self, surf):
+        # Предупреждение
+        if self._laser_warn_t > 0 and not self._laser_active:
+            frac = 1.0 - self._laser_warn_t / 1.5
+            alpha = int(80 + 100*abs(math.sin(frac*math.pi*6)))
+            end_x = self._boss_x + math.cos(self._laser_warn_angle)*2000
+            end_y = self._boss_y + math.sin(self._laser_warn_angle)*2000
+            warn_s = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            pygame.draw.line(warn_s, (255,80,20,alpha),
+                             (int(self._boss_x), int(self._boss_y)),
+                             (int(end_x), int(end_y)), 8)
+            surf.blit(warn_s, (0,0))
+        # Луч
+        if self._laser_active:
+            end_x = self._boss_x + math.cos(self._laser_angle)*2000
+            end_y = self._boss_y + math.sin(self._laser_angle)*2000
+            ls = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            pygame.draw.line(ls, (255,60,60,160),
+                             (int(self._boss_x), int(self._boss_y)),
+                             (int(end_x), int(end_y)), 22)
+            pygame.draw.line(ls, (255,220,220,220),
+                             (int(self._boss_x), int(self._boss_y)),
+                             (int(end_x), int(end_y)), 6)
+            surf.blit(ls, (0,0))
+
+    # ── Бомбы-клоуны ─────────────────────────────────────────────────────────
+    def _spawn_bombs(self, cx, cy):
+        ph = self._get_phase()
+        n = {2: 3, 3: 5}[ph]
+        for i in range(n):
+            a = math.pi*2*i/n + random.uniform(0, 0.4)
+            r = random.uniform(180, 300)
+            spd = random.uniform(160, 240)
+            dx = cx - (self._boss_x + math.cos(a)*r)
+            dy = cy - (self._boss_y + math.sin(a)*r)
+            dl = math.hypot(dx, dy) or 1
+            self._bombs.append({
+                "x": self._boss_x + math.cos(a)*r,
+                "y": self._boss_y + math.sin(a)*r,
+                "vx": dx/dl*spd, "vy": dy/dl*spd,
+                "alive": True, "t": 0.0,
+            })
+
+    def _update_bombs(self, dt, cx, cy):
+        live = []
+        for b in self._bombs:
+            if not b["alive"]: continue
+            b["t"] += dt
+            b["x"] += b["vx"]*dt; b["y"] += b["vy"]*dt
+            if b["x"] < -80 or b["x"] > SCREEN_W+80 or b["y"] < -80 or b["y"] > SCREEN_H+80:
+                continue
+            if math.hypot(b["x"]-cx, b["y"]-cy) < 24:
+                b["alive"] = False
+                self._take_damage(cx, cy)
+                self._spawn_particles(int(b["x"]), int(b["y"]), (255,160,30), n=20, big=True)
+                continue
+            live.append(b)
+        self._bombs = live
+
+    def _draw_bombs(self, surf):
+        for b in self._bombs:
+            bx, by = int(b["x"]), int(b["y"])
+            pulse = 14 + int(math.sin(b["t"]*12)*4)
+            pygame.draw.circle(surf, (255, 140, 20), (bx, by), pulse)
+            pygame.draw.circle(surf, (255, 255, 80), (bx, by), pulse, 3)
+            # мини-клоунская шляпа
+            hat_pts = [(bx-8, by-pulse), (bx+8, by-pulse),
+                       (bx+5, by-pulse-14), (bx-5, by-pulse-14)]
+            pygame.draw.polygon(surf, (20,20,20), hat_pts)
+            pygame.draw.polygon(surf, (255,80,80), hat_pts, 2)
+            # таймер (через 5 сек взрываются сами)
+            if b["t"] > 3.5:
+                fuse_alpha = int(200 + 55*math.sin(b["t"]*20))
+                fs = pygame.Surface((30,14), pygame.SRCALPHA)
+                ff = pygame.font.SysFont("consolas", 10, bold=True)
+                ft = ff.render("BOOM!", True, (255,50,50,fuse_alpha))
+                surf.blit(ft, (bx-ft.get_width()//2, by-pulse-22))
+
+    # ── Гравитационный притяг (фаза 3) ───────────────────────────────────────
+    def _update_gravity(self, dt, cx, cy):
+        if not self._gravity_active:
+            return cx, cy
+        self._gravity_t -= dt
+        dx = self._boss_x - cx; dy = self._boss_y - cy
+        d = math.hypot(dx, dy) or 1
+        pull = 380 * dt   # пикселей/сек тяги
+        new_cx = cx + dx/d * pull
+        new_cy = cy + dy/d * pull
+        if self._gravity_t <= 0:
+            self._gravity_active = False
+            self._gravity_cd = 10.0
+        return new_cx, new_cy
+
+    def _draw_gravity(self, surf):
+        if not self._gravity_active:
+            return
+        frac = self._gravity_t / 3.0
+        for ring_r in range(80, 320, 60):
+            alpha = int(60 * frac)
+            gs = pygame.Surface((ring_r*2+4, ring_r*2+4), pygame.SRCALPHA)
+            pygame.draw.circle(gs, (180, 80, 255, alpha),
+                               (ring_r+2, ring_r+2), ring_r, 4)
+            surf.blit(gs, (int(self._boss_x)-ring_r-2, int(self._boss_y)-ring_r-2))
+
+    # ── Финальный взрыв (фаза 3, однократно) ─────────────────────────────────
+    def _trigger_nova(self):
+        self._nova_warn_t = 2.0
+        self._nova_t = 0.0
+
+    def _update_nova(self, dt, cx, cy):
+        if self._nova_warn_t > 0:
+            self._nova_warn_t -= dt
+            if self._nova_warn_t <= 0:
+                # Взрыв: урон если далеко от центра (<200px — безопасная зона)
+                d = math.hypot(cx - self._boss_x, cy - self._boss_y)
+                if d > 200:
+                    self._take_damage(cx, cy)
+                self._nova_t = 0.5
+                self._spawn_particles(int(self._boss_x), int(self._boss_y),
+                                      (255, 200, 50), n=80, big=True)
+                # Взрывная волна снарядов
+                for i in range(20):
+                    a = math.pi*2*i/20
+                    self._projectiles.append({
+                        "x": self._boss_x + math.cos(a)*80,
+                        "y": self._boss_y + math.sin(a)*80,
+                        "vx": math.cos(a)*300, "vy": math.sin(a)*300,
+                        "color": (255, 220, 50),
+                        "r": 11, "alive": True, "t": 0.0,
+                        "homing": False, "bounces": 1,
+                    })
+        if self._nova_t > 0:
+            self._nova_t -= dt
+
+    def _draw_nova_warning(self, surf):
+        if self._nova_warn_t <= 0 and self._nova_t <= 0:
+            return
+        if self._nova_warn_t > 0:
+            frac = 1.0 - self._nova_warn_t / 2.0
+            alpha = int(60 + 80*abs(math.sin(frac*math.pi*8)))
+            # безопасная зона
+            safe_s = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            pygame.draw.circle(safe_s, (80, 255, 120, alpha//2),
+                               (int(self._boss_x), int(self._boss_y)), 200)
+            pygame.draw.circle(safe_s, (255, 80, 20, alpha),
+                               (int(self._boss_x), int(self._boss_y)), 200, 4)
+            surf.blit(safe_s, (0,0))
+            nf = pygame.font.SysFont("consolas", 20, bold=True)
+            wt = nf.render("⚠ NOVA — GET CLOSE!", True, (255, 240, 80))
+            wt.set_alpha(alpha+80)
+            surf.blit(wt, (SCREEN_W//2 - wt.get_width()//2, SCREEN_H//2 - 60))
+        elif self._nova_t > 0:
+            frac = self._nova_t / 0.5
+            ns = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            ns.fill((255, 200, 50, int(180*frac)))
+            surf.blit(ns, (0,0))
 
     def _update_projectiles(self, dt, cx, cy):
         live = []
@@ -6027,7 +6277,16 @@ class ClownBossArena:
                 p["vx"] = p["vx"]/s * spd
                 p["vy"] = p["vy"]/s * spd
             p["x"] += p["vx"]*dt; p["y"] += p["vy"]*dt; p["t"] += dt
-            if p["x"] < -60 or p["x"] > SCREEN_W+60 or p["y"] < -60 or p["y"] > SCREEN_H+60:
+            # Отражение от стен
+            bounces = p.get("bounces", 0)
+            if bounces > 0:
+                if p["x"] < p["r"] or p["x"] > SCREEN_W - p["r"]:
+                    p["vx"] = -p["vx"]; p["bounces"] -= 1
+                    p["x"] = max(p["r"], min(SCREEN_W - p["r"], p["x"]))
+                if p["y"] < p["r"] or p["y"] > SCREEN_H - p["r"]:
+                    p["vy"] = -p["vy"]; p["bounces"] -= 1
+                    p["y"] = max(p["r"], min(SCREEN_H - p["r"], p["y"]))
+            if p.get("bounces", 0) == 0 and (p["x"] < -60 or p["x"] > SCREEN_W+60 or p["y"] < -60 or p["y"] > SCREEN_H+60):
                 continue
             if math.hypot(p["x"] - cx, p["y"] - cy) < p["r"] + 16:
                 p["alive"] = False
@@ -6494,6 +6753,14 @@ class ClownBossArena:
             alive_n = sum(1 for s in self._shield_shards if s["alive"])
             txt(surf, f"SHIELD ACTIVE — click the orbs! ({alive_n} left)",
                 (SCREEN_W//2, SCREEN_H - 52), (100,200,255), sf, center=True)
+        elif self._gravity_active:
+            sf = pygame.font.SysFont("consolas", 16, bold=True)
+            txt(surf, f"⚠ GRAVITATIONAL PULL — DASH to escape! ({self._gravity_t:.1f}s)",
+                (SCREEN_W//2, SCREEN_H - 52), (200, 80, 255), sf, center=True)
+        elif self._laser_active:
+            sf = pygame.font.SysFont("consolas", 16, bold=True)
+            txt(surf, f"⚠ LASER BEAM — dodge the line! ({self._laser_t:.1f}s)",
+                (SCREEN_W//2, SCREEN_H - 52), (255, 80, 80), sf, center=True)
         else:
             hint = pygame.font.SysFont("consolas", 13)
             txt(surf, "CLICK THE BOSS — dodge projectiles — SPACE to dash",
@@ -6648,6 +6915,57 @@ class ClownBossArena:
                         self._atk_pattern += 1
                         self._fire_volley(cx, cy, pattern)
 
+                    # ── НОВЫЕ СПОСОБНОСТИ ────────────────────────────────
+                    # Зеркальный снаряд (все фазы)
+                    self._mirror_cd -= dt
+                    if self._mirror_cd <= 0:
+                        self._mirror_cd = {1: 7.0, 2: 5.0, 3: 3.5}[self._phase]
+                        self._fire_mirror_volley(cx, cy)
+
+                    # Карточный бросок (все фазы)
+                    self._card_cd -= dt
+                    if self._card_cd <= 0:
+                        self._card_cd = {1: 9.0, 2: 6.0, 3: 4.0}[self._phase]
+                        self._fire_card_throw(cx, cy)
+
+                    # Лазерный луч (фаза 2+)
+                    if self._phase >= 2:
+                        if self._laser_cd > 0:
+                            self._laser_cd -= dt
+                        elif not self._laser_active and self._laser_warn_t <= 0:
+                            # начинаем предупреждение
+                            self._laser_warn_t = 1.5
+                            self._laser_warn_angle = math.atan2(cy - self._boss_y, cx - self._boss_x)
+                            self._laser_angle = self._laser_warn_angle
+                        self._update_laser(dt, cx, cy)
+
+                    # Бомбы-клоуны (фаза 2+)
+                    if self._phase >= 2:
+                        self._bomb_cd -= dt
+                        if self._bomb_cd <= 0:
+                            self._bomb_cd = {2: 8.0, 3: 5.5}[self._phase]
+                            self._spawn_bombs(cx, cy)
+                        self._update_bombs(dt, cx, cy)
+
+                    # Гравитационный притяг (фаза 3)
+                    if self._phase == 3:
+                        if self._gravity_cd > 0:
+                            self._gravity_cd -= dt
+                        elif not self._gravity_active:
+                            self._gravity_active = True
+                            self._gravity_t = 3.0
+                        new_cx, new_cy = self._update_gravity(dt, cx, cy)
+                        if self._gravity_active:
+                            self._cursor_x = new_cx
+                            self._cursor_y = new_cy
+                            cx, cy = new_cx, new_cy
+
+                    # Финальный взрыв (фаза 3, при 15% HP)
+                    if self._phase == 3 and not self._nova_fired and self._hp_frac <= 0.15:
+                        self._nova_fired = True
+                        self._trigger_nova()
+                    self._update_nova(dt, cx, cy)
+
                     # Миньоны
                     if self._phase >= 2:
                         _minion_cd -= dt
@@ -6705,7 +7023,11 @@ class ClownBossArena:
                 self._draw_particles(surf)
 
                 if self.state == "playing":
+                    self._draw_gravity(surf)
+                    self._draw_laser(surf)
+                    self._draw_nova_warning(surf)
                     self._draw_projectiles(surf)
+                    self._draw_bombs(surf)
                     self._draw_minions(surf)
                     if self._orbitals: self._draw_orbitals(surf)
                     self._draw_shield(surf)
