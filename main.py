@@ -4,7 +4,280 @@ import random
 import sys
 import os
 import json
-from dev_console import DevConsole
+# ── Inline DevConsole (active only in dev-mode: dev_save_data.json must exist) ─
+_IS_DEV_MODE = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dev_save_data.json"))
+
+class DevConsole:
+    """
+    In-game developer console (F3 to toggle).
+    Only functional when dev_save_data.json is present next to main.py.
+    For regular players the file is absent → all methods are silent no-ops.
+    """
+
+    # ── Colours / layout ──────────────────────────────────────────────────────
+    BG_COL     = (10, 12, 20, 210)
+    BORDER_COL = (80, 120, 200)
+    INPUT_COL  = (20, 25, 40)
+    TEXT_COL   = (200, 220, 255)
+    ERR_COL    = (255, 80,  80)
+    OK_COL     = (80,  220, 120)
+    HINT_COL   = (140, 160, 200)
+    W, H       = 820, 340
+    MAX_LOG    = 60
+
+    def __init__(self):
+        self.active      = False
+        self.input_text  = ""
+        self.log         = []          # list of (text, colour)
+        self._pending    = []          # deferred callables executed on tick()
+        self._font_sm    = None
+        self._font_md    = None
+        self._initialized = False
+
+        if not _IS_DEV_MODE:
+            return  # player build — no console
+
+        self._log("Dev console ready — F3 to toggle", self.OK_COL)
+        self._log("Commands: coins <n> | addcoins <n> | wave <n> | hp <n> | "
+                  "godmode | killall | clownkey | clownunlock | givecoin | "
+                  "boss | help", self.HINT_COL)
+
+    # ── Internal helpers ──────────────────────────────────────────────────────
+    def _log(self, msg, col=None):
+        col = col or self.TEXT_COL
+        # word-wrap at ~90 chars
+        while len(msg) > 90:
+            self.log.append((msg[:90], col))
+            msg = "  " + msg[90:]
+        self.log.append((msg, col))
+        if len(self.log) > self.MAX_LOG:
+            self.log = self.log[-self.MAX_LOG:]
+
+    def _ensure_fonts(self):
+        if self._initialized:
+            return
+        self._font_sm = pygame.font.SysFont("consolas", 13)
+        self._font_md = pygame.font.SysFont("consolas", 15, bold=True)
+        self._initialized = True
+
+    # ── Public API ────────────────────────────────────────────────────────────
+    def handle_event(self, ev, game) -> bool:
+        """
+        Process a pygame event.
+        Returns True if the event was consumed (game should ignore it).
+        """
+        if not _IS_DEV_MODE:
+            return False
+
+        if ev.type == pygame.KEYDOWN:
+            # F3 — toggle console
+            if ev.key == pygame.K_F3:
+                self.active = not self.active
+                self.input_text = ""
+                return True
+
+            if not self.active:
+                return False
+
+            # Console is open — capture keyboard
+            if ev.key == pygame.K_RETURN:
+                cmd = self.input_text.strip()
+                self.input_text = ""
+                if cmd:
+                    self._execute(cmd, game)
+                return True
+            elif ev.key == pygame.K_BACKSPACE:
+                self.input_text = self.input_text[:-1]
+                return True
+            elif ev.key == pygame.K_ESCAPE:
+                self.active = False
+                self.input_text = ""
+                return True
+            else:
+                ch = ev.unicode
+                if ch and ch.isprintable():
+                    self.input_text += ch
+                return True
+
+        # Block all mouse events while console is open
+        if self.active and ev.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP,
+                                       pygame.MOUSEMOTION, pygame.MOUSEWHEEL):
+            return True
+
+        return False
+
+    def tick(self, game):
+        """Execute any deferred actions queued by commands."""
+        if not _IS_DEV_MODE:
+            return
+        for fn in list(self._pending):
+            try:
+                fn(game)
+            except Exception as e:
+                self._log(f"[pending error] {e}", self.ERR_COL)
+        self._pending.clear()
+
+    def draw(self, surf, dt):
+        if not _IS_DEV_MODE or not self.active:
+            return
+        self._ensure_fonts()
+
+        sw, sh = surf.get_size()
+        x = (sw - self.W) // 2
+        y = sh - self.H - 10
+
+        # Background
+        bg = pygame.Surface((self.W, self.H), pygame.SRCALPHA)
+        bg.fill(self.BG_COL)
+        surf.blit(bg, (x, y))
+        pygame.draw.rect(surf, self.BORDER_COL, (x, y, self.W, self.H), 2, border_radius=6)
+
+        # Title bar
+        pygame.draw.rect(surf, (30, 40, 70), (x, y, self.W, 24), border_radius=4)
+        title = self._font_md.render("▶ DEV CONSOLE  (F3 close | Enter execute | Esc close)", True, (160, 180, 255))
+        surf.blit(title, (x + 8, y + 4))
+
+        # Log lines
+        line_h = 16
+        log_area_h = self.H - 24 - 30
+        visible_lines = log_area_h // line_h
+        visible = self.log[-visible_lines:] if len(self.log) > visible_lines else self.log
+        for i, (msg, col) in enumerate(visible):
+            rendered = self._font_sm.render(msg, True, col)
+            surf.blit(rendered, (x + 6, y + 26 + i * line_h))
+
+        # Input field
+        inp_y = y + self.H - 28
+        pygame.draw.rect(surf, self.INPUT_COL, (x, inp_y, self.W, 28))
+        pygame.draw.rect(surf, self.BORDER_COL, (x, inp_y, self.W, 28), 1)
+        prompt = self._font_md.render("> " + self.input_text + ("_" if int(pygame.time.get_ticks() / 500) % 2 == 0 else " "), True, (220, 240, 255))
+        surf.blit(prompt, (x + 6, inp_y + 5))
+
+    # ── Command execution ─────────────────────────────────────────────────────
+    def _execute(self, raw: str, game):
+        self._log(f"> {raw}", (180, 200, 255))
+        parts = raw.strip().split()
+        if not parts:
+            return
+        cmd, args = parts[0].lower(), parts[1:]
+
+        try:
+            if cmd == "help":
+                cmds = [
+                    "coins <n>       — set in-game money to n",
+                    "addcoins <n>    — add n to in-game money",
+                    "shopcoin <n>    — set shop coins (persistent)",
+                    "wave <n>        — jump to wave n",
+                    "hp <n>          — set player HP to n",
+                    "godmode         — toggle infinite HP",
+                    "killall         — kill all enemies on screen",
+                    "clownkey        — collect one clown key fragment",
+                    "clownunlock     — unlock clown tower immediately",
+                    "boss            — force launch clown boss fight",
+                    "speed <1|2>     — set game speed multiplier",
+                    "help            — show this list",
+                ]
+                for c in cmds:
+                    self._log(c, self.HINT_COL)
+
+            elif cmd == "coins":
+                n = int(args[0])
+                game.money = n
+                self._log(f"Money set to {n}", self.OK_COL)
+
+            elif cmd == "addcoins":
+                n = int(args[0])
+                game.money += n
+                self._log(f"Added {n} coins. Total: {game.money}", self.OK_COL)
+
+            elif cmd == "shopcoin":
+                n = int(args[0])
+                data = load_save()
+                data["shop_coins"] = n
+                save_data(data)
+                self._log(f"Shop coins set to {n}", self.OK_COL)
+
+            elif cmd == "wave":
+                n = int(args[0])
+                if hasattr(game, "wave_mgr"):
+                    game.wave_mgr.wave = max(1, min(n, MAX_WAVES))
+                    game.wave_mgr.state = "between"
+                    game.wave_mgr.prep_timer = 0.1
+                    self._log(f"Jumped to wave {n}", self.OK_COL)
+                else:
+                    self._log("No wave_mgr on this game object", self.ERR_COL)
+
+            elif cmd == "hp":
+                n = int(args[0])
+                if hasattr(game, "hp"):
+                    game.hp = n
+                    self._log(f"HP set to {n}", self.OK_COL)
+                else:
+                    self._log("This game mode has no HP attribute", self.ERR_COL)
+
+            elif cmd == "godmode":
+                current = getattr(game, "_godmode", False)
+                game._godmode = not current
+                # Patch HP loss: wrap update if not already patched
+                if game._godmode:
+                    self._log("God mode ON — HP won't drop below 1", self.OK_COL)
+                    orig_update = game.__class__.update
+                    def _god_update(self2, dt):
+                        orig_update(self2, dt)
+                        if hasattr(self2, "hp"):
+                            self2.hp = max(1, self2.hp)
+                    game.__class__._god_update_patched = _god_update
+                    game.__class__.update = _god_update
+                else:
+                    self._log("God mode OFF", self.OK_COL)
+                    if hasattr(game.__class__, "_god_update_patched"):
+                        # Can't easily un-patch, just warn
+                        self._log("Restart game to fully disable godmode", self.HINT_COL)
+
+            elif cmd == "killall":
+                count = 0
+                for e in getattr(game, "enemies", []):
+                    if e.alive:
+                        e.alive = False
+                        count += 1
+                self._log(f"Killed {count} enemies", self.OK_COL)
+
+            elif cmd == "clownkey":
+                source = args[0] if args else "Easy"
+                ok = collect_clown_key(source)
+                if ok:
+                    total = total_clown_keys()
+                    self._log(f"Clown key collected from {source}. Total: {total}/{CLOWN_KEYS_TOTAL}", self.OK_COL)
+                else:
+                    self._log(f"Already at cap for source '{source}'", self.HINT_COL)
+
+            elif cmd == "clownunlock":
+                unlock_clown()
+                self._log("Clown tower unlocked!", self.OK_COL)
+
+            elif cmd == "boss":
+                self._log("Launching clown boss fight...", self.OK_COL)
+                def _launch_boss(g):
+                    if hasattr(g, "running"):
+                        g.running = False
+                        g._dev_launch_boss = True
+                self._pending.append(_launch_boss)
+
+            elif cmd == "speed":
+                n = int(args[0])
+                if hasattr(game, "speed_x2"):
+                    game.speed_x2 = (n == 2)
+                    self._log(f"Speed x{n}", self.OK_COL)
+                else:
+                    self._log("No speed_x2 on this game object", self.ERR_COL)
+
+            else:
+                self._log(f"Unknown command: '{cmd}'. Type 'help' for list.", self.ERR_COL)
+
+        except (IndexError, ValueError) as e:
+            self._log(f"Bad arguments: {e}", self.ERR_COL)
+        except Exception as e:
+            self._log(f"Error: {e}", self.ERR_COL)
 
 pygame.init()
 
