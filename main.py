@@ -3130,12 +3130,12 @@ C_CLOWN = (220, 60, 60)   # C_RED alias with explicit name for clarity
 
 # level: (damage, firerate, range_tiles, upgrade_cost)
 CLOWN_LEVELS = [
-    {"dmg": 5,  "fr": 1.8, "rng": 2.5, "cost": None},   # 0 base
-    {"dmg": 8,  "fr": 1.6, "rng": 2.8, "cost": 400},    # 1
-    {"dmg": 12, "fr": 1.4, "rng": 3.0, "cost": 850},    # 2
-    {"dmg": 20, "fr": 1.2, "rng": 3.5, "cost": 1800},   # 3
-    {"dmg": 35, "fr": 0.9, "rng": 4.0, "cost": 4500},   # 4
-    {"dmg": 65, "fr": 0.6, "rng": 5.0, "cost": 12000},  # 5 max
+    {"dmg": 8,  "fr": 1.6, "rng": 3.5, "cost": None},   # 0 base  (dmg 5→8, fr 1.8→1.6, rng 2.5→3.5)
+    {"dmg": 14, "fr": 1.4, "rng": 4.0, "cost": 400},    # 1        (dmg 8→14, rng 2.8→4.0)
+    {"dmg": 22, "fr": 1.2, "rng": 4.5, "cost": 850},    # 2        (dmg 12→22, rng 3.0→4.5)
+    {"dmg": 38, "fr": 1.0, "rng": 5.0, "cost": 1800},   # 3        (dmg 20→38, rng 3.5→5.0)
+    {"dmg": 65, "fr": 0.75,"rng": 5.8, "cost": 4500},   # 4        (dmg 35→65, rng 4.0→5.8)
+    {"dmg": 110,"fr": 0.45,"rng": 7.0, "cost": 12000},  # 5 max    (dmg 65→110, fr 0.6→0.45, rng 5.0→7.0)
 ]
 
 CLOWN_MAX_PLACED = 5   # placement limit
@@ -6291,8 +6291,7 @@ class ClownBossArena:
                     (int(cx2 + math.cos(a2)*1400), int(cy2 + math.sin(a2)*1400)),
                 ]
                 pygame.draw.polygon(bg, col, pts)
-            pygame.draw.circle(bg, (50, 30, 60), (cx2, cy2), 520, 6)
-            pygame.draw.circle(bg, (80, 50, 100), (cx2, cy2), 520, 2)
+            # Arena ring drawn dynamically in _draw_arena_ring() below
             spot_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
             for r2 in range(500, 0, -20):
                 a2 = max(0, int(8 * (1 - r2/500)))
@@ -6300,6 +6299,9 @@ class ClownBossArena:
             bg.blit(spot_surf, (0, 0))
             self._arena_bg_cache = bg
         surf.blit(self._arena_bg_cache, (0, 0))
+
+        # Анимированное кольцо арены (пульсирует, руны, краснеет когда босс внутри)
+        self._draw_arena_ring(surf)
 
         # Анимированные огни вверху (лёгкие — только 20 кружков)
         for i in range(20):
@@ -6309,6 +6311,76 @@ class ClownBossArena:
             col_b = self.PROJ_COLORS[i % len(self.PROJ_COLORS)]
             pygame.draw.circle(surf, col_b, (lx, ly), 7)
             pygame.draw.circle(surf, (255,255,255), (lx-2, ly-2), 2)
+
+    # ── анимированное кольцо арены ───────────────────────────────────────────
+    def _draw_arena_ring(self, surf):
+        """
+        Кольцо арены — не просто декор.
+        • Пульсирует фиолетовым в норме
+        • Краснеет + усиливает пульсацию если БОСС ВНУТРИ кольца (R=520)
+          → игрок видит: «босс в центре — опаснее!»
+        • По кольцу вращаются 8 рун (★) — маркеры арены
+        """
+        RING_R = 520
+        cx2, cy2 = SCREEN_W // 2, SCREEN_H // 2
+
+        boss_inside = math.hypot(self._boss_x - cx2, self._boss_y - cy2) < RING_R
+
+        # Пульсация: медленная в норме, быстрая и крупная когда босс внутри
+        pulse_speed = 4.0 if boss_inside else 2.0
+        pulse_amp   = 8   if boss_inside else 3
+        pulse = math.sin(self.anim_t * pulse_speed) * pulse_amp
+
+        # Цвет кольца
+        if boss_inside:
+            phase = self._get_phase()
+            if phase == 3:
+                ring_col  = (255, 60, 60)
+                glow_col  = (220, 40, 40)
+            elif phase == 2:
+                ring_col  = (255, 120, 40)
+                glow_col  = (200, 80, 20)
+            else:
+                ring_col  = (255, 80, 80)
+                glow_col  = (180, 40, 40)
+        else:
+            ring_col = (80, 50, 120)
+            glow_col = (60, 30, 100)
+
+        # Внешнее свечение (3 полупрозрачных кольца)
+        ring_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        for width, alpha in [(18, 18), (10, 35), (5, 70)]:
+            r_draw = int(RING_R + pulse)
+            pygame.draw.circle(ring_surf, (*glow_col, alpha), (cx2, cy2), r_draw, width)
+        surf.blit(ring_surf, (0, 0))
+
+        # Основное кольцо
+        pygame.draw.circle(surf, ring_col, (cx2, cy2), int(RING_R + pulse), 3)
+        pygame.draw.circle(surf, (min(255, ring_col[0]+60), min(255, ring_col[1]+40), min(255, ring_col[2]+60)),
+                           (cx2, cy2), int(RING_R + pulse), 1)
+
+        # 8 вращающихся рун-маркеров по кольцу
+        n_runes = 8
+        rune_chars = ["★", "◆", "★", "◆", "★", "◆", "★", "◆"]
+        rune_font = pygame.font.SysFont("segoe ui symbol", 13, bold=True)
+        spin = self.anim_t * (0.6 if boss_inside else 0.25)
+        for i in range(n_runes):
+            a = math.pi * 2 * i / n_runes + spin
+            rx = cx2 + int(math.cos(a) * (RING_R + pulse))
+            ry = cy2 + int(math.sin(a) * (RING_R + pulse))
+            rune_col = (255, 100, 100) if boss_inside else (140, 90, 200)
+            rune_surf2 = rune_font.render(rune_chars[i], True, rune_col)
+            rw2, rh2 = rune_surf2.get_size()
+            surf.blit(rune_surf2, (rx - rw2 // 2, ry - rh2 // 2))
+
+        # Предупреждающий текст если босс внутри
+        if boss_inside:
+            warn_alpha = int(180 + math.sin(self.anim_t * 6) * 75)
+            warn_alpha = max(0, min(255, warn_alpha))
+            wf = pygame.font.SysFont("consolas", 14, bold=True)
+            warn_surf = wf.render("⚠ BOSS IN ARENA CENTER", True, (255, 120, 80))
+            warn_surf.set_alpha(warn_alpha)
+            surf.blit(warn_surf, (cx2 - warn_surf.get_width() // 2, cy2 + RING_R + 14))
 
     # ── спрайт босса ─────────────────────────────────────────────────────────
     def _draw_boss_sprite(self, surf):
@@ -6474,19 +6546,18 @@ class ClownBossArena:
                         return False
                     if ev.type == pygame.KEYDOWN and ev.key == pygame.K_SPACE:
                         if self._dash_cd <= 0 and self.state == "playing":
-                            # дэш в направлении мыши от текущей позиции курсора
-                            dx = raw_mx - cx; dy = raw_my - cy
+                            # Дэш в направлении от босса к курсору (убегаем от босса).
+                            # Если курсор почти на боссе — дэш вниз как запасной вариант.
+                            dx = cx - self._boss_x; dy = cy - self._boss_y
                             d = math.hypot(dx, dy)
-                            if d < 5:
-                                # мышь прямо на курсоре — дэш не активируется
-                                pass
-                            else:
-                                spd = 900
-                                self._dash_vx = dx/d * spd
-                                self._dash_vy = dy/d * spd
-                                self._dash_t  = 0.18
-                                self._dash_cd = 2.0
-                                self._spawn_particles(int(cx), int(cy), (100,200,255), n=10)
+                            if d < 20:
+                                dx, dy, d = 0.0, 1.0, 1.0
+                            spd = 900
+                            self._dash_vx = dx/d * spd
+                            self._dash_vy = dy/d * spd
+                            self._dash_t  = 0.18
+                            self._dash_cd = 2.0
+                            self._spawn_particles(int(cx), int(cy), (100,200,255), n=10)
 
                     if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                         if self.state in ("win", "lose"):
