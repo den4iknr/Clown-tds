@@ -4,6 +4,7 @@ import random
 import sys
 import os
 import json
+from dev_console import DevConsole
 
 pygame.init()
 
@@ -37,11 +38,12 @@ def load_save():
         with open(SAVE_PATH, "r") as f:
             data = json.load(f)
         return {
-            "shop_coins": int(data.get("shop_coins", 0)),
+            "shop_coins":       int(data.get("shop_coins", 0)),
             "purchased_towers": data.get("purchased_towers", []),
+            "clown_keys":       data.get("clown_keys", {}),
         }
     except Exception:
-        return {"shop_coins": 0, "purchased_towers": []}
+        return {"shop_coins": 0, "purchased_towers": [], "clown_keys": {}}
 
 def save_data(data):
     try:
@@ -58,6 +60,30 @@ def add_shop_coins(amount):
 
 def get_shop_coins():
     return load_save()["shop_coins"]
+
+# ── Clown Key Fragment System ──────────────────────────────────────────────────
+CLOWN_KEY_SOURCES = {"Easy": 2, "Hard": 3, "Hell": 4, "Sandbox": 3}
+CLOWN_KEYS_TOTAL  = 12
+
+def get_clown_keys():
+    ck = load_save().get("clown_keys", {})
+    total = sum(min(ck.get(src, 0), cap) for src, cap in CLOWN_KEY_SOURCES.items())
+    return ck, total
+
+def collect_clown_key(source):
+    data = load_save()
+    ck   = data.get("clown_keys", {})
+    cap  = CLOWN_KEY_SOURCES.get(source, 0)
+    if ck.get(source, 0) >= cap:
+        return False
+    ck[source] = ck.get(source, 0) + 1
+    data["clown_keys"] = ck
+    save_data(data)
+    return True
+
+def total_clown_keys():
+    _, total = get_clown_keys()
+    return total
 
 def load_icon(name, size=None):
     """Load an icon from assets/image, optionally scale it. Returns None on error."""
@@ -107,15 +133,31 @@ MAX_WAVES   = 20
 # ── Changelog ─────────────────────────────────────────────────────────────────
 CHANGELOG = [
     {
+        "version": "v2.1",
+        "date": "28 Apr 2026",
+        "title": "Hidden Detection Rework + Gunner Nerf + Console Fix",
+        "entries": [
+            ("CHANGE", C_GOLD,   "[v2.1] Hidden enemies now visible only inside range of HD towers"),
+            ("CHANGE", C_GOLD,   "[v2.1] Hidden enemies outside all HD-tower ranges are fully invisible"),
+            ("CHANGE", C_GOLD,   "[v2.1] Gunner nerf: DMG 18/26/38/55/80 → 14/20/30/44/62"),
+            ("CHANGE", C_GOLD,   "[v2.1] Gunner nerf: fire rate 0.85→0.92s base"),
+            ("FIX",    C_CYAN,   "[v2.1] Dev console (F3) now works in all game modes"),
+        ],
+    },
+    {
         "version": "v2.0",
         "date": "28 Apr 2026",
-        "title": "Clown Mini-Game Unlock",
+        "title": "Clown Key Hunt System",
         "entries": [
             ("NEW",    C_GREEN,  "[v2.0] Clown tower is now LOCKED by default"),
-            ("NEW",    C_GREEN,  "[v2.0] Unlock Clown by beating the Balloon Pop mini-game"),
-            ("NEW",    C_GREEN,  "[v2.0] Balloon Pop: pop 20 balloons in 30s — fast & tiny!"),
-            ("NEW",    C_GREEN,  "[v2.0] Mini Game button added to main lobby"),
-            ("NEW",    C_GREEN,  "[v2.0] Clown shows lock badge in loadout until unlocked"),
+            ("NEW",    C_GREEN,  "[v2.0] 12 Key Fragments scattered across all game modes"),
+            ("NEW",    C_GREEN,  "[v2.0] Easy: 2 keys | Hard: 3 keys | Hell: 4 keys | Sandbox: 3 keys"),
+            ("NEW",    C_GREEN,  "[v2.0] Keys appear in-game as clickable golden objects"),
+            ("NEW",    C_GREEN,  "[v2.0] Collecting all 12 unlocks the Clown Boss fight"),
+            ("NEW",    C_GREEN,  "[v2.0] Boss fight: 3-phase arena with projectile dodge mechanics"),
+            ("NEW",    C_GREEN,  "[v2.0] Boss Phase 1: normal, Phase 2: enraged, Phase 3: final stand"),
+            ("NEW",    C_GREEN,  "[v2.0] Click the Boss to damage — dodge colourful projectiles!"),
+            ("NEW",    C_GREEN,  "[v2.0] Key progress shown in lobby button and in-game HUD"),
         ],
     },
     {
@@ -4438,11 +4480,11 @@ class Zigres(Unit):
 C_GUNNER = (220, 140, 40)   # оранжево-золотой
 
 GUNNER_LEVELS = [
-    {"dmg": 18, "fr": 0.85,  "rng": 5.5, "cost": None},   # 0 base
-    {"dmg": 26, "fr": 0.75,  "rng": 6.0, "cost": 500},    # 1
-    {"dmg": 38, "fr": 0.65,  "rng": 6.5, "cost": 1100},   # 2
-    {"dmg": 55, "fr": 0.55,  "rng": 7.0, "cost": 2500},   # 3
-    {"dmg": 80, "fr": 0.42,  "rng": 7.5, "cost": 5000},   # 4  max
+    {"dmg": 14, "fr": 0.92,  "rng": 5.5, "cost": None},   # 0 base  (нерф: 18→14, fr 0.85→0.92)
+    {"dmg": 20, "fr": 0.82,  "rng": 6.0, "cost": 500},    # 1       (нерф: 26→20)
+    {"dmg": 30, "fr": 0.70,  "rng": 6.5, "cost": 1100},   # 2       (нерф: 38→30)
+    {"dmg": 44, "fr": 0.60,  "rng": 7.0, "cost": 2500},   # 3       (нерф: 55→44)
+    {"dmg": 62, "fr": 0.46,  "rng": 7.5, "cost": 5000},   # 4  max  (нерф: 80→62)
 ]
 
 GUNNER_SHOP_PRICE = 600   # цена покупки в Shop за shop_coins
@@ -4668,7 +4710,7 @@ class UI:
                 UType=self.SLOT_TYPES[i]
                 if UType is None: self.show_msg("Coming soon!"); return 0
                 if UType is Clown and not is_clown_unlocked():
-                    self.show_msg("Clown locked! Beat the Mini Game first."); return 0
+                    self.show_msg("Clown locked! Beat the Key Hunt first."); return 0
                 if money<UType.PLACE_COST: self.show_msg("Not enough money!"); return 0
                 self.selected_slot=i; self.drag_unit=UType(*pos); return 0
         return 0
@@ -4686,7 +4728,7 @@ class UI:
             self.drag_unit = None; self.selected_slot = None; return 0
         if UType is None: self.show_msg("Coming soon!"); return 0
         if UType is Clown and not is_clown_unlocked():
-            self.show_msg("Clown locked! Beat the Mini Game first."); return 0
+            self.show_msg("Clown locked! Beat the Key Hunt first."); return 0
         if money < UType.PLACE_COST: self.show_msg("Not enough money!"); return 0
         self.open_unit = None
         self.selected_slot = slot_idx
@@ -4853,7 +4895,7 @@ class UI:
                     lf = pygame.font.SysFont("consolas", 22, bold=True)
                     txt(surf,"🔒",(slot.centerx,slot.centery-6),(180,80,255),lf,center=True)
                     lf2 = pygame.font.SysFont("consolas", 9, bold=True)
-                    txt(surf,"MINI GAME",(slot.centerx,slot.bottom-10),(180,80,255),lf2,center=True)
+                    txt(surf,"KEY HUNT",(slot.centerx,slot.bottom-10),(180,80,255),lf2,center=True)
             else:
                 txt(surf,"???",(slot.centerx,slot.centery),(80,80,120),font_lg,center=True)
                 badge_rect=pygame.Rect(slot.x+6,slot.y+6,23,20)
@@ -5324,257 +5366,958 @@ def draw_hell_cover(surf, rect):
 COVER_DRAW_FUNCS = {"Easy": draw_easy_cover, "Hard": draw_hard_cover, "Hell": draw_hell_cover}
 
 
-# ── Balloon Pop Mini-Game ──────────────────────────────────────────────────────
-class BalloonPopMiniGame:
+# ── In-Game Clown Key Widget ───────────────────────────────────────────────────
+# Keys appear during normal gameplay. Players click them to collect.
+# Positions are fixed per difficulty per session.
+
+class InGameKeyManager:
     """
-    Hard mini-game: pop 20 balloons before 30 seconds run out.
-    Balloons are fast, small, and wobble — challenging to click.
-    Beating it unlocks the Clown tower permanently.
+    Manages Clown Key Fragments that appear during normal gameplay.
+    Each key is a clickable object rendered on the map (away from the path).
+    Collected keys are saved persistently via collect_clown_key().
     """
-    GOAL        = 20          # balloons to pop
-    TIME_LIMIT  = 30.0        # seconds
-    MAX_ALIVE   = 7           # max balloons on screen at once
-    SPAWN_RATE  = 0.55        # seconds between spawns (fast!)
-    COLORS      = [(220,60,60),(255,200,50),(60,220,220),(180,80,255),(60,200,80),(255,140,40),(255,80,180)]
+    # Allowed zones for key placement (away from the path zone 490-530 and HUD)
+    _SAFE_ZONES = [
+        (80, 80, SCREEN_W - 320, 420),       # above path
+        (80, 560, SCREEN_W - 320, SCREEN_H - 180),  # below path
+    ]
+
+    def __init__(self, source):
+        self.source = source   # "Easy" / "Hard" / "Hell" / "Sandbox"
+        cap = CLOWN_KEY_SOURCES.get(source, 0)
+        ck, _ = get_clown_keys()
+        already = ck.get(source, 0)
+        self.remaining = cap - already   # how many more can be collected here
+        self._keys = self._place_keys() if self.remaining > 0 else []
+        self._collected_this_session = 0
+        self._popfx = []   # pop particle effects
+
+    def _place_keys(self):
+        keys = []
+        for i in range(self.remaining):
+            zone = self._SAFE_ZONES[i % len(self._SAFE_ZONES)]
+            for _ in range(200):
+                x = random.randint(zone[0], zone[0] + zone[2])
+                y = random.randint(zone[1], zone[1] + zone[3])
+                if all(math.hypot(x - k["x"], y - k["y"]) > 110 for k in keys):
+                    break
+            keys.append({
+                "x": float(x), "y": float(y),
+                "alive": True,
+                "bob_phase": random.uniform(0, math.tau),
+                "spin": random.uniform(-1.5, 1.5),
+                "angle": random.uniform(0, math.tau),
+                "color": (255, 215, 40),
+                "pulse": 0.0,
+            })
+        return keys
+
+    def handle_click(self, pos):
+        """Call from game's mouse click handler. Returns True if key was collected."""
+        if not self._keys:
+            return False
+        mx, my = pos
+        for k in self._keys:
+            if not k["alive"]:
+                continue
+            if math.hypot(mx - k["x"], my - k["y"]) <= 24:
+                k["alive"] = False
+                k["pulse"] = 1.0
+                self._collected_this_session += 1
+                collect_clown_key(self.source)
+                self._spawn_fx(k["x"], k["y"])
+                return True
+        return False
+
+    def _spawn_fx(self, x, y):
+        for _ in range(16):
+            self._popfx.append({
+                "x": x, "y": y,
+                "vx": random.uniform(-180, 180),
+                "vy": random.uniform(-240, 60),
+                "life": random.uniform(0.4, 0.8),
+                "t": 0.0,
+                "size": random.randint(3, 7),
+            })
+
+    def update(self, dt):
+        for k in self._keys:
+            k["angle"] += k["spin"] * dt
+        live = []
+        for p in self._popfx:
+            p["t"] += dt; p["x"] += p["vx"]*dt; p["y"] += p["vy"]*dt
+            p["vy"] += 300*dt
+            if p["t"] < p["life"]: live.append(p)
+        self._popfx = live
+
+    def draw(self, surf, anim_t):
+        for k in self._keys:
+            if not k["alive"]: continue
+            bob = math.sin(anim_t * 2.8 + k["bob_phase"]) * 5
+            cx, cy = int(k["x"]), int(k["y"] + bob)
+            ang = k["angle"]
+            col = k["color"]
+
+            # Glow halo
+            gs = pygame.Surface((72, 72), pygame.SRCALPHA)
+            pulse_a = int(abs(math.sin(anim_t * 3.0 + k["bob_phase"])) * 45 + 20)
+            pygame.draw.circle(gs, (255, 215, 40, pulse_a), (36, 36), 34)
+            surf.blit(gs, (cx - 36, cy - 36))
+
+            # Rotate helper
+            def rv(px, py):
+                c2, s2 = math.cos(ang), math.sin(ang)
+                return (int(cx + c2*px - s2*py), int(cy + s2*px + c2*py))
+
+            # Key bow (ring)
+            pygame.draw.circle(surf, col, (cx, cy - 4), 13)
+            pygame.draw.circle(surf, (30, 20, 0), (cx, cy - 4), 13, 2)
+            pygame.draw.circle(surf, (255, 240, 140), (cx - 3, cy - 7), 4)  # shine
+            # hole in bow
+            pygame.draw.circle(surf, (20, 18, 12), (cx, cy - 4), 5)
+
+            # Shank
+            p1 = rv(0, 9); p2 = rv(0, 28)
+            pygame.draw.line(surf, col, p1, p2, 5)
+            pygame.draw.line(surf, (30, 20, 0), p1, p2, 1)
+            # Teeth
+            pygame.draw.line(surf, col, rv(5, 20), rv(9, 20), 4)
+            pygame.draw.line(surf, col, rv(5, 26), rv(9, 26), 4)
+
+        # Pop particles
+        for p in self._popfx:
+            frac = 1.0 - p["t"]/p["life"]
+            a = int(220 * frac)
+            ps = pygame.Surface((p["size"]*2, p["size"]*2), pygame.SRCALPHA)
+            pygame.draw.circle(ps, (255, 215, 40, a), (p["size"], p["size"]), p["size"])
+            surf.blit(ps, (int(p["x"]) - p["size"], int(p["y"]) - p["size"]))
+
+    def draw_hud(self, surf, anim_t):
+        """Draw the key counter badge (top-right area)."""
+        _, total = get_clown_keys()
+        if is_clown_unlocked():
+            return  # already unlocked, no need
+        cap = CLOWN_KEY_SOURCES.get(self.source, 0)
+        ck, _ = get_clown_keys()
+        src_got = ck.get(self.source, 0)
+        src_cap = cap
+
+        bx, by = SCREEN_W - 310, 6
+        bw, bh = 182, 34
+        draw_rect_alpha(surf, (10, 8, 20), (bx, by, bw, bh), 200, brad=10)
+        pygame.draw.rect(surf, (200, 170, 30), (bx, by, bw, bh), 1, border_radius=10)
+
+        # Key icon
+        kf = pygame.font.SysFont("consolas", 13, bold=True)
+        txt(surf, f"Keys: {total}/{CLOWN_KEYS_TOTAL}",
+            (bx + bw//2, by + bh//2), (255, 215, 40), kf, center=True)
+
+    def all_collected(self):
+        return all(not k["alive"] for k in self._keys) if self._keys else True
+
+
+# ── Clown Boss Arena ───────────────────────────────────────────────────────────
+class ClownBossArena:
+    """
+    Clown Boss Arena — переработанный бой.
+
+    Новые механики:
+      - 4 живых + 5 сердечек игрока
+      - Щит (фаза 2+): нельзя бить босса пока щит активен — надо кликнуть 3 щита вокруг
+      - Телепортация (фаза 2+): босс внезапно мигает в другую точку
+      - Призыв миньонов (фаза 2+): маленькие кружки летят к курсору
+      - Предупреждения AoE: красные зоны на земле — надо уйти за ~1 сек
+      - Орбитальные снаряды (фаза 3): 6 снарядов вращаются вокруг босса
+      - Дэш: пробел — короткий рывок в направлении мыши, 2-сек кулдаун
+      - Паттерны атак меняются на каждой фазе
+    """
+
+    BOSS_MAX_HP   = 2400
+    PLAYER_LIVES  = 5
+    BOSS_RADIUS   = 52
+    DMG_PER_CLICK = 45
+
+    PATROL_PTS = [
+        (300, 250), (960, 180), (1620, 250),
+        (1700, 540), (1620, 840), (960, 900),
+        (300, 840), (200, 540),
+    ]
+    PROJ_COLORS = [(220,60,60),(255,200,50),(60,220,220),(180,80,255),(255,140,40),(255,80,180)]
 
     def __init__(self, screen):
         self.screen = screen
         self.clock  = pygame.time.Clock()
         self._reset()
 
+    # ─────────────────────────────────────────────────────────────────────────
     def _reset(self):
-        self.balloons   = []    # list of dicts
-        self.popped     = 0
-        self.time_left  = self.TIME_LIMIT
-        self.spawn_t    = 0.0
-        self.anim_t     = 0.0
-        self.state      = "playing"   # "playing" | "win" | "lose"
-        self.result_t   = 0.0         # time spent on result screen
-        self._particles = []          # pop particles
+        self.anim_t   = 0.0
+        self.state    = "playing"
+        self.boss_hp  = self.BOSS_MAX_HP
+        self.lives    = self.PLAYER_LIVES
+        self._hit_flash   = 0.0
+        self._life_flash  = 0.0
+        self._particles   = []
+        self._projectiles = []   # стандартные снаряды
+        self._minions     = []   # миньоны (фаза 2+)
+        self._aoe_warnings = []  # предупреждающие зоны {x,y,r,t,max_t}
+        self._orbitals    = []   # орбитальные снаряды (фаза 3)
 
-    def _spawn_balloon(self):
-        color = random.choice(self.COLORS)
-        radius = random.randint(14, 22)      # small!
-        x = random.randint(radius + 20, SCREEN_W - radius - 20)
-        speed = random.uniform(220, 380)     # pixels/sec — fast!
-        wobble_freq  = random.uniform(2.0, 5.0)
-        wobble_amp   = random.uniform(18, 40)
-        wobble_phase = random.uniform(0, math.tau)
-        self.balloons.append({
-            "x": float(x),
-            "base_x": float(x),
-            "y": float(SCREEN_H + radius),
-            "radius": radius,
-            "color": color,
-            "speed": speed,
-            "wobble_freq": wobble_freq,
-            "wobble_amp":  wobble_amp,
-            "wobble_phase": wobble_phase,
-            "alive": True,
-            "t": 0.0,
-        })
+        # Щит
+        self._shield_active  = False
+        self._shield_shards  = []   # 3 кружка-щита, каждый dict {angle, alive}
+        self._shield_cd      = 0.0  # до следующего появления щита
 
-    def _spawn_pop_particles(self, x, y, color):
-        for _ in range(14):
+        # Телепорт
+        self._tele_cd    = 0.0
+        self._tele_flash = 0.0   # белая вспышка при телепорте
+
+        # Движение босса
+        self._patrol_idx = 0
+        tx, ty = self.PATROL_PTS[0]
+        self._boss_x = float(tx)
+        self._boss_y = float(ty)
+
+        # Атака
+        self._atk_cd = 0.0
+        self._atk_pattern = 0   # чередование паттернов
+
+        # Фаза
+        self._phase = 1
+        self._phase_announced = 0
+
+        # Дэш игрока
+        self._dash_cd   = 0.0
+        self._dash_vx   = 0.0
+        self._dash_vy   = 0.0
+        self._dash_t    = 0.0   # оставшееся время дэша
+        self._cursor_x  = float(SCREEN_W // 2)
+        self._cursor_y  = float(SCREEN_H // 2)
+
+        # Конец боя
+        self._end_t = 0.0
+
+    # ── хелперы фаз ──────────────────────────────────────────────────────────
+    @property
+    def _hp_frac(self):
+        return max(0.0, self.boss_hp / self.BOSS_MAX_HP)
+
+    def _get_phase(self):
+        if self._hp_frac > 0.55: return 1
+        if self._hp_frac > 0.22: return 2
+        return 3
+
+    def _boss_speed(self):
+        return {1: 145, 2: 220, 3: 320}[self._get_phase()]
+
+    def _atk_interval(self):
+        return {1: 2.2, 2: 1.4, 3: 0.9}[self._get_phase()]
+
+    # ── частицы ──────────────────────────────────────────────────────────────
+    def _spawn_particles(self, x, y, color, n=20, big=False):
+        for _ in range(n):
+            spd = random.uniform(200, 440) if big else random.uniform(90, 280)
             self._particles.append({
                 "x": float(x), "y": float(y),
-                "vx": random.uniform(-220, 220),
-                "vy": random.uniform(-280, 80),
+                "vx": random.uniform(-spd, spd),
+                "vy": random.uniform(-spd*1.2, spd*0.3),
                 "color": color,
-                "life": random.uniform(0.3, 0.6),
+                "life": random.uniform(0.4, 0.9),
                 "t": 0.0,
-                "size": random.randint(4, 9),
+                "size": random.randint(5, 14) if big else random.randint(3, 7),
             })
 
-    def _handle_click(self, pos):
-        mx, my = pos
-        # Check from smallest to largest (harder to click small ones)
-        for b in sorted(self.balloons, key=lambda b: b["radius"]):
-            if not b["alive"]: continue
-            if math.hypot(mx - b["x"], my - b["y"]) <= b["radius"] + 4:
-                b["alive"] = False
-                self.popped += 1
-                self._spawn_pop_particles(int(b["x"]), int(b["y"]), b["color"])
-                if self.popped >= self.GOAL:
-                    self.state = "win"
+    def _update_particles(self, dt):
+        live = []
+        for p in self._particles:
+            p["t"] += dt; p["x"] += p["vx"]*dt; p["y"] += p["vy"]*dt
+            p["vy"] += 380*dt
+            if p["t"] < p["life"]: live.append(p)
+        self._particles = live
+
+    def _draw_particles(self, surf):
+        for p in self._particles:
+            frac = 1.0 - p["t"]/p["life"]
+            a = int(255*frac); sz = p["size"]
+            ps = pygame.Surface((sz*2, sz*2), pygame.SRCALPHA)
+            pygame.draw.circle(ps, (*p["color"][:3], a), (sz, sz), sz)
+            surf.blit(ps, (int(p["x"])-sz, int(p["y"])-sz))
+
+    # ── снаряды ──────────────────────────────────────────────────────────────
+    def _fire_volley(self, tx, ty, pattern=0):
+        bx, by = self._boss_x, self._boss_y
+        base = math.atan2(ty - by, tx - bx)
+        ph = self._get_phase()
+
+        if pattern == 0:
+            # Стандартный веер
+            n = {1:4, 2:7, 3:10}[ph]
+            spread = math.pi / 4
+            for i in range(n):
+                a = base - spread/2 + spread * i / max(1, n-1)
+                spd = random.uniform(280, 380)
+                self._add_proj(bx, by, a, spd)
+
+        elif pattern == 1:
+            # Круговой залп
+            n = {1:8, 2:12, 3:16}[ph]
+            for i in range(n):
+                a = math.pi*2 * i / n
+                self._add_proj(bx, by, a, 260)
+
+        elif pattern == 2:
+            # Тройной поток по курсору
+            for off in (-0.18, 0, 0.18):
+                a = base + off
+                for k in range(3):
+                    spd = 260 + k*60
+                    self._add_proj(bx + math.cos(a)*20*k, by + math.sin(a)*20*k, a, spd)
+
+        elif pattern == 3:
+            # Спираль (фаза 3)
+            n = 24
+            for i in range(n):
+                a = base + math.pi*2 * i / n + self.anim_t*2
+                spd = 180 + i*8
+                self._add_proj(bx, by, a, spd)
+
+    def _add_proj(self, bx, by, angle, spd, r=10, homing=False):
+        self._projectiles.append({
+            "x": bx + math.cos(angle)*64,
+            "y": by + math.sin(angle)*64,
+            "vx": math.cos(angle)*spd,
+            "vy": math.sin(angle)*spd,
+            "color": random.choice(self.PROJ_COLORS),
+            "r": r, "alive": True, "t": 0.0,
+            "homing": homing,
+        })
+
+    def _update_projectiles(self, dt, cx, cy):
+        live = []
+        for p in self._projectiles:
+            if not p["alive"]: continue
+            if p["homing"]:
+                # слабое наведение
+                dx = cx - p["x"]; dy = cy - p["y"]
+                d = math.hypot(dx, dy) or 1
+                spd = math.hypot(p["vx"], p["vy"])
+                p["vx"] += dx/d * spd * 1.2 * dt
+                p["vy"] += dy/d * spd * 1.2 * dt
+                # нормализуем скорость
+                s = math.hypot(p["vx"], p["vy"]) or 1
+                p["vx"] = p["vx"]/s * spd
+                p["vy"] = p["vy"]/s * spd
+            p["x"] += p["vx"]*dt; p["y"] += p["vy"]*dt; p["t"] += dt
+            if p["x"] < -60 or p["x"] > SCREEN_W+60 or p["y"] < -60 or p["y"] > SCREEN_H+60:
+                continue
+            if math.hypot(p["x"] - cx, p["y"] - cy) < p["r"] + 16:
+                p["alive"] = False
+                self._take_damage(cx, cy)
+                continue
+            live.append(p)
+        self._projectiles = live
+
+    def _draw_projectiles(self, surf):
+        for p in self._projectiles:
+            cx, cy = int(p["x"]), int(p["y"]); r = p["r"]
+            ts = pygame.Surface((r*4, r*4), pygame.SRCALPHA)
+            pygame.draw.circle(ts, (*p["color"][:3], 55), (r*2, r*2), r*2)
+            surf.blit(ts, (cx-r*2, cy-r*2))
+            pygame.draw.circle(surf, p["color"], (cx, cy), r)
+            pygame.draw.circle(surf, (255,255,255), (cx, cy), r, 2)
+            ang = p["t"]*8
+            sx = cx + int(math.cos(ang)*(r-3)); sy = cy + int(math.sin(ang)*(r-3))
+            pygame.draw.circle(surf, (255,255,255), (sx, sy), 2)
+
+    # ── миньоны ──────────────────────────────────────────────────────────────
+    def _spawn_minions(self, cx, cy, n=4):
+        for i in range(n):
+            a = math.pi*2 * i / n + random.uniform(0, 0.5)
+            r = random.uniform(200, 350)
+            self._minions.append({
+                "x": self._boss_x + math.cos(a)*r,
+                "y": self._boss_y + math.sin(a)*r,
+                "vx": 0.0, "vy": 0.0,
+                "alive": True, "t": 0.0,
+                "hp": 1,
+            })
+
+    def _update_minions(self, dt, cx, cy):
+        live = []
+        for m in self._minions:
+            if not m["alive"]: continue
+            m["t"] += dt
+            # движутся к курсору
+            dx = cx - m["x"]; dy = cy - m["y"]
+            d = math.hypot(dx, dy) or 1
+            spd = 200
+            m["vx"] += dx/d * spd * dt * 3
+            m["vy"] += dy/d * spd * dt * 3
+            s = math.hypot(m["vx"], m["vy"]) or 1
+            m["vx"] = m["vx"]/s * spd
+            m["vy"] = m["vy"]/s * spd
+            m["x"] += m["vx"]*dt; m["y"] += m["vy"]*dt
+            if m["x"] < -80 or m["x"] > SCREEN_W+80 or m["y"] < -80 or m["y"] > SCREEN_H+80:
+                continue
+            if math.hypot(m["x"] - cx, m["y"] - cy) < 20:
+                m["alive"] = False
+                self._take_damage(cx, cy)
+                self._spawn_particles(int(m["x"]), int(m["y"]), (255,80,80), n=8)
+                continue
+            live.append(m)
+        self._minions = live
+
+    def _draw_minions(self, surf):
+        for m in self._minions:
+            mx, my = int(m["x"]), int(m["y"])
+            pulse = 10 + int(math.sin(m["t"]*8)*3)
+            gs = pygame.Surface((pulse*4, pulse*4), pygame.SRCALPHA)
+            pygame.draw.circle(gs, (255,80,200,50), (pulse*2, pulse*2), pulse*2)
+            surf.blit(gs, (mx-pulse*2, my-pulse*2))
+            pygame.draw.circle(surf, (255,80,200), (mx, my), pulse)
+            pygame.draw.circle(surf, (255,255,255), (mx, my), pulse, 2)
+
+    # ── AoE предупреждения ───────────────────────────────────────────────────
+    def _spawn_aoe(self, x, y, r, delay=1.0):
+        self._aoe_warnings.append({"x": x, "y": y, "r": r, "t": 0.0, "max_t": delay, "fired": False})
+
+    def _update_aoe(self, dt, cx, cy):
+        live = []
+        for a in self._aoe_warnings:
+            a["t"] += dt
+            if not a["fired"] and a["t"] >= a["max_t"]:
+                a["fired"] = True
+                # взрыв
+                self._spawn_particles(int(a["x"]), int(a["y"]), (255,140,30), n=25, big=True)
+                if math.hypot(cx - a["x"], cy - a["y"]) < a["r"] - 10:
+                    self._take_damage(cx, cy)
+            if a["t"] < a["max_t"] + 0.18:
+                live.append(a)
+        self._aoe_warnings = live
+
+    def _draw_aoe(self, surf):
+        for a in self._aoe_warnings:
+            if a["fired"]: continue
+            frac = a["t"] / a["max_t"]
+            r = int(a["r"])
+            # пульсирующий круг-предупреждение
+            alpha = int(80 + 100 * abs(math.sin(frac * math.pi * 5)))
+            gs = pygame.Surface((r*2+4, r*2+4), pygame.SRCALPHA)
+            pygame.draw.circle(gs, (255, 80, 20, alpha//2), (r+2, r+2), r)
+            pygame.draw.circle(gs, (255, 80, 20, alpha), (r+2, r+2), r, 3)
+            surf.blit(gs, (int(a["x"])-r-2, int(a["y"])-r-2))
+            # заполнение по времени
+            fill_r = int(r * frac)
+            if fill_r > 0:
+                fs = pygame.Surface((fill_r*2, fill_r*2), pygame.SRCALPHA)
+                pygame.draw.circle(fs, (255,120,20, 35), (fill_r, fill_r), fill_r)
+                surf.blit(fs, (int(a["x"])-fill_r, int(a["y"])-fill_r))
+
+    # ── орбитальные снаряды (фаза 3) ─────────────────────────────────────────
+    def _init_orbitals(self):
+        n = 6
+        self._orbitals = [{"angle": math.pi*2*i/n, "r": 110, "spd": 2.8} for i in range(n)]
+
+    def _update_orbitals(self, dt, cx, cy):
+        for o in self._orbitals:
+            o["angle"] += o["spd"] * dt
+            ox = self._boss_x + math.cos(o["angle"]) * o["r"]
+            oy = self._boss_y + math.sin(o["angle"]) * o["r"]
+            if math.hypot(ox - cx, oy - cy) < 14:
+                self._take_damage(cx, cy)
+                o["angle"] += math.pi   # отпрыгнуть назад
+
+    def _draw_orbitals(self, surf):
+        for o in self._orbitals:
+            ox = int(self._boss_x + math.cos(o["angle"]) * o["r"])
+            oy = int(self._boss_y + math.sin(o["angle"]) * o["r"])
+            gs = pygame.Surface((36, 36), pygame.SRCALPHA)
+            pygame.draw.circle(gs, (255,200,50,80), (18,18), 18)
+            surf.blit(gs, (ox-18, oy-18))
+            pygame.draw.circle(surf, (255,200,50), (ox,oy), 11)
+            pygame.draw.circle(surf, (255,255,255), (ox,oy), 11, 2)
+            # искра
+            sx = ox + int(math.cos(o["angle"]+math.pi/2)*7)
+            sy = oy + int(math.sin(o["angle"]+math.pi/2)*7)
+            pygame.draw.circle(surf, (255,255,180), (sx,sy), 3)
+
+    # ── щит ──────────────────────────────────────────────────────────────────
+    def _activate_shield(self):
+        self._shield_active = True
+        n = 3
+        self._shield_shards = [{"angle": math.pi*2*i/n, "alive": True} for i in range(n)]
+
+    def _draw_shield(self, surf):
+        if not self._shield_active: return
+        bx, by = int(self._boss_x), int(self._boss_y)
+        # полупрозрачный купол
+        gs = pygame.Surface((260, 260), pygame.SRCALPHA)
+        a = int(40 + 20*abs(math.sin(self.anim_t*4)))
+        pygame.draw.circle(gs, (80,180,255,a), (130,130), 130)
+        pygame.draw.circle(gs, (80,180,255,160), (130,130), 130, 3)
+        surf.blit(gs, (bx-130, by-130))
+        # осколки щита
+        for sh in self._shield_shards:
+            if not sh["alive"]: continue
+            sh["angle"] += 1.8 * (1/60)
+            sx = bx + int(math.cos(sh["angle"]) * 105)
+            sy = by + int(math.sin(sh["angle"]) * 105)
+            pygame.draw.circle(surf, (140, 220, 255), (sx, sy), 16)
+            pygame.draw.circle(surf, (255,255,255), (sx, sy), 16, 2)
+            # иконка молнии
+            pygame.draw.line(surf, (255,255,120), (sx-5,sy-8),(sx,sy), 2)
+            pygame.draw.line(surf, (255,255,120), (sx,sy),(sx+5,sy+8), 2)
+
+    def _update_shield(self, dt):
+        if not self._shield_active: return
+        # обновляем углы осколков
+        for sh in self._shield_shards:
+            if sh["alive"]:
+                sh["angle"] += 1.8 * dt
+        # если все осколки уничтожены — щит снят
+        if all(not sh["alive"] for sh in self._shield_shards):
+            self._shield_active = False
+            self._shield_cd = {2: 6.0, 3: 4.0}.get(self._get_phase(), 8.0)
+            self._spawn_particles(int(self._boss_x), int(self._boss_y), (80,200,255), n=30, big=True)
+
+    def _try_click_shield(self, mx, my):
+        """Клик попал в осколок щита? Возвращает True если попал."""
+        bx, by = self._boss_x, self._boss_y
+        for sh in self._shield_shards:
+            if not sh["alive"]: continue
+            sx = bx + math.cos(sh["angle"]) * 105
+            sy = by + math.sin(sh["angle"]) * 105
+            if math.hypot(mx - sx, my - sy) < 20:
+                sh["alive"] = False
+                self._spawn_particles(int(sx), int(sy), (140,220,255), n=14)
                 return True
         return False
 
+    # ── телепорт ─────────────────────────────────────────────────────────────
+    def _do_teleport(self):
+        pts = [p for p in self.PATROL_PTS
+               if math.hypot(p[0]-self._boss_x, p[1]-self._boss_y) > 300]
+        if not pts:
+            pts = self.PATROL_PTS
+        tx, ty = random.choice(pts)
+        self._spawn_particles(int(self._boss_x), int(self._boss_y), (200,80,255), n=30, big=True)
+        self._boss_x, self._boss_y = float(tx), float(ty)
+        self._tele_flash = 0.22
+        self._spawn_particles(int(tx), int(ty), (255,200,80), n=30, big=True)
+
+    # ── урон игроку ──────────────────────────────────────────────────────────
+    def _take_damage(self, cx, cy):
+        self.lives -= 1
+        self._life_flash = 0.45
+        self._spawn_particles(int(cx), int(cy), (220,60,60), n=14)
+        if self.lives <= 0:
+            self.state = "lose"
+
+    # ── движение босса ───────────────────────────────────────────────────────
+    def _update_boss(self, dt):
+        spd = self._boss_speed()
+        tx, ty = self.PATROL_PTS[self._patrol_idx]
+        dx = tx - self._boss_x; dy = ty - self._boss_y
+        d = math.hypot(dx, dy)
+        if d < 14:
+            self._patrol_idx = (self._patrol_idx + 1) % len(self.PATROL_PTS)
+        else:
+            self._boss_x += dx/d * spd * dt
+            self._boss_y += dy/d * spd * dt
+        if self._hit_flash > 0:
+            self._hit_flash = max(0.0, self._hit_flash - dt)
+
+    # ── фоновый рисунок арены ────────────────────────────────────────────────
+    def _draw_arena(self, surf):
+        draw_rect_gradient(surf, (8, 5, 18), (16, 10, 30), (0, 0, SCREEN_W, SCREEN_H), alpha=255)
+        cx2, cy2 = SCREEN_W//2, SCREEN_H//2
+        for i in range(12):
+            a1 = math.radians(i*30 + self.anim_t*4)
+            a2 = math.radians(i*30 + 15 + self.anim_t*4)
+            col = (35, 10, 10) if i % 2 == 0 else (10, 8, 30)
+            pts = [
+                (cx2, cy2),
+                (int(cx2 + math.cos(a1)*1400), int(cy2 + math.sin(a1)*1400)),
+                (int(cx2 + math.cos(a2)*1400), int(cy2 + math.sin(a2)*1400)),
+            ]
+            pygame.draw.polygon(surf, col, pts)
+        pygame.draw.circle(surf, (50, 30, 60), (cx2, cy2), 520, 6)
+        pygame.draw.circle(surf, (80, 50, 100), (cx2, cy2), 520, 2)
+        spot_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        for r2 in range(500, 0, -20):
+            a2 = max(0, int(8 * (1 - r2/500)))
+            pygame.draw.circle(spot_surf, (255, 240, 200, a2), (cx2, -80), r2 + 580)
+        surf.blit(spot_surf, (0, 0))
+        for i in range(20):
+            lx = int(SCREEN_W * i / 19)
+            ly = 30 + int(math.sin(self.anim_t*1.5 + i*0.7)*8)
+            pygame.draw.line(surf, (80, 70, 60), (lx, 0), (lx, ly+10), 1)
+            col_b = self.PROJ_COLORS[i % len(self.PROJ_COLORS)]
+            pygame.draw.circle(surf, col_b, (lx, ly), 7)
+            pygame.draw.circle(surf, (255,255,255), (lx-2, ly-2), 2)
+
+    # ── спрайт босса ─────────────────────────────────────────────────────────
+    def _draw_boss_sprite(self, surf):
+        bx, by = int(self._boss_x), int(self._boss_y)
+        r = self.BOSS_RADIUS
+        phase = self._get_phase()
+        hp_frac = self._hp_frac
+
+        if self._hit_flash > 0:
+            body = (255, 80, 80)
+        elif phase == 3:
+            body = (220, 30, 100)
+        elif phase == 2:
+            body = (200, 80, 200)
+        else:
+            body = (180, 50, 220)
+
+        shad = pygame.Surface((r*3, r), pygame.SRCALPHA)
+        pygame.draw.ellipse(shad, (0, 0, 0, 60), (0, 0, r*3, r))
+        surf.blit(shad, (bx - r*3//2, by + r - 4))
+
+        draw_glow_circle(surf, body, (bx, by), r + 30, intensity=50)
+
+        pygame.draw.circle(surf, body, (bx, by), r)
+        pygame.draw.circle(surf, (255, 255, 255), (bx, by), r, 3)
+
+        collar_r = r + 10
+        for i in range(8):
+            a = math.radians(i*45 + self.anim_t*60)
+            cx3 = bx + int(math.cos(a)*collar_r)
+            cy3 = by + int(math.sin(a)*collar_r)
+            pygame.draw.circle(surf, (255, 80, 80) if i%2==0 else (255,255,50), (cx3, cy3), 8)
+
+        hat_w = r + 18; hat_h = r + 24
+        hat_pts = [
+            (bx - r - 4, by - r + 4), (bx + r + 4, by - r + 4),
+            (bx + hat_w//2, by - r - hat_h), (bx - hat_w//2, by - r - hat_h),
+        ]
+        pygame.draw.polygon(surf, (20, 20, 20), hat_pts)
+        pygame.draw.polygon(surf, (255, 80, 80), hat_pts, 3)
+        band_y = by - r - hat_h//3
+        pygame.draw.line(surf, (255, 200, 50), (bx - hat_w//2, band_y), (bx + hat_w//2, band_y), 4)
+        pygame.draw.circle(surf, (255, 255, 50), (bx, by - r - hat_h), 10)
+
+        eye_col = (255, 30, 30) if phase >= 2 else (40, 20, 20)
+        pygame.draw.ellipse(surf, (255,255,255), (bx-20, by-18, 20, 16))
+        pygame.draw.ellipse(surf, (255,255,255), (bx+ 2, by-18, 20, 16))
+        mx2, my2 = int(self._cursor_x), int(self._cursor_y)
+        ang_e = math.atan2(my2-by, mx2-bx)
+        for ex, ey in [(bx-10, by-10), (bx+12, by-10)]:
+            px3 = ex + int(math.cos(ang_e)*4)
+            py3 = ey + int(math.sin(ang_e)*4)
+            pygame.draw.circle(surf, eye_col, (px3, py3), 6)
+
+        if phase == 3:
+            ang_m = self.anim_t * 3
+            mouth_pts = [
+                (bx - 20, by + 14 + int(math.sin(ang_m)*4)),
+                (bx,      by + 28),
+                (bx + 20, by + 14 + int(math.sin(ang_m+1)*4)),
+            ]
+            pygame.draw.polygon(surf, (20, 5, 5), mouth_pts)
+            pygame.draw.lines(surf, (255, 50, 50), False, mouth_pts, 3)
+        else:
+            pygame.draw.arc(surf, (255, 50, 50) if phase==2 else (50, 200, 50),
+                            (bx-18, by+8, 36, 20), math.pi, 0, 3)
+
+        pygame.draw.circle(surf, (255, 50, 50), (bx, by+6), 8)
+        pygame.draw.circle(surf, (255,180,180), (bx-2, by+4), 3)
+
+        # HP бар
+        bar_w, bar_h = 160, 14
+        bx4, by4 = bx - bar_w//2, by - r - 40
+        pygame.draw.rect(surf, (40,10,10), (bx4, by4, bar_w, bar_h), border_radius=7)
+        fill = max(0, int(bar_w * hp_frac))
+        fc = (int(220*(1-hp_frac)+50*hp_frac), int(50*(1-hp_frac)+200*hp_frac), 50)
+        if fill > 0:
+            pygame.draw.rect(surf, fc, (bx4, by4, fill, bar_h), border_radius=7)
+        pygame.draw.rect(surf, (200,200,200), (bx4, by4, bar_w, bar_h), 2, border_radius=7)
+        hpf = pygame.font.SysFont("consolas", 10, bold=True)
+        txt(surf, f"{max(0,self.boss_hp)}/{self.BOSS_MAX_HP}", (bx, by4+bar_h//2),
+            (255,255,255), hpf, center=True)
+
+    # ── HUD ──────────────────────────────────────────────────────────────────
+    def _draw_hud(self, surf, font_med, font_lg, dash_cd):
+        phase = self._get_phase()
+        phase_names = {1: "PHASE 1 — The Jester", 2: "PHASE 2 — The Madman", 3: "PHASE 3 — FINAL STAND"}
+        phase_cols  = {1: (180, 80, 255), 2: (255, 120, 50), 3: (255, 40, 40)}
+        pf = pygame.font.SysFont("consolas", 18, bold=True)
+        txt(surf, phase_names[phase], (SCREEN_W//2, 14), phase_cols[phase], pf, center=True)
+
+        # Жизни
+        for i in range(self.PLAYER_LIVES):
+            col = (255, 80, 80) if i < self.lives else (60, 30, 30)
+            pygame.draw.circle(surf, col, (36 + i*32, 36), 11)
+            pygame.draw.circle(surf, (255,255,255) if i < self.lives else (80,40,40),
+                               (36 + i*32, 36), 11, 2)
+        lbl = pygame.font.SysFont("consolas", 12)
+        txt(surf, "LIVES", (36 + (self.PLAYER_LIVES//2)*32, 56), (150,120,150), lbl, center=True)
+
+        # Дэш кулдаун (правый нижний угол)
+        df = pygame.font.SysFont("consolas", 15, bold=True)
+        dash_ready = dash_cd <= 0
+        dcol = (100,255,180) if dash_ready else (120,120,140)
+        dlbl = "DASH [SPACE]  READY" if dash_ready else f"DASH [SPACE]  {dash_cd:.1f}s"
+        txt(surf, dlbl, (SCREEN_W - 16, SCREEN_H - 36), dcol, df, right=True)
+
+        # Щит подсказка
+        if self._shield_active:
+            sf = pygame.font.SysFont("consolas", 16, bold=True)
+            alive_n = sum(1 for s in self._shield_shards if s["alive"])
+            txt(surf, f"SHIELD ACTIVE — click the orbs! ({alive_n} left)",
+                (SCREEN_W//2, SCREEN_H - 52), (100,200,255), sf, center=True)
+        else:
+            hint = pygame.font.SysFont("consolas", 13)
+            txt(surf, "CLICK THE BOSS — dodge projectiles — SPACE to dash",
+                (SCREEN_W//2, SCREEN_H - 22), (80, 90, 120), hint, center=True)
+
+    # ── главный цикл ─────────────────────────────────────────────────────────
     def run(self):
-        """Run the mini-game loop. Returns True if won, False if lost/quit."""
         font_huge = pygame.font.SysFont("consolas", 72, bold=True)
         font_big  = pygame.font.SysFont("consolas", 42, bold=True)
         font_med  = pygame.font.SysFont("consolas", 26, bold=True)
-        font_sm2  = pygame.font.SysFont("consolas", 18)
+        font_sm   = pygame.font.SysFont("consolas", 18)
         back_btn  = pygame.Rect(24, 24, 130, 44)
 
-        while True:
-            dt = min(self.clock.tick(FPS) / 1000.0, 0.05)
-            self.anim_t += dt
+        # Скрываем курсор — рисуем свой
+        pygame.mouse.set_visible(False)
+        self._cursor_x, self._cursor_y = pygame.mouse.get_pos()
 
-            # ── Events ──────────────────────────────────────────────────────
-            for ev in pygame.event.get():
-                if ev.type == pygame.QUIT:
-                    pygame.quit(); sys.exit()
-                if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
-                    return False
-                if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
-                    if self.state == "playing":
+        # Орбитали появятся в фазе 3
+        _orbitals_inited = False
+        _minion_cd = 7.0
+        _aoe_cd    = 5.0
+
+        try:
+            while True:
+                dt = min(self.clock.tick(FPS)/1000.0, 0.05)
+                self.anim_t += dt
+                raw_mx, raw_my = pygame.mouse.get_pos()
+
+                # Дэш: плавно двигаем "курсор" если дэш активен
+                if self._dash_t > 0:
+                    self._dash_t = max(0.0, self._dash_t - dt)
+                    self._cursor_x += self._dash_vx * dt
+                    self._cursor_y += self._dash_vy * dt
+                    self._cursor_x = max(0, min(SCREEN_W, self._cursor_x))
+                    self._cursor_y = max(0, min(SCREEN_H, self._cursor_y))
+                else:
+                    self._cursor_x = float(raw_mx)
+                    self._cursor_y = float(raw_my)
+                cx, cy = self._cursor_x, self._cursor_y
+
+                if self._dash_cd > 0:
+                    self._dash_cd = max(0.0, self._dash_cd - dt)
+
+                for ev in pygame.event.get():
+                    if ev.type == pygame.QUIT:
+                        pygame.mouse.set_visible(True)
+                        pygame.quit(); sys.exit()
+                    if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
+                        pygame.mouse.set_visible(True)
+                        return False
+                    if ev.type == pygame.KEYDOWN and ev.key == pygame.K_SPACE:
+                        if self._dash_cd <= 0 and self.state == "playing":
+                            # дэш в направлении мыши от центра экрана
+                            dx = raw_mx - SCREEN_W//2; dy = raw_my - SCREEN_H//2
+                            d = math.hypot(dx, dy) or 1
+                            spd = 900
+                            self._dash_vx = dx/d * spd
+                            self._dash_vy = dy/d * spd
+                            self._dash_t  = 0.18
+                            self._dash_cd = 2.0
+                            self._spawn_particles(int(cx), int(cy), (100,200,255), n=10)
+
+                    if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                        if self.state in ("win", "lose"):
+                            pygame.mouse.set_visible(True)
+                            return self.state == "win"
                         if back_btn.collidepoint(ev.pos):
+                            pygame.mouse.set_visible(True)
                             return False
-                        self._handle_click(ev.pos)
-                    elif self.state in ("win", "lose"):
-                        # Any click on result screen goes back
-                        return (self.state == "win")
 
-            # ── Update ──────────────────────────────────────────────────────
-            if self.state == "playing":
-                self.time_left -= dt
-                if self.time_left <= 0 and self.state == "playing":
-                    self.time_left = 0
-                    self.state = "lose"
+                        if self.state == "playing":
+                            if self._shield_active:
+                                # сначала пытаемся разбить осколок щита
+                                if not self._try_click_shield(cx, cy):
+                                    pass  # мимо щита — босса не бьём
+                            else:
+                                if math.hypot(cx - self._boss_x, cy - self._boss_y) <= self.BOSS_RADIUS + 10:
+                                    self.boss_hp -= self.DMG_PER_CLICK
+                                    self._hit_flash = 0.14
+                                    self._spawn_particles(int(self._boss_x), int(self._boss_y),
+                                                          (255, 100, 80), n=10)
+                                    if self.boss_hp <= 0:
+                                        self.boss_hp = 0
+                                        self.state = "win"
+                                        self._spawn_particles(int(self._boss_x), int(self._boss_y),
+                                                              (255, 220, 50), n=60, big=True)
 
-                # Spawn balloons
-                if len([b for b in self.balloons if b["alive"]]) < self.MAX_ALIVE:
-                    self.spawn_t -= dt
-                    if self.spawn_t <= 0:
-                        self.spawn_t = self.SPAWN_RATE
-                        self._spawn_balloon()
+                # ── Update ────────────────────────────────────────────────
+                if self.state == "playing":
+                    prev_phase = self._phase
+                    self._phase = self._get_phase()
 
-                # Update balloon positions
-                for b in self.balloons:
-                    if not b["alive"]: continue
-                    b["t"] += dt
-                    b["y"] -= b["speed"] * dt
-                    b["x"] = b["base_x"] + math.sin(b["t"] * b["wobble_freq"] + b["wobble_phase"]) * b["wobble_amp"]
-                    if b["y"] < -60:
-                        b["alive"] = False   # missed — no penalty, just gone
+                    # Переход фазы
+                    if self._phase > self._phase_announced:
+                        self._phase_announced = self._phase
+                        self._spawn_particles(int(self._boss_x), int(self._boss_y),
+                                             (255, 80, 200), n=50, big=True)
+                        self._projectiles = []
+                        self._minions = []
+                        if self._phase == 3 and not _orbitals_inited:
+                            self._init_orbitals()
+                            _orbitals_inited = True
 
-                self.balloons = [b for b in self.balloons if b["alive"] or b["y"] >= -60]
+                    self._update_boss(dt)
+                    self._update_shield(dt)
 
-            # Update pop particles
-            new_parts = []
-            for p in self._particles:
-                p["t"] += dt
-                p["x"] += p["vx"] * dt
-                p["y"] += p["vy"] * dt
-                p["vy"] += 350 * dt  # gravity
-                if p["t"] < p["life"]:
-                    new_parts.append(p)
-            self._particles = new_parts
+                    # Щит кулдаун
+                    if self._phase >= 2 and not self._shield_active:
+                        self._shield_cd -= dt
+                        if self._shield_cd <= 0:
+                            self._activate_shield()
 
-            # ── Draw ────────────────────────────────────────────────────────
-            surf = self.screen
+                    # Телепорт
+                    if self._phase >= 2:
+                        self._tele_cd -= dt
+                        if self._tele_cd <= 0:
+                            self._do_teleport()
+                            self._tele_cd = {2: 8.0, 3: 5.0}[self._phase]
 
-            # background
-            draw_rect_gradient(surf, (8, 10, 22), (14, 18, 32),
-                               (0, 0, SCREEN_W, SCREEN_H), alpha=255)
+                    if self._tele_flash > 0:
+                        self._tele_flash = max(0.0, self._tele_flash - dt)
 
-            if self.state == "playing":
-                # draw balloons
-                for b in self.balloons:
-                    if not b["alive"]: continue
-                    cx, cy = int(b["x"]), int(b["y"])
-                    r = b["radius"]
-                    # shadow
-                    draw_rect_alpha(surf, (0,0,0), (cx-r, cy+r-3, r*2, 6), 60, brad=r)
-                    # body
-                    pygame.draw.circle(surf, b["color"], (cx, cy), r)
-                    # shine
-                    pygame.draw.circle(surf, (255,255,255), (cx-r//4, cy-r//4), max(2, r//4))
-                    pygame.draw.circle(surf, (*b["color"][:3],), (cx, cy), r, 2)
-                    # knot at bottom
-                    pygame.draw.circle(surf, tuple(max(0,c-60) for c in b["color"]), (cx, cy+r), 3)
-                    # string
-                    pygame.draw.line(surf, (180, 160, 140), (cx, cy+r+3), (cx + random.randint(-4,4), cy+r+22), 1)
+                    # Атаки
+                    self._atk_cd -= dt
+                    if self._atk_cd <= 0:
+                        self._atk_cd = self._atk_interval()
+                        pattern = self._atk_pattern
+                        if self._phase == 1:
+                            pattern = self._atk_pattern % 2
+                        elif self._phase == 2:
+                            pattern = self._atk_pattern % 3
+                        else:
+                            pattern = self._atk_pattern % 4
+                        self._atk_pattern += 1
+                        self._fire_volley(cx, cy, pattern)
 
-                # draw pop particles
-                for p in self._particles:
-                    frac = 1.0 - p["t"] / p["life"]
-                    a = int(255 * frac)
-                    ps = pygame.Surface((p["size"]*2, p["size"]*2), pygame.SRCALPHA)
-                    pygame.draw.circle(ps, (*p["color"][:3], a), (p["size"], p["size"]), p["size"])
-                    surf.blit(ps, (int(p["x"]) - p["size"], int(p["y"]) - p["size"]))
+                    # Миньоны
+                    if self._phase >= 2:
+                        _minion_cd -= dt
+                        if _minion_cd <= 0:
+                            _minion_cd = {2: 6.0, 3: 4.0}[self._phase]
+                            self._spawn_minions(cx, cy, n={2:3,3:5}[self._phase])
 
-                # HUD
-                # Progress bar bg
-                bar_w = 500; bar_h = 28
-                bar_x = SCREEN_W//2 - bar_w//2; bar_y = 28
-                draw_rect_alpha(surf, (20, 25, 40), (bar_x, bar_y, bar_w, bar_h), 220, brad=14)
-                fill_w = int(bar_w * self.popped / self.GOAL)
-                if fill_w > 0:
-                    draw_rect_gradient(surf, (80,220,80), (40,160,60),
-                                       (bar_x, bar_y, fill_w, bar_h), alpha=255, brad=14)
-                pygame.draw.rect(surf, (80,200,80), (bar_x, bar_y, bar_w, bar_h), 2, border_radius=14)
-                prog_f = pygame.font.SysFont("consolas", 16, bold=True)
-                txt(surf, f"🎈 {self.popped} / {self.GOAL}",
-                    (SCREEN_W//2, bar_y + bar_h//2), C_WHITE, prog_f, center=True)
+                    # AoE
+                    _aoe_cd -= dt
+                    if _aoe_cd <= 0:
+                        _aoe_cd = {1: 6.0, 2: 4.5, 3: 3.0}[self._phase]
+                        # 2-3 зоны вокруг курсора
+                        for _ in range(1 + self._phase):
+                            ax = cx + random.uniform(-200, 200)
+                            ay = cy + random.uniform(-200, 200)
+                            ax = max(80, min(SCREEN_W-80, ax))
+                            ay = max(80, min(SCREEN_H-80, ay))
+                            self._spawn_aoe(ax, ay, r={1:90,2:110,3:130}[self._phase],
+                                           delay={1:1.2,2:1.0,3:0.8}[self._phase])
 
-                # Timer
-                timer_col = C_GREEN if self.time_left > 10 else C_RED
-                pulse = abs(math.sin(self.anim_t * 4)) if self.time_left < 10 else 0
-                timer_size = int(28 + pulse * 6)
-                tf = pygame.font.SysFont("consolas", timer_size, bold=True)
-                txt(surf, f"⏱ {self.time_left:.1f}s",
-                    (SCREEN_W - 20, 30), timer_col, tf, right=True)
+                    # Орбитали (фаза 3)
+                    if self._phase == 3 and self._orbitals:
+                        self._update_orbitals(dt, cx, cy)
 
-                # Back button
-                draw_rect_alpha(surf, (40,40,70), back_btn, 200, brad=8)
-                pygame.draw.rect(surf, C_BORDER, back_btn, 1, border_radius=8)
-                txt(surf, "<- BACK", back_btn.center, C_WHITE, font_sm2, center=True)
+                    self._update_projectiles(dt, cx, cy)
+                    self._update_minions(dt, cx, cy)
+                    self._update_aoe(dt, cx, cy)
 
-                # Title hint
-                hint_f = pygame.font.SysFont("consolas", 14)
-                txt(surf, "Pop 20 balloons before time runs out!  Click on them.",
-                    (SCREEN_W//2, SCREEN_H - 24), (80,90,120), hint_f, center=True)
+                self._update_particles(dt)
 
-            elif self.state == "win":
-                # Win screen
-                for i in range(30):
-                    cx2 = random.randint(0, SCREEN_W)
-                    cy2 = random.randint(0, SCREEN_H)
-                    r2  = random.randint(6, 18)
-                    col2 = random.choice(self.COLORS)
-                    pygame.draw.circle(surf, col2, (cx2, cy2), r2)
+                # ── Draw ──────────────────────────────────────────────────
+                surf = self.screen
+                self._draw_arena(surf)
 
-                glow_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                pygame.draw.ellipse(glow_surf, (50, 220, 80, 40),
-                                    (SCREEN_W//2-400, SCREEN_H//2-200, 800, 400))
-                surf.blit(glow_surf, (0,0))
+                # Вспышка при попадании
+                if self._life_flash > 0:
+                    frac = self._life_flash / 0.45
+                    fs = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    pygame.draw.rect(fs, (220, 30, 30, int(130*frac)), (0,0,SCREEN_W,SCREEN_H))
+                    surf.blit(fs, (0,0))
+                    self._life_flash = max(0.0, self._life_flash - dt)
 
-                txt(surf, "🎉 YOU WIN! 🎉",
-                    (SCREEN_W//2, SCREEN_H//2 - 120), C_GREEN, font_huge, center=True)
-                txt(surf, "CLOWN TOWER UNLOCKED!",
-                    (SCREEN_W//2, SCREEN_H//2 - 40), C_GOLD, font_big, center=True)
-                txt(surf, "The Clown is now available in your Loadout.",
-                    (SCREEN_W//2, SCREEN_H//2 + 30), C_WHITE, font_med, center=True)
-                txt(surf, "Click anywhere to return.",
-                    (SCREEN_W//2, SCREEN_H//2 + 100), (120,130,160), font_sm2, center=True)
+                # Вспышка телепорта
+                if self._tele_flash > 0:
+                    frac = self._tele_flash / 0.22
+                    ts2 = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    pygame.draw.rect(ts2, (200, 150, 255, int(100*frac)), (0,0,SCREEN_W,SCREEN_H))
+                    surf.blit(ts2, (0,0))
 
-                # Draw pop particles (still animating)
-                for p in self._particles:
-                    frac = 1.0 - p["t"] / p["life"]
-                    a = int(255 * frac)
-                    ps = pygame.Surface((p["size"]*2, p["size"]*2), pygame.SRCALPHA)
-                    pygame.draw.circle(ps, (*p["color"][:3], a), (p["size"], p["size"]), p["size"])
-                    surf.blit(ps, (int(p["x"]) - p["size"], int(p["y"]) - p["size"]))
+                # Ярость фаза 3
+                if self._get_phase() == 3 and self.state == "playing":
+                    rs = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    a_r = int(abs(math.sin(self.anim_t*7))*22)
+                    pygame.draw.rect(rs, (200, 20, 20, a_r), (0,0,SCREEN_W,SCREEN_H))
+                    surf.blit(rs, (0,0))
 
-            elif self.state == "lose":
-                glow_s = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                pygame.draw.ellipse(glow_s, (220, 50, 50, 35),
-                                    (SCREEN_W//2-400, SCREEN_H//2-200, 800, 400))
-                surf.blit(glow_s, (0,0))
+                self._draw_aoe(surf)
+                self._draw_particles(surf)
 
-                txt(surf, "TIME'S UP!",
-                    (SCREEN_W//2, SCREEN_H//2 - 110), C_RED, font_huge, center=True)
-                txt(surf, f"You popped {self.popped} / {self.GOAL} balloons.",
-                    (SCREEN_W//2, SCREEN_H//2 - 20), C_WHITE, font_big, center=True)
-                txt(surf, "Clown remains locked. Try again!",
-                    (SCREEN_W//2, SCREEN_H//2 + 50), (180,80,80), font_med, center=True)
-                txt(surf, "Click anywhere to return.",
-                    (SCREEN_W//2, SCREEN_H//2 + 110), (120,130,160), font_sm2, center=True)
+                if self.state == "playing":
+                    self._draw_projectiles(surf)
+                    self._draw_minions(surf)
+                    if self._orbitals: self._draw_orbitals(surf)
+                    self._draw_shield(surf)
+                    self._draw_boss_sprite(surf)
+                    self._draw_hud(surf, font_med, font_big, self._dash_cd)
 
-            pygame.display.flip()
+                    # Курсор
+                    mcx, mcy = int(self._cursor_x), int(self._cursor_y)
+                    cr = 16
+                    dash_ready = self._dash_cd <= 0
+                    ccol = (100,255,180) if dash_ready else (255,255,255)
+                    pygame.draw.line(surf, ccol, (mcx-cr,mcy), (mcx+cr,mcy), 2)
+                    pygame.draw.line(surf, ccol, (mcx,mcy-cr), (mcx,mcy+cr), 2)
+                    pygame.draw.circle(surf, ccol, (mcx,mcy), 5, 1)
+                    # Дэш-след
+                    if self._dash_t > 0:
+                        ds2 = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                        pygame.draw.circle(ds2, (100,200,255,80), (mcx,mcy), 22)
+                        surf.blit(ds2, (0,0))
+
+                    # Back button
+                    draw_rect_alpha(surf, (40,40,70), back_btn, 200, brad=8)
+                    pygame.draw.rect(surf, C_BORDER, back_btn, 1, border_radius=8)
+                    txt(surf, "<- BACK", back_btn.center, C_WHITE, font_sm, center=True)
+
+                elif self.state == "win":
+                    for _ in range(25):
+                        pygame.draw.circle(surf, random.choice(self.PROJ_COLORS),
+                            (random.randint(0,SCREEN_W), random.randint(0,SCREEN_H)),
+                            random.randint(5,16))
+                    gs2 = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    pygame.draw.ellipse(gs2, (50,220,80,40), (SCREEN_W//2-500,SCREEN_H//2-220,1000,440))
+                    surf.blit(gs2, (0,0))
+                    txt(surf, "BOSS DEFEATED!", (SCREEN_W//2, SCREEN_H//2-130), C_GREEN, font_huge, center=True)
+                    txt(surf, "CLOWN TOWER UNLOCKED!", (SCREEN_W//2, SCREEN_H//2-45), C_GOLD, font_big, center=True)
+                    txt(surf, "The Clown is now available in your Loadout.",
+                        (SCREEN_W//2, SCREEN_H//2+30), C_WHITE, font_med, center=True)
+                    txt(surf, "Click anywhere to return.", (SCREEN_W//2, SCREEN_H//2+110), (120,130,160), font_sm, center=True)
+
+                elif self.state == "lose":
+                    gs3 = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    pygame.draw.ellipse(gs3, (220,50,50,35), (SCREEN_W//2-450,SCREEN_H//2-200,900,400))
+                    surf.blit(gs3, (0,0))
+                    txt(surf, "YOU WERE CLOWNED!", (SCREEN_W//2, SCREEN_H//2-120), C_RED, font_huge, center=True)
+                    txt(surf, "Clown remains locked. Try again!",
+                        (SCREEN_W//2, SCREEN_H//2+40), (180,80,80), font_med, center=True)
+                    txt(surf, "Click anywhere to return.", (SCREEN_W//2, SCREEN_H//2+110), (120,130,160), font_sm, center=True)
+
+                pygame.display.flip()
+
+        finally:
+            pygame.mouse.set_visible(True)
+
 
 
 # ── Lobby ──────────────────────────────────────────────────────────────────────
@@ -5978,12 +6721,23 @@ class Lobby:
                   (14,65,44),(9,40,28),   (80,255,160), font_lg, (40,180,100))
         fancy_btn(self.btn_shop,      "🛒 SHOP",
                   (50,38,10),(32,22,5),   C_GOLD, font_lg, (200,160,40))
-        # Mini-game button — show lock state
+        # Key Hunt button — show key progress or boss fight availability
         _clown_locked = not is_clown_unlocked()
-        mg_label = "🎪 MINI GAME  [Unlock Clown]" if _clown_locked else "🎪 MINI GAME  ✔ Clown Unlocked"
-        mg_col   = (180,80,255) if _clown_locked else (80,200,80)
+        _keys_now = total_clown_keys()
+        if not _clown_locked:
+            mg_label = "🗝️ KEY HUNT  ✔ Clown Unlocked"
+            mg_col   = (80,200,80)
+            mg_bg1, mg_bg2, mg_bdr = (20,60,20),(12,36,12),(60,180,60)
+        elif _keys_now >= CLOWN_KEYS_TOTAL:
+            mg_label = f"🗝️ BOSS FIGHT READY! ({_keys_now}/{CLOWN_KEYS_TOTAL} keys)"
+            mg_col   = (255,200,50)
+            mg_bg1, mg_bg2, mg_bdr = (60,45,5),(38,28,3),(220,160,30)
+        else:
+            mg_label = f"🗝️ Keys: {_keys_now}/{CLOWN_KEYS_TOTAL}  — Play to find more!"
+            mg_col   = (180,80,255)
+            mg_bg1, mg_bg2, mg_bdr = (55,20,80),(32,10,50),(140,60,200)
         fancy_btn(self.btn_minigame, mg_label,
-                  (55,20,80),(32,10,50),  mg_col, font_sm, (140,60,200) if _clown_locked else (60,180,60))
+                  mg_bg1, mg_bg2, mg_col, font_sm, mg_bdr)
         fancy_btn(self.btn_quit,      "✕  QUIT",
                   (72,20,20),(46,12,12),  (255,120,120), font_md, (180,50,50))
         fancy_btn(self.btn_changelog, "📋 CHANGELOG",
@@ -6403,7 +7157,7 @@ class Lobby:
                     draw_rect_alpha(surf, (60, 20, 80), cl_r, 200, brad=4)
                     pygame.draw.rect(surf, (180, 80, 255), cl_r, 1, border_radius=4)
                     sf3 = pygame.font.SysFont("consolas", 9, bold=True)
-                    txt(surf, "🔒 MINI GAME", (cl_r.centerx, cl_r.centery),
+                    txt(surf, "🔒 KEY HUNT", (cl_r.centerx, cl_r.centery),
                         (180, 80, 255), sf3, center=True)
 
             # selected indicator bar on left edge
@@ -7019,11 +7773,14 @@ class Lobby:
             elif self.btn_shop.collidepoint(pos):
                 self.state = "shop"
             elif self.btn_minigame.collidepoint(pos):
-                # Launch the Balloon Pop mini-game
-                game = BalloonPopMiniGame(self.screen)
-                won = game.run()
-                if won:
-                    unlock_clown()
+                # Only launch boss fight when all 12 keys collected
+                keys_total = total_clown_keys()
+                if keys_total >= CLOWN_KEYS_TOTAL:
+                    arena = ClownBossArena(self.screen)
+                    won = arena.run()
+                    if won:
+                        unlock_clown()
+                # else: button shows key progress — nothing to launch yet
             elif self.btn_changelog.collidepoint(pos):
                 self.state = "changelog"
                 self._changelog_scroll = 0
@@ -7217,8 +7974,16 @@ class Game:
         self.speed_x2=False  # 2x speed toggle
         self.anim_t=0.0      # for win/lose screen animations
 
+        # Clown Key fragments appear during gameplay if Clown not yet unlocked
+        if not is_clown_unlocked():
+            self._key_mgr = InGameKeyManager(difficulty)
+        else:
+            self._key_mgr = None
+
         # Patch enemy stats with difficulty multipliers
         self._patch_enemies()
+        # Dev console (F3 to open)
+        self.dev_console = DevConsole()
 
     def _get_hell_hp_mult(self):
         """Return a progressive HP multiplier for Hell mode based on current wave.
@@ -7533,6 +8298,10 @@ class Game:
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
 
+                # Dev console gets F3 before anything else
+                if self.dev_console.handle_event(ev, self):
+                    continue
+
                 if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
                     if self.game_over or self.win:
                         self.running = False  # go back to lobby
@@ -7562,6 +8331,11 @@ class Game:
                             if not self.wave_mgr.extra_queue:
                                 self.wave_mgr.skip_wave()
                         self.money += self.ui.handle_click(ev.pos, self.units, self.money, self.effects, self.enemies)
+                        # Clown key collection
+                        if self._key_mgr:
+                            if self._key_mgr.handle_click(ev.pos):
+                                keys_now = total_clown_keys()
+                                self.ui.show_msg(f"Key fragment! {keys_now}/{CLOWN_KEYS_TOTAL}", 2.5)
                 if ev.type == pygame.KEYDOWN:
                     # Tower hotkeys 1-5
                     tower_keys = {pygame.K_1:0, pygame.K_2:1, pygame.K_3:2,
@@ -7616,6 +8390,10 @@ class Game:
             # Draw pause menu on top
             if self.paused:
                 self._draw_pause_menu(btn_resume, btn_exit, pmenu_x, pmenu_y, pmenu_w, pmenu_h)
+
+            # Dev console tick (handles deferred actions like boss launch) and draw
+            self.dev_console.tick(self)
+            self.dev_console.draw(self.screen, raw_dt)
 
             pygame.display.flip()
         self._restore_enemies()
@@ -7786,22 +8564,34 @@ class Game:
 
         self.effects=[ef for ef in self.effects if ef.update(dt)]
         self.ui.update(dt)
+        if self._key_mgr:
+            self._key_mgr.update(dt)
 
     def draw(self):
         self.draw_map()
-        can_detect=any(getattr(u,'hidden_detection',False) for u in self.units)
+        # Башни с hidden_detection — обнаруживают только врагов в своём радиусе
+        hd_units = [u for u in self.units if getattr(u, 'hidden_detection', False)]
         mx,my=pygame.mouse.get_pos()
         for u in self.units: u.draw(self.screen)
         for e in self.enemies:
             if not e.alive: continue
             hov=dist((e.x,e.y),(mx,my))<e.radius+5
             if hov: continue
-            e.draw(self.screen,detected=can_detect)
+            # Враг обнаружен только если находится в радиусе хотя бы одной башни с HD
+            detected = any(
+                dist((e.x, e.y), (u.px, u.py)) <= u.range_tiles * TILE
+                for u in hd_units
+            )
+            e.draw(self.screen, detected=detected)
         for ef in self.effects: ef.draw(self.screen)
         # Draw and tick global death particles
         global _GLOBAL_EFFECTS
         _GLOBAL_EFFECTS = [p for p in _GLOBAL_EFFECTS if p.update(1/FPS)]
         for p in _GLOBAL_EFFECTS: p.draw(self.screen)
+        # Draw in-game clown key fragments
+        if self._key_mgr:
+            self._key_mgr.draw(self.screen, self.anim_t)
+            self._key_mgr.draw_hud(self.screen, self.anim_t)
         self.ui.draw(self.screen,self.units,self.money,self.wave_mgr,
                      self.player_hp,self.player_maxhp,self.enemies,self._boss_enemy)
         # ── Speed x2 button ───────────────────────────────────────────────────
@@ -7960,6 +8750,12 @@ class SandboxGame(Game):
 
         # Override map selection
         self._difficulty_name = self._sb_map
+
+        # Override key manager to use Sandbox source
+        if not is_clown_unlocked():
+            self._key_mgr = InGameKeyManager("Sandbox")
+        else:
+            self._key_mgr = None
 
         # Sandbox panel state
         self._sb_panel_open  = False
@@ -8218,6 +9014,11 @@ class SandboxGame(Game):
             dt = raw_dt * (2.0 if self.speed_x2 else 1.0)
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
+
+                # Dev console gets F3 before anything else
+                if self.dev_console.handle_event(ev, self):
+                    continue
+
                 if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
                     if self.paused:
                         self.paused = False
@@ -8278,6 +9079,8 @@ class SandboxGame(Game):
             self.draw()
             if self.paused:
                 self._draw_pause_menu(btn_resume, btn_exit, pmenu_x, pmenu_y, pmenu_w, pmenu_h)
+            self.dev_console.tick(self)
+            self.dev_console.draw(self.screen, raw_dt)
             pygame.display.flip()
         self._restore_enemies()
 
