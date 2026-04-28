@@ -5551,6 +5551,9 @@ class ClownBossArena:
         self._flash_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         self._rage_surf  = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         self._dash_surf  = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        # Кэш фона арены — пересчитывается только при изменении фазы
+        self._arena_bg_cache = None
+        self._arena_bg_phase = -1
         self._reset()
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -5568,9 +5571,10 @@ class ClownBossArena:
         self._orbitals    = []   # орбитальные снаряды (фаза 3)
 
         # Щит
-        self._shield_active  = False
-        self._shield_shards  = []   # 3 кружка-щита, каждый dict {angle, alive}
-        self._shield_cd      = 0.0  # до следующего появления щита
+        self._shield_active      = False
+        self._shield_shards      = []   # 3 кружка-щита, каждый dict {angle, alive}
+        self._shield_cd          = 0.0  # до следующего появления щита
+        self._shield_broken_once = False  # после первого разрушения щит не возрождается
 
         # Телепорт
         self._tele_cd    = 0.0
@@ -5643,6 +5647,7 @@ class ClownBossArena:
         for p in self._particles:
             frac = 1.0 - p["t"]/p["life"]
             a = int(255*frac); sz = p["size"]
+            # Рисуем через set_alpha вместо создания SRCALPHA Surface каждый кадр
             ps = pygame.Surface((sz*2, sz*2), pygame.SRCALPHA)
             pygame.draw.circle(ps, (*p["color"][:3], a), (sz, sz), sz)
             surf.blit(ps, (int(p["x"])-sz, int(p["y"])-sz))
@@ -5722,10 +5727,17 @@ class ClownBossArena:
         self._projectiles = live
 
     def _draw_projectiles(self, surf):
+        # Кэш glow-поверхностей по радиусу (r -> Surface)
+        if not hasattr(self, "_proj_glow_cache"):
+            self._proj_glow_cache = {}
         for p in self._projectiles:
             cx, cy = int(p["x"]), int(p["y"]); r = p["r"]
-            ts = pygame.Surface((r*4, r*4), pygame.SRCALPHA)
-            pygame.draw.circle(ts, (*p["color"][:3], 55), (r*2, r*2), r*2)
+            # Glow-кружок (переиспользуем если радиус тот же)
+            if r not in self._proj_glow_cache:
+                ts = pygame.Surface((r*4, r*4), pygame.SRCALPHA)
+                pygame.draw.circle(ts, (255, 255, 255, 55), (r*2, r*2), r*2)
+                self._proj_glow_cache[r] = ts
+            ts = self._proj_glow_cache[r]
             surf.blit(ts, (cx-r*2, cy-r*2))
             pygame.draw.circle(surf, p["color"], (cx, cy), r)
             pygame.draw.circle(surf, (255,255,255), (cx, cy), r, 2)
@@ -5772,12 +5784,18 @@ class ClownBossArena:
         self._minions = live
 
     def _draw_minions(self, surf):
+        if not hasattr(self, "_minion_glow_cache"):
+            self._minion_glow_cache = {}
         for m in self._minions:
             mx, my = int(m["x"]), int(m["y"])
             pulse = 10 + int(math.sin(m["t"]*8)*3)
-            gs = pygame.Surface((pulse*4, pulse*4), pygame.SRCALPHA)
-            pygame.draw.circle(gs, (255,80,200,50), (pulse*2, pulse*2), pulse*2)
-            surf.blit(gs, (mx-pulse*2, my-pulse*2))
+            sz = pulse*2
+            if sz not in self._minion_glow_cache:
+                gs = pygame.Surface((sz*2, sz*2), pygame.SRCALPHA)
+                pygame.draw.circle(gs, (255,80,200,50), (sz, sz), sz)
+                self._minion_glow_cache[sz] = gs
+            gs = self._minion_glow_cache[sz]
+            surf.blit(gs, (mx-sz, my-sz))
             pygame.draw.circle(surf, (255,80,200), (mx, my), pulse)
             pygame.draw.circle(surf, (255,255,255), (mx, my), pulse, 2)
 
@@ -5800,20 +5818,32 @@ class ClownBossArena:
         self._aoe_warnings = live
 
     def _draw_aoe(self, surf):
+        if not hasattr(self, "_aoe_surf_cache"):
+            self._aoe_surf_cache = {}
         for a in self._aoe_warnings:
             if a["fired"]: continue
             frac = a["t"] / a["max_t"]
             r = int(a["r"])
-            # пульсирующий круг-предупреждение
             alpha = int(80 + 100 * abs(math.sin(frac * math.pi * 5)))
-            gs = pygame.Surface((r*2+4, r*2+4), pygame.SRCALPHA)
+            # Кольцо предупреждения
+            key = r
+            if key not in self._aoe_surf_cache:
+                sz = r*2+4
+                self._aoe_surf_cache[key] = pygame.Surface((sz, sz), pygame.SRCALPHA)
+            gs = self._aoe_surf_cache[key]
+            gs.fill((0,0,0,0))
             pygame.draw.circle(gs, (255, 80, 20, alpha//2), (r+2, r+2), r)
             pygame.draw.circle(gs, (255, 80, 20, alpha), (r+2, r+2), r, 3)
             surf.blit(gs, (int(a["x"])-r-2, int(a["y"])-r-2))
             # заполнение по времени
             fill_r = int(r * frac)
             if fill_r > 0:
-                fs = pygame.Surface((fill_r*2, fill_r*2), pygame.SRCALPHA)
+                fkey = fill_r
+                if fkey not in self._aoe_surf_cache:
+                    sz2 = fill_r*2
+                    self._aoe_surf_cache[fkey] = pygame.Surface((sz2, sz2), pygame.SRCALPHA)
+                fs = self._aoe_surf_cache[fkey]
+                fs.fill((0,0,0,0))
                 pygame.draw.circle(fs, (255,120,20, 35), (fill_r, fill_r), fill_r)
                 surf.blit(fs, (int(a["x"])-fill_r, int(a["y"])-fill_r))
 
@@ -5854,8 +5884,11 @@ class ClownBossArena:
     def _draw_shield(self, surf):
         if not self._shield_active: return
         bx, by = int(self._boss_x), int(self._boss_y)
-        # полупрозрачный купол
-        gs = pygame.Surface((260, 260), pygame.SRCALPHA)
+        # полупрозрачный купол — используем кэшированную поверхность
+        if not hasattr(self, "_shield_dome_surf"):
+            self._shield_dome_surf = pygame.Surface((260, 260), pygame.SRCALPHA)
+        gs = self._shield_dome_surf
+        gs.fill((0,0,0,0))
         a = int(40 + 20*abs(math.sin(self.anim_t*4)))
         pygame.draw.circle(gs, (80,180,255,a), (130,130), 130)
         pygame.draw.circle(gs, (80,180,255,160), (130,130), 130, 3)
@@ -5868,7 +5901,6 @@ class ClownBossArena:
             sy = by + int(math.sin(sh["angle"]) * 105)
             pygame.draw.circle(surf, (140, 220, 255), (sx, sy), 16)
             pygame.draw.circle(surf, (255,255,255), (sx, sy), 16, 2)
-            # иконка молнии
             pygame.draw.line(surf, (255,255,120), (sx-5,sy-8),(sx,sy), 2)
             pygame.draw.line(surf, (255,255,120), (sx,sy),(sx+5,sy+8), 2)
 
@@ -5878,10 +5910,11 @@ class ClownBossArena:
         for sh in self._shield_shards:
             if sh["alive"]:
                 sh["angle"] += 1.8 * dt
-        # если все осколки уничтожены — щит снят
+        # если все осколки уничтожены — щит снят навсегда
         if all(not sh["alive"] for sh in self._shield_shards):
-            self._shield_active = False
-            self._shield_cd = {2: 6.0, 3: 4.0}.get(self._get_phase(), 8.0)
+            self._shield_active      = False
+            self._shield_broken_once = True   # больше не появится
+            self._shield_cd = 999999.0        # не триггерим повторно
             self._spawn_particles(int(self._boss_x), int(self._boss_y), (80,200,255), n=30, big=True)
 
     def _try_click_shield(self, mx, my):
@@ -5933,25 +5966,32 @@ class ClownBossArena:
 
     # ── фоновый рисунок арены ────────────────────────────────────────────────
     def _draw_arena(self, surf):
-        draw_rect_gradient(surf, (8, 5, 18), (16, 10, 30), (0, 0, SCREEN_W, SCREEN_H), alpha=255)
-        cx2, cy2 = SCREEN_W//2, SCREEN_H//2
-        for i in range(12):
-            a1 = math.radians(i*30 + self.anim_t*4)
-            a2 = math.radians(i*30 + 15 + self.anim_t*4)
-            col = (35, 10, 10) if i % 2 == 0 else (10, 8, 30)
-            pts = [
-                (cx2, cy2),
-                (int(cx2 + math.cos(a1)*1400), int(cy2 + math.sin(a1)*1400)),
-                (int(cx2 + math.cos(a2)*1400), int(cy2 + math.sin(a2)*1400)),
-            ]
-            pygame.draw.polygon(surf, col, pts)
-        pygame.draw.circle(surf, (50, 30, 60), (cx2, cy2), 520, 6)
-        pygame.draw.circle(surf, (80, 50, 100), (cx2, cy2), 520, 2)
-        spot_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-        for r2 in range(500, 0, -20):
-            a2 = max(0, int(8 * (1 - r2/500)))
-            pygame.draw.circle(spot_surf, (255, 240, 200, a2), (cx2, -80), r2 + 580)
-        surf.blit(spot_surf, (0, 0))
+        # Статичный фон (полигоны + spot) — кэшируется, рисуется один раз
+        if self._arena_bg_cache is None:
+            bg = pygame.Surface((SCREEN_W, SCREEN_H))
+            draw_rect_gradient(bg, (8, 5, 18), (16, 10, 30), (0, 0, SCREEN_W, SCREEN_H), alpha=255)
+            cx2, cy2 = SCREEN_W//2, SCREEN_H//2
+            for i in range(12):
+                a1 = math.radians(i*30)
+                a2 = math.radians(i*30 + 15)
+                col = (35, 10, 10) if i % 2 == 0 else (10, 8, 30)
+                pts = [
+                    (cx2, cy2),
+                    (int(cx2 + math.cos(a1)*1400), int(cy2 + math.sin(a1)*1400)),
+                    (int(cx2 + math.cos(a2)*1400), int(cy2 + math.sin(a2)*1400)),
+                ]
+                pygame.draw.polygon(bg, col, pts)
+            pygame.draw.circle(bg, (50, 30, 60), (cx2, cy2), 520, 6)
+            pygame.draw.circle(bg, (80, 50, 100), (cx2, cy2), 520, 2)
+            spot_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            for r2 in range(500, 0, -20):
+                a2 = max(0, int(8 * (1 - r2/500)))
+                pygame.draw.circle(spot_surf, (255, 240, 200, a2), (cx2, -80), r2 + 580)
+            bg.blit(spot_surf, (0, 0))
+            self._arena_bg_cache = bg
+        surf.blit(self._arena_bg_cache, (0, 0))
+
+        # Анимированные огни вверху (лёгкие — только 20 кружков)
         for i in range(20):
             lx = int(SCREEN_W * i / 19)
             ly = 30 + int(math.sin(self.anim_t*1.5 + i*0.7)*8)
@@ -6178,8 +6218,8 @@ class ClownBossArena:
                     self._update_boss(dt)
                     self._update_shield(dt)
 
-                    # Щит кулдаун
-                    if self._phase >= 2 and not self._shield_active:
+                    # Щит кулдаун (только если ещё ни разу не сломан)
+                    if self._phase >= 2 and not self._shield_active and not self._shield_broken_once:
                         self._shield_cd -= dt
                         if self._shield_cd <= 0:
                             self._activate_shield()
