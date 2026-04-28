@@ -314,9 +314,10 @@ def load_save():
             "shop_coins":       int(data.get("shop_coins", 0)),
             "purchased_towers": data.get("purchased_towers", []),
             "clown_keys":       data.get("clown_keys", {}),
+            "loadout":          data.get("loadout", None),
         }
     except Exception:
-        return {"shop_coins": 0, "purchased_towers": [], "clown_keys": {}}
+        return {"shop_coins": 0, "purchased_towers": [], "clown_keys": {}, "loadout": None}
 
 def save_data(data):
     try:
@@ -324,6 +325,30 @@ def save_data(data):
             json.dump(data, f)
     except Exception:
         pass
+
+_TOWER_NAME_MAP = None  # populated lazily after class definitions
+
+def _tower_name_map():
+    """Returns {class_name: class} mapping for loadout serialization."""
+    global _TOWER_NAME_MAP
+    if _TOWER_NAME_MAP is None:
+        _TOWER_NAME_MAP = {c.__name__: c for c in [Assassin, Accelerator, Clown, Archer, Zigres, Gunner]}
+    return _TOWER_NAME_MAP
+
+def save_loadout(loadout):
+    """Persist the 5-slot loadout to save file."""
+    data = load_save()
+    data["loadout"] = [t.__name__ if t is not None else None for t in loadout]
+    save_data(data)
+
+def load_loadout():
+    """Load saved loadout. Returns list of tower classes (or None per slot)."""
+    raw = load_save().get("loadout")
+    if not raw:
+        return None
+    nm = _tower_name_map()
+    result = [nm.get(name) for name in raw]  # unknown names become None
+    return result
 
 def add_shop_coins(amount):
     data = load_save()
@@ -632,6 +657,19 @@ def draw_rect_alpha(surf, color, rect, alpha=120, brad=0):
     s = pygame.Surface((rect[2], rect[3]), pygame.SRCALPHA)
     pygame.draw.rect(s, (*color[:3], alpha), (0,0,rect[2],rect[3]), border_radius=brad)
     surf.blit(s, (rect[0], rect[1]))
+
+def draw_hidden_ghost(surf, cx, cy, radius):
+    """Draw a ghostly semi-transparent silhouette for hidden enemies not yet detected.
+    Shows the player something is there without revealing full details."""
+    s = pygame.Surface((radius*4, radius*4), pygame.SRCALPHA)
+    c = radius * 2
+    # Faint pulsing ghost circle
+    pygame.draw.circle(s, (180, 180, 220, 28), (c, c), radius + 4)
+    pygame.draw.circle(s, (200, 200, 255, 18), (c, c), radius, 2)
+    # Small question-mark dots
+    for dx, dy in [(-3, -3), (3, -3), (0, 4)]:
+        pygame.draw.circle(s, (200, 200, 255, 40), (c + dx, c + dy), 2)
+    surf.blit(s, (cx - c, cy - c))
 
 def draw_rect_gradient(surf, col_top, col_bot, rect, alpha=220, brad=0):
     """Vertical gradient rectangle."""
@@ -1059,7 +1097,8 @@ class HiddenEnemy(Enemy):
         super().__init__(wave)
         self.hp=max(1,self.BASE_HP+(wave-1)*2); self.maxhp=self.hp
     def draw(self, surf, hovered=False, detected=False):
-        if not detected and not hovered: return
+        if not detected and not hovered:
+            draw_hidden_ghost(surf, int(self.x), int(self.y), self.radius); return
         bob=math.sin(self._bob)*2; cx,cy=int(self.x),int(self.y+bob)
         alpha=180 if detected else 220
         s=pygame.Surface((100,100),pygame.SRCALPHA)
@@ -1131,7 +1170,8 @@ class HiddenBoss(NormalBoss):
     def __init__(self, wave=1):
         super().__init__(wave)
     def draw(self, surf, hovered=False, detected=False):
-        if not detected and not hovered: return
+        if not detected and not hovered:
+            draw_hidden_ghost(surf, int(self.x), int(self.y), self.radius); return
         bob=math.sin(self._bob*0.8)*1.5; cx,cy=int(self.x),int(self.y+bob)
         s=pygame.Surface((160,160),pygame.SRCALPHA)
         pygame.draw.circle(s,(80,180,80,50),(40,40),38); surf.blit(s,(cx-40,cy-40))
@@ -2026,7 +2066,8 @@ class SoulReaper(Enemy):
             self._drain_cd = 4.0; self._drain_t = 0.4
         return super().update(dt)
     def draw(self, surf, hovered=False, detected=False):
-        if not detected and not hovered: return
+        if not detected and not hovered:
+            draw_hidden_ghost(surf, int(self.x), int(self.y), self.radius); return
         bob = math.sin(self._bob)*2; cx, cy = int(self.x), int(self.y+bob)
         alpha = 160 if not detected else 220
         # robe
@@ -2194,7 +2235,8 @@ class CursedWitch(Enemy):
             self._pulse_cd = self.PULSE_INTERVAL; self.pulse_fired = True
         return super().update(dt)
     def draw(self, surf, hovered=False, detected=False):
-        if not detected and not hovered: return
+        if not detected and not hovered:
+            draw_hidden_ghost(surf, int(self.x), int(self.y), self.radius); return
         cx, cy = int(self.x), int(self.y)
         alpha = 150 if not detected else 230
         # purple aura
@@ -2373,7 +2415,8 @@ class AshWraith(Enemy):
         if self._phased: return
         super().take_damage(dmg)
     def draw(self, surf, hovered=False, detected=False):
-        if not detected and not hovered: return
+        if not detected and not hovered:
+            draw_hidden_ghost(surf, int(self.x), int(self.y), self.radius); return
         cx, cy = int(self.x), int(self.y)
         alpha = 60 if self._phased else 200
         # wispy ash cloud particles
@@ -5852,6 +5895,7 @@ class ClownBossArena:
         # Телепорт
         self._tele_cd    = 0.0
         self._tele_flash = 0.0   # белая вспышка при телепорте
+        self._p1_inside_boss_t = 0.0  # фаза 1: время нахождения курсора внутри босса
 
         # Движение босса
         self._patrol_idx = 0
@@ -6122,8 +6166,8 @@ class ClownBossArena:
 
     # ── орбитальные снаряды (фаза 3) ─────────────────────────────────────────
     def _init_orbitals(self):
-        n = 6
-        self._orbitals = [{"angle": math.pi*2*i/n, "r": 110, "spd": 2.8} for i in range(n)]
+        n = 4  # было 6 — меньше орбиталей, можно найти окно
+        self._orbitals = [{"angle": math.pi*2*i/n, "r": 75, "spd": 2.0} for i in range(n)]  # радиус 75 вместо 110, скорость 2.0 вместо 2.8
 
     def _update_orbitals(self, dt, cx, cy):
         for o in self._orbitals:
@@ -6438,8 +6482,12 @@ class ClownBossArena:
                     if ev.type == pygame.KEYDOWN and ev.key == pygame.K_SPACE:
                         if self._dash_cd <= 0 and self.state == "playing":
                             # дэш в направлении мыши от текущей позиции курсора
-                            dx = raw_mx - self._cursor_x; dy = raw_my - self._cursor_y
-                            d = math.hypot(dx, dy) or 1
+                            dx = raw_mx - cx; dy = raw_my - cy
+                            d = math.hypot(dx, dy)
+                            if d < 30:
+                                # мышь почти на курсоре — дэш к боссу или вперёд по экрану
+                                dx = self._boss_x - cx; dy = self._boss_y - cy
+                                d = math.hypot(dx, dy) or 1
                             spd = 900
                             self._dash_vx = dx/d * spd
                             self._dash_vy = dy/d * spd
@@ -6503,6 +6551,16 @@ class ClownBossArena:
                         if self._tele_cd <= 0:
                             self._do_teleport()
                             self._tele_cd = {2: 8.0, 3: 5.0}[self._phase]
+
+                    # Фаза 1: телепорт если игрок сидит внутри босса > 2 сек
+                    if self._phase == 1:
+                        if math.hypot(cx - self._boss_x, cy - self._boss_y) <= self.BOSS_RADIUS + 10:
+                            self._p1_inside_boss_t += dt
+                            if self._p1_inside_boss_t >= 2.0:
+                                self._do_teleport()
+                                self._p1_inside_boss_t = 0.0
+                        else:
+                            self._p1_inside_boss_t = 0.0
 
                     if self._tele_flash > 0:
                         self._tele_flash = max(0.0, self._tele_flash - dt)
@@ -6653,7 +6711,8 @@ class Lobby:
         # Loadout: which towers are in each of the 5 slots
         # All available tower types
         self.all_towers = [Assassin, Accelerator, Clown, Archer, Zigres, Gunner]
-        self.loadout = list(UI.SLOT_TYPES)   # copy default [Assassin, Accel, None, None, None]
+        _saved_ld = load_loadout()
+        self.loadout = _saved_ld if _saved_ld is not None else list(UI.SLOT_TYPES)
 
         # For drag in loadout screen
         self.drag_tower = None
@@ -8233,6 +8292,7 @@ class Lobby:
                 if result == "quit":
                     pygame.quit(); sys.exit()
                 if result == "start":
+                    save_loadout(self.loadout)
                     return self.selected_difficulty, list(self.loadout)
                 if result == "start_sandbox":
                     return "sandbox", {
@@ -8599,8 +8659,8 @@ class Game:
 
         # Speed x2 button (top-left area, below wave info)
         btn_speed = pygame.Rect(26, 78, 115, 37)
-        # Skip wave button (shown after 10s into wave)
-        btn_skip  = pygame.Rect(210, 106, 200, 52)
+        # Skip wave button rect — must match the draw rect below (151, 78, 144, 37)
+        btn_skip  = pygame.Rect(151, 78, 144, 37)
 
         while self.running:
             raw_dt = min(self.clock.tick(FPS)/1000.0, 0.05)
