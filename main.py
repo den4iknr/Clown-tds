@@ -5547,6 +5547,10 @@ class ClownBossArena:
     def __init__(self, screen):
         self.screen = screen
         self.clock  = pygame.time.Clock()
+        # Кэшируем полноэкранные SRCALPHA-поверхности — не создаём каждый кадр
+        self._flash_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        self._rage_surf  = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        self._dash_surf  = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         self._reset()
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -6120,8 +6124,8 @@ class ClownBossArena:
                         return False
                     if ev.type == pygame.KEYDOWN and ev.key == pygame.K_SPACE:
                         if self._dash_cd <= 0 and self.state == "playing":
-                            # дэш в направлении мыши от центра экрана
-                            dx = raw_mx - SCREEN_W//2; dy = raw_my - SCREEN_H//2
+                            # дэш в направлении мыши от текущей позиции курсора
+                            dx = raw_mx - self._cursor_x; dy = raw_my - self._cursor_y
                             d = math.hypot(dx, dy) or 1
                             spd = 900
                             self._dash_vx = dx/d * spd
@@ -6241,24 +6245,21 @@ class ClownBossArena:
                 # Вспышка при попадании
                 if self._life_flash > 0:
                     frac = self._life_flash / 0.45
-                    fs = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                    pygame.draw.rect(fs, (220, 30, 30, int(130*frac)), (0,0,SCREEN_W,SCREEN_H))
-                    surf.blit(fs, (0,0))
+                    self._flash_surf.fill((220, 30, 30, int(130*frac)))
+                    surf.blit(self._flash_surf, (0,0))
                     self._life_flash = max(0.0, self._life_flash - dt)
 
                 # Вспышка телепорта
                 if self._tele_flash > 0:
                     frac = self._tele_flash / 0.22
-                    ts2 = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                    pygame.draw.rect(ts2, (200, 150, 255, int(100*frac)), (0,0,SCREEN_W,SCREEN_H))
-                    surf.blit(ts2, (0,0))
+                    self._flash_surf.fill((200, 150, 255, int(100*frac)))
+                    surf.blit(self._flash_surf, (0,0))
 
                 # Ярость фаза 3
                 if self._get_phase() == 3 and self.state == "playing":
-                    rs = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
                     a_r = int(abs(math.sin(self.anim_t*7))*22)
-                    pygame.draw.rect(rs, (200, 20, 20, a_r), (0,0,SCREEN_W,SCREEN_H))
-                    surf.blit(rs, (0,0))
+                    self._rage_surf.fill((200, 20, 20, a_r))
+                    surf.blit(self._rage_surf, (0,0))
 
                 self._draw_aoe(surf)
                 self._draw_particles(surf)
@@ -6281,9 +6282,9 @@ class ClownBossArena:
                     pygame.draw.circle(surf, ccol, (mcx,mcy), 5, 1)
                     # Дэш-след
                     if self._dash_t > 0:
-                        ds2 = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                        pygame.draw.circle(ds2, (100,200,255,80), (mcx,mcy), 22)
-                        surf.blit(ds2, (0,0))
+                        self._dash_surf.fill((0,0,0,0))
+                        pygame.draw.circle(self._dash_surf, (100,200,255,80), (mcx,mcy), 22)
+                        surf.blit(self._dash_surf, (0,0))
 
                     # Back button
                     draw_rect_alpha(surf, (40,40,70), back_btn, 200, brad=8)
@@ -7774,13 +7775,10 @@ class Lobby:
                 self.state = "shop"
             elif self.btn_minigame.collidepoint(pos):
                 # Only launch boss fight when all 12 keys collected
-                keys_total = total_clown_keys()
-                if keys_total >= CLOWN_KEYS_TOTAL:
-                    arena = ClownBossArena(self.screen)
-                    won = arena.run()
-                    if won:
-                        unlock_clown()
-                # else: button shows key progress — nothing to launch yet
+                arena = ClownBossArena(self.screen)
+                won = arena.run()
+                if won:
+                    unlock_clown()
             elif self.btn_changelog.collidepoint(pos):
                 self.state = "changelog"
                 self._changelog_scroll = 0
