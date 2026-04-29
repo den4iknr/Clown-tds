@@ -4,17 +4,17 @@ import random
 import sys
 import os
 import json
-# ── Inline DevConsole (active only in dev-mode: dev_save_data.json must exist) ─
+# -- Inline DevConsole (active only in dev-mode: dev_save_data.json must exist) ─
 _IS_DEV_MODE = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dev_save_data.json"))
 
 class DevConsole:
     """
     In-game developer console (F3 to toggle).
     Only functional when dev_save_data.json is present next to main.py.
-    For regular players the file is absent → all methods are silent no-ops.
+    For regular players the file is absent -> all methods are silent no-ops.
     """
 
-    # ── Colours / layout ──────────────────────────────────────────────────────
+    # -- Colours / layout --
     BG_COL     = (10, 12, 20, 210)
     BORDER_COL = (80, 120, 200)
     INPUT_COL  = (20, 25, 40)
@@ -42,7 +42,7 @@ class DevConsole:
                   "godmode | killall | clownkey | clownunlock | givecoin | "
                   "boss | help", self.HINT_COL)
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
+    # -- Internal helpers --
     def _log(self, msg, col=None):
         col = col or self.TEXT_COL
         # word-wrap at ~90 chars
@@ -60,7 +60,7 @@ class DevConsole:
         self._font_md = pygame.font.SysFont("consolas", 15, bold=True)
         self._initialized = True
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # -- Public API --
     def handle_event(self, ev, game) -> bool:
         """
         Process a pygame event.
@@ -134,7 +134,7 @@ class DevConsole:
 
         # Title bar
         pygame.draw.rect(surf, (30, 40, 70), (x, y, self.W, 24), border_radius=4)
-        title = self._font_md.render("▶ DEV CONSOLE  (F3 close | Enter execute | Esc close)", True, (160, 180, 255))
+        title = self._font_md.render("DEV CONSOLE  (F3 close | Enter execute | Esc close)", True, (160, 180, 255))
         surf.blit(title, (x + 8, y + 4))
 
         # Log lines
@@ -153,7 +153,7 @@ class DevConsole:
         prompt = self._font_md.render("> " + self.input_text + ("_" if int(pygame.time.get_ticks() / 500) % 2 == 0 else " "), True, (220, 240, 255))
         surf.blit(prompt, (x + 6, inp_y + 5))
 
-    # ── Command execution ─────────────────────────────────────────────────────
+    # -- Command execution --
     def _execute(self, raw: str, game):
         self._log(f"> {raw}", (180, 200, 255))
         parts = raw.strip().split()
@@ -281,11 +281,11 @@ class DevConsole:
 
 pygame.init()
 
-# ── Asset path (works regardless of working directory) ─────────────────────────
+# -- Asset path (works regardless of working directory) --
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "image")
 
-# ── Shop currency (persistent across sessions) ─────────────────────────────────
-# ── Save file: use dev_save_data.json locally if it exists (add to .gitignore)
+# -- Shop currency (persistent across sessions) --
+# -- Save file: use dev_save_data.json locally if it exists (add to .gitignore)
 # On GitHub / fresh installs only save_data.json exists (starts at 0 coins).
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _DEV_SAVE  = os.path.join(_BASE_DIR, "dev_save_data.json")
@@ -294,7 +294,7 @@ SAVE_PATH  = _DEV_SAVE if os.path.exists(_DEV_SAVE) else _PROD_SAVE
 
 DIFF_COIN_REWARDS = {"Easy": 200, "Hard": 350, "Hell": 500}
 
-# ── Clown unlock via mini-game ─────────────────────────────────────────────────
+# -- Clown unlock via mini-game --
 CLOWN_MINIGAME_KEY = "Clown"   # stored in purchased_towers when unlocked
 
 def is_clown_unlocked():
@@ -359,7 +359,7 @@ def add_shop_coins(amount):
 def get_shop_coins():
     return load_save()["shop_coins"]
 
-# ── Clown Key Fragment System ──────────────────────────────────────────────────
+# -- Clown Key Fragment System --
 CLOWN_KEY_SOURCES = {"Easy": 2, "Hard": 3, "Hell": 4, "Sandbox": 3}
 CLOWN_KEYS_TOTAL  = 12
 
@@ -395,10 +395,12 @@ def load_icon(name, size=None):
         print(f"[icon] failed to load {name}: {e}")
         return None
 
-# ── Constants ──────────────────────────────────────────────────────────────────
+# -- Constants --
 SCREEN_W, SCREEN_H = 1920, 1080
 FPS  = 60
 TILE = 45
+TOWER_SCALE = 0.75   # visual scale factor for all tower bodies
+TOWER_SURF_R = 72    # half-size of temporary surface used for scaled tower drawing
 
 C_BG       = (18, 22, 30)
 C_PATH     = (55, 60, 72)
@@ -428,7 +430,7 @@ SLOT_AREA_Y = SCREEN_H - 124
 SLOT_W, SLOT_H = 112, 101
 MAX_WAVES   = 20
 
-# ── Changelog ─────────────────────────────────────────────────────────────────
+# -- Changelog --
 CHANGELOG = [
     {
         "version": "v2.2",
@@ -438,8 +440,8 @@ CHANGELOG = [
             ("CHANGE", C_GOLD,   "[v2.2] Gunner: полностью новый дизайн — стальной sci-fi, двойной ствол, синие энергоузлы"),
             ("CHANGE", C_GOLD,   "[v2.2] Gunner: цвет башни изменён с оранжево-золотого на стальной синий"),
             ("CHANGE", C_GOLD,   "[v2.2] Gunner: трассер пуль теперь синий вместо жёлтого"),
-            ("CHANGE", C_GOLD,   "[v2.2] Gunner: PLACE_COST 600 → 900 монет"),
-            ("CHANGE", C_GOLD,   "[v2.2] Gunner: Shop price 600 → 1200 shop-монет"),
+            ("CHANGE", C_GOLD,   "[v2.2] Gunner: PLACE_COST 600 -> 900 монет"),
+            ("CHANGE", C_GOLD,   "[v2.2] Gunner: Shop price 600 -> 1200 shop-монет"),
         ],
     },
     {
@@ -449,8 +451,8 @@ CHANGELOG = [
         "entries": [
             ("CHANGE", C_GOLD,   "[v2.1] Hidden enemies now visible only inside range of HD towers"),
             ("CHANGE", C_GOLD,   "[v2.1] Hidden enemies outside all HD-tower ranges are fully invisible"),
-            ("CHANGE", C_GOLD,   "[v2.1] Gunner nerf: DMG 18/26/38/55/80 → 14/20/30/44/62"),
-            ("CHANGE", C_GOLD,   "[v2.1] Gunner nerf: fire rate 0.85→0.92s base"),
+            ("CHANGE", C_GOLD,   "[v2.1] Gunner nerf: DMG 18/26/38/55/80 -> 14/20/30/44/62"),
+            ("CHANGE", C_GOLD,   "[v2.1] Gunner nerf: fire rate 0.85->0.92s base"),
             ("FIX",    C_CYAN,   "[v2.1] Dev console (F3) now works in all game modes"),
         ],
     },
@@ -475,7 +477,7 @@ CHANGELOG = [
         "date": "28 Apr 2026",
         "title": "Gunner Price Increase",
         "entries": [
-            ("CHANGE", C_GOLD,  "[v1.9] Gunner shop price: 300 → 600 coins"),
+            ("CHANGE", C_GOLD,  "[v1.9] Gunner shop price: 300 -> 600 coins"),
         ],
     },
     {
@@ -486,7 +488,7 @@ CHANGELOG = [
             ("NEW",    C_GREEN,  "[v1.8] Shop screen added — accessible from main lobby"),
             ("NEW",    C_GREEN,  "[v1.8] Shop displays animated coin counter (shop coins)"),
             ("NEW",    C_GREEN,  "[v1.8] Gunner tower added — rotating turret, 4 upgrade levels"),
-            ("NEW",    C_GREEN,  "[v1.8] Gunner: DMG 18→80, range 5.5→7.5 tiles across levels"),
+            ("NEW",    C_GREEN,  "[v1.8] Gunner: DMG 18->80, range 5.5->7.5 tiles across levels"),
             ("NEW",    C_GREEN,  "[v1.8] Gunner: tracer bullet effect on each shot"),
             ("NEW",    C_GREEN,  "[v1.8] Gunner purchasable in Shop for 300 shop coins (raised to 600 in v1.9)"),
             ("NEW",    C_GREEN,  "[v1.8] Loadout: Gunner shows lock badge with coin price"),
@@ -508,12 +510,12 @@ CHANGELOG = [
             ("NEW",    C_GREEN,  "[v1.7] Loadout: tower tags (MELEE, AoE, HIDDEN etc.) displayed"),
             ("CHANGE", C_GOLD,   "[v1.7] Loadout: click tower row to preview, then Add/Remove"),
             ("CHANGE", C_GOLD,   "[v1.7] Loadout: bottom deck bar replaces old slot row"),
-            ("CHANGE", C_GOLD,   "[v1.7] Assassin ability: Whirlwind Slash → Shadow Step"),
+            ("CHANGE", C_GOLD,   "[v1.7] Assassin ability: Whirlwind Slash -> Shadow Step"),
             ("NEW",    C_GREEN,  "[v1.7] Shadow Step: teleport to highest-HP enemy in range"),
             ("NEW",    C_GREEN,  "[v1.7] Shadow Step: marks target — double damage for 3s"),
-            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step base damage: 40 → 80"),
-            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step Lv3 bonus: +15 → +30"),
-            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step Lv4 bonus: +10 → +25"),
+            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step base damage: 40 -> 80"),
+            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step Lv3 bonus: +15 -> +30"),
+            ("CHANGE", C_GOLD,   "[v1.7] Shadow Step Lv4 bonus: +10 -> +25"),
         ],
     },
     {
@@ -541,10 +543,10 @@ CHANGELOG = [
             ("NEW",    C_GREEN,  "[v1.5] Assassin Shadow Step keybind: F"),
             ("NEW",    C_GREEN,  "[v1.5] F keybind works in Sandbox mode too"),
             ("CHANGE", C_GOLD,   "[v1.5] Ability button label now shows [F] hint when ready"),
-            ("CHANGE", C_GOLD,   "[v1.5] Archer buff: dmg 4→5/6/7/10/12/15 across all levels"),
-            ("CHANGE", C_GOLD,   "[v1.5] Archer buff: fire rate 0.65→0.58s base, 0.6→0.42s max"),
-            ("CHANGE", C_GOLD,   "[v1.5] Archer buff: range 5.5→6.0 base, 6.5→7.5 tiles max"),
-            ("CHANGE", C_GOLD,   "[v1.5] Archer buff: pierce +1 at Lv5 (6→7)"),
+            ("CHANGE", C_GOLD,   "[v1.5] Archer buff: dmg 4->5/6/7/10/12/15 across all levels"),
+            ("CHANGE", C_GOLD,   "[v1.5] Archer buff: fire rate 0.65->0.58s base, 0.6->0.42s max"),
+            ("CHANGE", C_GOLD,   "[v1.5] Archer buff: range 5.5->6.0 base, 6.5->7.5 tiles max"),
+            ("CHANGE", C_GOLD,   "[v1.5] Archer buff: pierce +1 at Lv5 (6->7)"),
             ("CHANGE", C_GOLD,   "[v1.5] Hard wave structure fully redesigned (20 waves)"),
             ("CHANGE", C_GOLD,   "[v1.5] MirrorShield enters at wave 8, IronMaiden at wave 15"),
             ("CHANGE", C_GOLD,   "[v1.5] VoltCrawler, ShadowStepper, TimeBender in mid-late waves"),
@@ -558,7 +560,7 @@ CHANGELOG = [
         ],
     },
     {
-        "version": "v1.1 → v1.4",
+        "version": "v1.1 -> v1.4",
         "date": "26 Apr 2026",
         "title": "Today's Updates",
         "entries": [
@@ -614,7 +616,7 @@ font_xl = pygame.font.SysFont("consolas", 29, bold=True)
 # Global effects list for death particles (filled by Enemy.take_damage)
 _GLOBAL_EFFECTS = []
 
-# ── Icons — loaded lazily after display is ready ──────────────────────────────
+# -- Icons — loaded lazily after display is ready --
 ICO_DAMAGE = ICO_RANGE = ICO_FIRERATE = ICO_HIDDET = ICO_SLOW = None
 ICO_FIRE = ICO_RDMG = ICO_ARROW = ICO_COIN = ICO_MONEY = None
 STAT_ICONS_IMG = {}
@@ -707,7 +709,7 @@ def draw_glow_circle(surf, color, center, radius, intensity=80):
         pygame.draw.circle(s, (*color[:3], a), (r+1, r+1), r)
         surf.blit(s, (center[0]-r-1, center[1]-r-1))
 
-# ── Particle / floating-text effects ──────────────────────────────────────────
+# -- Particle / floating-text effects --
 class DeathParticle:
     def __init__(self, x, y, color):
         self.x = float(x); self.y = float(y)
@@ -725,7 +727,7 @@ class DeathParticle:
         pygame.draw.circle(s, (*self.color[:3], a), (self.size, self.size), self.size)
         surf.blit(s, (int(self.x)-self.size, int(self.y)-self.size))
 
-# ── Visual Effects ─────────────────────────────────────────────────────────────
+# -- Visual Effects --
 class SwordEffect:
     def __init__(self, ox, oy, angle):
         self.ox=ox; self.oy=oy; self.angle=angle
@@ -784,7 +786,7 @@ class ShadowStepEffect:
                     (int(self.tx),int(self.ty)),(int(ex2),int(ey2)),2)
         surf.blit(s,(0,0))
 
-# ── Clown Effects ──────────────────────────────────────────────────────────────
+# -- Clown Effects --
 class ConfettiExplosionEffect:
     """Visual confetti burst when a Clown Lv5 kills an enemy inside its aura."""
     _COLORS = [(220,60,60),(255,200,50),(60,220,220),(180,80,255),(60,200,80),(255,140,40)]
@@ -897,7 +899,7 @@ class ClownProjectile:
         pygame.draw.circle(surf, C_WHITE,     (int(self.x), int(self.y)), 7, 2)
 
 
-# ── Enemy base ─────────────────────────────────────────────────────────────────
+# -- Enemy base --
 class Enemy:
     DISPLAY_NAME="Normal"
     BASE_HP=8; BASE_SPEED=110; KILL_REWARD=0
@@ -912,7 +914,7 @@ class Enemy:
         self.alive=True; self.radius=20
         self._bob=random.uniform(0,math.pi*2)
         self.free_kill=False
-        # ── Clown debuffs ──────────────────────────────
+        # -- Clown debuffs --
         self._stun_timer        = 0.0   # seconds remaining frozen
         self._stun_immune_timer = 0.0   # stun immunity CD after being stunned (Zigres CD)
         self._slow_factor  = 1.0   # multiplier (< 1 = slower), reset each frame by aura
@@ -1008,9 +1010,9 @@ class Enemy:
             # red-orange halo
             pygame.draw.circle(s, (220, 60, 0, 55), (sc, sc), self.radius + 4)
             surf.blit(s, (cx - sc, cy - sc))
-            # 🔥 icon above enemy
+            # fire icon above enemy
             fire_f = pygame.font.SysFont("consolas", 22)
-            fire_surf = fire_f.render("🔥", True, (255, 160, 30))
+            fire_surf = fire_f.render("*", True, (255, 160, 30))
             surf.blit(fire_surf, (cx - fire_surf.get_width()//2,
                                   cy - self.radius - 46))
 
@@ -1030,9 +1032,9 @@ class Enemy:
                 # small diamonds at tips
                 pygame.draw.circle(s2, (220, 245, 255, 200), (ex2, ey2), 3)
             surf.blit(s2, (cx - sc2, cy - sc2))
-            # ❄ icon above enemy
+            # ice icon above enemy
             ice_f = pygame.font.SysFont("consolas", 22)
-            ice_surf = ice_f.render("❄", True, (120, 210, 255))
+            ice_surf = ice_f.render("*", True, (120, 210, 255))
             surf.blit(ice_surf, (cx - ice_surf.get_width()//2,
                                  cy - self.radius - 46))
 
@@ -1045,7 +1047,7 @@ class Enemy:
         self._draw_hp_bar(surf,60,10)
         if hovered: self._hover_label(surf)
 
-# ── Enemy subclasses ───────────────────────────────────────────────────────────
+# -- Enemy subclasses --
 class TankEnemy(Enemy):
     DISPLAY_NAME="Slow"; BASE_HP=30; BASE_SPEED=56; KILL_REWARD=0
     def __init__(self, wave=1):
@@ -1257,9 +1259,9 @@ class GraveDigger(Enemy):
         self._draw_status_effects(surf)
         if hovered: self._hover_label(surf)
 
-# ── Sandbox-only enemies ───────────────────────────────────────────────────────
+# -- Sandbox-only enemies --
 
-# ── Sandbox-only enemies ───────────────────────────────────────────────────────
+# -- Sandbox-only enemies --
 
 class GlassEnemy(Enemy):
     """Tiny, ultra-fragile enemy — 1 HP but extremely fast. Dies to any hit."""
@@ -1659,7 +1661,7 @@ class AbyssLord(Enemy):
         if hovered: self._hover_label(surf)
 
 
-# ── Mid-game enemies ──────────────────────────────────────────────────────────
+# -- Mid-game enemies --
 
 class MirrorShield(Enemy):
     """Metallic enemy that reflects 30% of all damage back to the last attacking
@@ -1958,7 +1960,7 @@ class TimeBender(Enemy):
         if hovered: self._hover_label(surf)
 
 
-# ── Demonic enemies (Hell-exclusive) ──────────────────────────────────────────
+# -- Demonic enemies (Hell-exclusive) --
 
 class HellHound(Enemy):
     """Fast demonic dog — low HP but charges in packs. Leaves a scorched trail.
@@ -2569,7 +2571,7 @@ class HellGateKeeper(Enemy):
         if hovered: self._hover_label(surf)
 
 
-# ── Wave data ──────────────────────────────────────────────────────────────────
+# -- Wave data --
 BREAKER_POOL=[HiddenEnemy,Enemy,ScoutEnemy,TankEnemy,NormalBoss]
 ABYSSAL_SPAWN_POOL=[HellHound,AbyssalSpawn,SoulReaper]
 
@@ -2683,7 +2685,7 @@ WAVE_DATA=[
       (BreakerEnemy,15),(HiddenBoss,1),(Necromancer,2)],                                  5000,   0),
 ]
 
-# ── WaveManager ────────────────────────────────────────────────────────────────
+# -- WaveManager --
 class WaveManager:
     def __init__(self, wave_data=None):
         self.wave=0; self.state="prep"; self.prep_timer=5.0
@@ -2763,7 +2765,7 @@ class WaveManager:
         if 1<=self.wave<=MAX_WAVES: return self._wave_data[self.wave][2]
         return 0
 
-# ── Ability ────────────────────────────────────────────────────────────────────
+# -- Ability --
 class ShadowStepAbility:
     """Teleport to the highest-HP enemy in range, deal heavy strike,
     and mark it: vulnerable (double damage) for 3 seconds."""
@@ -2795,7 +2797,7 @@ class ShadowStepAbility:
         target._shadow_marked = 3.0
         effects.append(ShadowStepEffect(ox, oy, target.x, target.y))
 
-# ── Unit base ──────────────────────────────────────────────────────────────────
+# -- Unit base --
 class Unit:
     hidden_detection=False
     def __init__(self, px, py):
@@ -2807,7 +2809,17 @@ class Unit:
         if self.ability: self.ability.update(dt)
         self._try_attack(enemies, effects)
     def _try_attack(self, enemies, effects): pass
-    def draw(self, surf): pass
+    def draw(self, surf):
+        """Draw tower body scaled by TOWER_SCALE. Subclasses override _draw_body."""
+        r = TOWER_SURF_R
+        tmp = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+        # Translate: tower centre maps to (r, r) on tmp
+        self._draw_body(tmp, r, r)
+        scaled_w = int(r * 2 * TOWER_SCALE)
+        scaled_h = int(r * 2 * TOWER_SCALE)
+        scaled = pygame.transform.smoothscale(tmp, (scaled_w, scaled_h))
+        surf.blit(scaled, (int(self.px) - scaled_w // 2, int(self.py) - scaled_h // 2))
+    def _draw_body(self, surf, cx, cy): pass
     def draw_range(self, surf):
         r=int(self.range_tiles*TILE)
         s=pygame.Surface((r*2+4,r*2+4),pygame.SRCALPHA)
@@ -2828,14 +2840,14 @@ class Unit:
             if dist((e.x,e.y),(self.px,self.py))<=r: targets.append(e)
         targets.sort(key=lambda e:-e.x); return targets[:count]
 
-# ── Assassin ───────────────────────────────────────────────────────────────────
+# -- Assassin --
 ASSASSIN_LEVELS=[(3,0.608,4,None),(5,0.508,4,450),(5,0.508,4,550),(15,0.358,4,1500),(27,0.358,5,2500)]
 
 class Assassin(Unit):
     PLACE_COST=300; COLOR=C_ASSASSIN; NAME="Assassin"; _shadow_bonus=0
     def __init__(self, px, py):
         super().__init__(px, py)
-        # ── animation state ──────────────────────────────────────────────────
+        # -- animation state --
         self._atk_t     = 0.0   # counts up from 0 after each attack; drives strike anim
         self._atk_dur   = 0.22  # full duration of a single strike animation (s)
         self._atk_angle = 0.0   # angle toward last target (degrees, 0 = right)
@@ -2879,14 +2891,12 @@ class Assassin(Unit):
             self._atk_t     = self._atk_dur   # restart strike animation
             self._alt_hand  = not self._alt_hand
             effects.append(SwordEffect(self.px, self.py, self._atk_angle))
-    def draw(self, surf):
-        cx, cy = int(self.px), int(self.py)
-
-        # ── Animation parameters ─────────────────────────────────────────────
+    def _draw_body(self, surf, cx, cy):
+        # -- Animation parameters --
         # atk_prog: 0.0 = idle, 1.0 = just struck, fades back to 0
         atk_prog = self._atk_t / self._atk_dur if self._atk_dur > 0 else 0.0
         # strike arc: peaks at prog=1.0 (just fired), fades to 0
-        strike    = atk_prog                           # 1→0 over atk_dur
+        strike    = atk_prog                           # 1->0 over atk_dur
         # recoil: body lurches toward target then snaps back
         lurch     = int(strike * 5)
         rad       = math.radians(self._atk_angle)
@@ -2899,21 +2909,21 @@ class Assassin(Unit):
         bx = cx + lurch_dx
         by = cy + lurch_dy + idle_bob
 
-        # ── Outer aura (pulses on attack) ────────────────────────────────────
+        # -- Outer aura (pulses on attack) --
         aura_r = int(52 + strike * 18)
         aura_a = int(28 + strike * 60)
         aura = pygame.Surface((aura_r*2+4, aura_r*2+4), pygame.SRCALPHA)
         pygame.draw.circle(aura, (*self.COLOR, aura_a), (aura_r+2, aura_r+2), aura_r)
         surf.blit(aura, (bx - aura_r - 2, by - aura_r - 2))
 
-        # ── Ground shadow ────────────────────────────────────────────────────
+        # -- Ground shadow --
         pygame.draw.ellipse(surf, (20, 10, 35), (bx - 18, by + 14, 36, 10))
 
-        # ── Helper: draw one dagger from base_pt toward angle, with animation ──
+        # -- Helper: draw one dagger from base_pt toward angle, with animation --
         def draw_dagger(base_x, base_y, angle_deg, extend=0.0, trail=False):
             """Draw a dagger.
-               extend=0  → resting position (handle down, blade diagonal)
-               extend=1  → full strike (blade thrust toward angle_deg)
+               extend=0  -> resting position (handle down, blade diagonal)
+               extend=1  -> full strike (blade thrust toward angle_deg)
             """
             ang = math.radians(angle_deg)
             # blade direction unit vector
@@ -2931,7 +2941,7 @@ class Assassin(Unit):
             tip_x = base_x + int(bvx * blade_len)
             tip_y = base_y + int(bvy * blade_len)
 
-            # ── motion trail (ghosted blade) ──────────────────────────────────
+            # -- motion trail (ghosted blade) --
             if trail and extend > 0.15:
                 trail_a = int(extend * 80)
                 trail_s = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
@@ -2941,7 +2951,7 @@ class Assassin(Unit):
                                  (base_x, base_y), (trail_tip_x, trail_tip_y), 3)
                 surf.blit(trail_s, (0, 0))
 
-            # ── blade ─────────────────────────────────────────────────────────
+            # -- blade --
             pygame.draw.line(surf, (200, 215, 235),
                              (base_x, base_y), (tip_x, tip_y), 3)
             # edge glint
@@ -2951,14 +2961,14 @@ class Assassin(Unit):
                              (base_x + int(pvx), base_y + int(pvy)),
                              (tip_x  + int(pvx), tip_y  + int(pvy)), 1)
 
-            # ── tip flash on peak strike ──────────────────────────────────────
+            # -- tip flash on peak strike --
             if extend > 0.6:
                 flash_a = int((extend - 0.6) / 0.4 * 200)
                 flash_s = pygame.Surface((30, 30), pygame.SRCALPHA)
                 pygame.draw.circle(flash_s, (220, 180, 255, flash_a), (15, 15), int(4 + extend*4))
                 surf.blit(flash_s, (tip_x - 15, tip_y - 15))
 
-            # ── crossguard ────────────────────────────────────────────────────
+            # -- crossguard --
             guard_x = base_x + int(bvx * (blade_len * 0.35))
             guard_y = base_y + int(bvy * (blade_len * 0.35))
             g_len = 5
@@ -2966,13 +2976,13 @@ class Assassin(Unit):
                              (int(guard_x - pvx*g_len), int(guard_y - pvy*g_len)),
                              (int(guard_x + pvx*g_len), int(guard_y + pvy*g_len)), 3)
 
-            # ── handle ────────────────────────────────────────────────────────
+            # -- handle --
             handle_x = base_x - int(bvx * 8)
             handle_y = base_y - int(bvy * 8)
             pygame.draw.line(surf, (80, 50, 120),
                              (base_x, base_y), (handle_x, handle_y), 4)
 
-        # ── Compute per-hand angles and extend amounts ────────────────────────
+        # -- Compute per-hand angles and extend amounts --
         # Left hand rests at ~315° (upper-left diagonal), right at ~45° (upper-right)
         # On strike: the active hand thrusts toward the target angle
         left_rest_ang  = -135.0   # upper-left
@@ -2989,7 +2999,7 @@ class Assassin(Unit):
             right_ang   = right_rest_ang
             right_ext   = 0.0
 
-        # ── Draw daggers BEHIND body first (the one that went forward) ────────
+        # -- Draw daggers BEHIND body first (the one that went forward) --
         # left dagger base position
         ldx = bx - 14
         ldy = by + 2
@@ -3002,7 +3012,7 @@ class Assassin(Unit):
         else:
             draw_dagger(rdx, rdy, right_ang, right_ext, trail=False)
 
-        # ── Cloak / body ─────────────────────────────────────────────────────
+        # -- Cloak / body --
         # body sways slightly toward target during strike
         cloak_sway = int(lurch_dx * 0.3)
         cloak_pts = [
@@ -3016,14 +3026,14 @@ class Assassin(Unit):
         pygame.draw.polygon(surf, (22, 12, 40), cloak_pts)
         pygame.draw.polygon(surf, (50, 25, 80), cloak_pts, 2)
 
-        # ── Hood ─────────────────────────────────────────────────────────────
+        # -- Hood --
         pygame.draw.circle(surf, (30, 15, 55), (bx, by - 14), 16)
         pygame.draw.circle(surf, (55, 28, 88), (bx, by - 14), 16, 2)
 
-        # ── Face mask ────────────────────────────────────────────────────────
+        # -- Face mask --
         pygame.draw.ellipse(surf, (12, 6, 22), (bx - 8, by - 22, 16, 12))
 
-        # ── Eyes (flash white on strike peak) ────────────────────────────────
+        # -- Eyes (flash white on strike peak) --
         eye_col = (200, 80, 255) if not self.hidden_detection else (80, 255, 160)
         if strike > 0.7:
             eye_col = (255, 255, 255)
@@ -3032,25 +3042,25 @@ class Assassin(Unit):
         pygame.draw.circle(surf, (255, 255, 255),(bx - 5, by - 16), 1)
         pygame.draw.circle(surf, (255, 255, 255),(bx + 5, by - 16), 1)
 
-        # ── Chest gem (glows on attack) ───────────────────────────────────────
+        # -- Chest gem (glows on attack) --
         gem_col = self.COLOR
         if strike > 0.4:
             gem_col = (255, 200, 255)
         pygame.draw.circle(surf, gem_col,          (bx, by - 2), 5)
         pygame.draw.circle(surf, (240, 200, 255),  (bx, by - 2), 2)
 
-        # ── Draw the striking dagger IN FRONT of the body ─────────────────────
+        # -- Draw the striking dagger IN FRONT of the body --
         if self._alt_hand:
             draw_dagger(rdx, rdy, right_ang, right_ext, trail=(right_ext > 0.1))
         else:
             draw_dagger(ldx, ldy, left_ang, left_ext,  trail=(left_ext  > 0.1))
 
-        # ── Hidden-detection icon ─────────────────────────────────────────────
+        # -- Hidden-detection icon --
         if self.hidden_detection:
             pygame.draw.circle(surf, (60, 220, 100), (bx + 22, by - 26), 6)
             pygame.draw.circle(surf, (10, 10, 10),   (bx + 22, by - 26), 2)
 
-        # ── Level pips ───────────────────────────────────────────────────────
+        # -- Level pips --
         for i in range(self.level):
             pygame.draw.circle(surf, C_GOLD, (cx - 10 + i * 7, cy + 28), 3)
     def get_info(self):
@@ -3063,7 +3073,7 @@ class Assassin(Unit):
         hd="YES" if nl>=2 else "no"
         return {"Damage":d,"Range":r,"Firerate":f"{fr:.3f}"}
 
-# ── Accelerator ────────────────────────────────────────────────────────────────
+# -- Accelerator --
 ACCEL_LEVELS=[(12,0.208,7,None,False),(15,0.1808,7,2000,False),(20,0.1808,7,3500,False),
               (30,0.1608,7,6000,True),(33,0.158,7,8250,True),(38,0.108,8,15000,True)]
 
@@ -3089,8 +3099,7 @@ class Accelerator(Unit):
         if self.cd_left<=0 and targets:
             self.cd_left=self.firerate
             for t in targets: t.take_damage(self.damage)
-    def draw(self, surf):
-        cx,cy=int(self.px),int(self.py)
+    def _draw_body(self, surf, cx, cy):
         s=pygame.Surface((180,180),pygame.SRCALPHA)
         pygame.draw.circle(s,(*C_ACCEL,35),(45,45),42); surf.blit(s,(cx-45,cy-45))
         pygame.draw.ellipse(surf,(30,15,60),(cx-20,cy+11,40,13))
@@ -3105,6 +3114,11 @@ class Accelerator(Unit):
         pygame.draw.circle(surf,(230,210,255),(cx,cy),pulse)
         for i in range(self.level):
             pygame.draw.circle(surf,C_GOLD,(cx-14+i*7,cy+24),3)
+    def draw(self, surf):
+        # Draw scaled body
+        super().draw(surf)
+        # Draw laser beams at full screen scale
+        cx,cy=int(self.px),int(self.py)
         for target in self._laser_targets:
             if not target.alive: continue
             tx,ty=int(target.x),int(target.y); tv=self._laser_t
@@ -3137,17 +3151,17 @@ class Accelerator(Unit):
         d,fr,r,_,dual=ACCEL_LEVELS[nl]
         return {"Damage":d,"Range":r,"Firerate":f"{fr:.4f}","Dual":"YES" if dual else "no"}
 
-# ── Clown ──────────────────────────────────────────────────────────────────────
+# -- Clown --
 C_CLOWN = (220, 60, 60)   # C_RED alias with explicit name for clarity
 
 # level: (damage, firerate, range_tiles, upgrade_cost)
 CLOWN_LEVELS = [
-    {"dmg": 8,  "fr": 1.6, "rng": 3.5, "cost": None},   # 0 base  (dmg 5→8, fr 1.8→1.6, rng 2.5→3.5)
-    {"dmg": 14, "fr": 1.4, "rng": 4.0, "cost": 400},    # 1        (dmg 8→14, rng 2.8→4.0)
-    {"dmg": 22, "fr": 1.2, "rng": 4.5, "cost": 850},    # 2        (dmg 12→22, rng 3.0→4.5)
-    {"dmg": 38, "fr": 1.0, "rng": 5.0, "cost": 1800},   # 3        (dmg 20→38, rng 3.5→5.0)
-    {"dmg": 65, "fr": 0.75,"rng": 5.8, "cost": 4500},   # 4        (dmg 35→65, rng 4.0→5.8)
-    {"dmg": 110,"fr": 0.45,"rng": 7.0, "cost": 12000},  # 5 max    (dmg 65→110, fr 0.6→0.45, rng 5.0→7.0)
+    {"dmg": 8,  "fr": 1.6, "rng": 3.5, "cost": None},   # 0 base  (dmg 5->8, fr 1.8->1.6, rng 2.5->3.5)
+    {"dmg": 14, "fr": 1.4, "rng": 4.0, "cost": 400},    # 1        (dmg 8->14, rng 2.8->4.0)
+    {"dmg": 22, "fr": 1.2, "rng": 4.5, "cost": 850},    # 2        (dmg 12->22, rng 3.0->4.5)
+    {"dmg": 38, "fr": 1.0, "rng": 5.0, "cost": 1800},   # 3        (dmg 20->38, rng 3.5->5.0)
+    {"dmg": 65, "fr": 0.75,"rng": 5.8, "cost": 4500},   # 4        (dmg 35->65, rng 4.0->5.8)
+    {"dmg": 110,"fr": 0.45,"rng": 7.0, "cost": 12000},  # 5 max    (dmg 65->110, fr 0.6->0.45, rng 5.0->7.0)
 ]
 
 CLOWN_MAX_PLACED = 5   # placement limit
@@ -3159,11 +3173,11 @@ class Clown(Unit):
     _PLACE_LIMIT  = 5   # max 5 Clowns per map
     hidden_detection = False   # overridden at Lv3+
 
-    # ── Global confusion cooldown (shared across ALL Clown instances) ──────────
+    # -- Global confusion cooldown (shared across ALL Clown instances) --
     _CONFUSE_CD       = 0.0    # seconds remaining until next confusion allowed
     _CONFUSE_INTERVAL = 5.0    # cooldown duration in seconds
 
-    # ── slow config per level (fraction removed from speed) ───────────────────
+    # -- slow config per level (fraction removed from speed) --
     # Base 15% slow from Lv0; aura grows stronger at higher levels
     _SLOW_CFG = [
         0.15,   # Lv0 – 15% slow
@@ -3189,7 +3203,7 @@ class Clown(Unit):
         self.range_tiles = cfg["rng"]   # already in tiles, same unit as Assassin/Accel
         self.hidden_detection = (lv >= 3)
 
-    # ── upgrade ───────────────────────────────────────────────────────────────
+    # -- upgrade --
     def upgrade_cost(self):
         nl = self.level + 1
         if nl >= len(CLOWN_LEVELS): return None
@@ -3203,7 +3217,7 @@ class Clown(Unit):
             self._apply_level()
             self._total_spent += cost
 
-    # ── helpers ───────────────────────────────────────────────────────────────
+    # -- helpers --
     def _enemies_in_range(self, enemies):
         r = self.range_tiles * TILE
         out = []
@@ -3214,19 +3228,19 @@ class Clown(Unit):
                 out.append(e)
         return out
 
-    # ── update ────────────────────────────────────────────────────────────────
+    # -- update --
     def update(self, dt, enemies, effects, money):
         self._anim_t += dt
         if self.cd_left > 0: self.cd_left -= dt
 
         in_range = self._enemies_in_range(enemies)
 
-        # ── Slow aura — apply each frame (all levels, 15% base) ───────────────
+        # -- Slow aura — apply each frame (all levels, 15% base) --
         slow_amount = self._SLOW_CFG[self.level]
         for e in in_range:
             e._slow_factor = min(e._slow_factor, 1.0 - slow_amount)
 
-        # ── Lv4+: confusion debuff (global 5s cooldown across all Clowns) ────────
+        # -- Lv4+: confusion debuff (global 5s cooldown across all Clowns) --
         # Cooldown is ticked centrally in Game.update — not here, to avoid
         # multiple Clown instances decrementing it several times per frame.
 
@@ -3246,20 +3260,20 @@ class Clown(Unit):
                 if not e.alive: continue
                 e._laugh_debuff = False
 
-        # ── Projectile attack ─────────────────────────────────────────────────
+        # -- Projectile attack --
         if self.cd_left <= 0 and in_range:
             self.cd_left = self.firerate
             t = max(in_range, key=lambda e: e.x)
             proj = ClownProjectile(self.px, self.py, t, self.damage, self.range_tiles * TILE)
             self._projectiles.append(proj)
 
-        # ── Update projectiles ────────────────────────────────────────────────
+        # -- Update projectiles --
         self._projectiles = [p for p in self._projectiles if p.update(dt)]
 
-        # ── Lv3+: pushback flag is set by projectile hit; processed centrally
+        # -- Lv3+: pushback flag is set by projectile hit; processed centrally
         #    in Game.update once per frame to avoid multi-Clown stacking.
 
-        # ── Lv5: confetti explosion on enemy death inside aura ────────────────
+        # -- Lv5: confetti explosion on enemy death inside aura --
         if self.level >= 5:
             alive_now = set(id(e) for e in enemies if e.alive)
             for e in enemies:
@@ -3269,19 +3283,20 @@ class Clown(Unit):
                         effects.append(ConfettiExplosionEffect(ex, ey))
             self._prev_alive = alive_now
 
-    # ── draw ──────────────────────────────────────────────────────────────────
+    # -- draw --
     def draw(self, surf):
-        cx, cy = int(self.px), int(self.py)
-        t = self._anim_t
-
-        # ── Projectiles ───────────────────────────────────────────────────────
+        # Draw projectiles at real positions
         for p in self._projectiles:
             p.draw(surf)
+        # Draw scaled body
+        super().draw(surf)
+    def _draw_body(self, surf, cx, cy):
+        t = self._anim_t
 
-        # ── Body shadow ───────────────────────────────────────────────────────
+        # -- Body shadow --
         pygame.draw.ellipse(surf, (20, 10, 10), (cx - 22, cy + 20, 44, 14))
 
-        # ── Body (big round clown torso) ───────────────────────────────────────
+        # -- Body (big round clown torso) --
         body_col = C_RED if self.level < 3 else (200, 30, 30)
         pygame.draw.circle(surf, (60, 20, 20),   (cx, cy), 36)        # dark base
         pygame.draw.circle(surf, body_col,        (cx, cy), 30)        # body
@@ -3291,7 +3306,7 @@ class Clown(Unit):
             dx2, dy2 = int(math.cos(a) * 14), int(math.sin(a) * 14)
             pygame.draw.circle(surf, C_WHITE, (cx + dx2, cy + dy2), 4)
 
-        # ── Clown hat (triangle) ───────────────────────────────────────────────
+        # -- Clown hat (triangle) --
         hat_col = (255, 200, 50) if self.level >= 2 else (220, 180, 40)
         hat_pts = [
             (cx, cy - 52),
@@ -3302,7 +3317,7 @@ class Clown(Unit):
         pygame.draw.polygon(surf, C_WHITE, hat_pts, 2)
         pygame.draw.circle(surf, C_RED, (cx, cy - 52), 5)  # tip pom-pom
 
-        # ── Face ──────────────────────────────────────────────────────────────
+        # -- Face --
         # eyes
         pygame.draw.circle(surf, C_WHITE, (cx - 9, cy - 8), 6)
         pygame.draw.circle(surf, C_WHITE, (cx + 9, cy - 8), 6)
@@ -3316,23 +3331,28 @@ class Clown(Unit):
         if len(smile_pts) >= 2:
             pygame.draw.lines(surf, C_WHITE, False, smile_pts, 2)
 
-        # ── Hidden-detection indicator (green dot at Lv3+) ────────────────────
+        # -- Hidden-detection indicator (green dot at Lv3+) --
         if self.hidden_detection:
             pygame.draw.circle(surf, (100, 255, 100), (cx + 26, cy - 30), 7)
 
-        # ── Level pip dots ────────────────────────────────────────────────────
+        # -- Level pip dots --
         for i in range(self.level):
             pygame.draw.circle(surf, C_GOLD, (cx - 10 + i * 5, cy + 28), 3)
 
-    # ── draw_range override: show aura ring clearly when selected ─────────────
+    # -- draw_range override: show aura ring clearly when selected --
     def draw_range(self, surf):
         r = int(self.range_tiles * TILE)
-        s = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-        pygame.draw.circle(s, (*C_CLOWN, 28), (r, r), r)
-        pygame.draw.circle(s, (*C_CLOWN, 90), (r, r), r, 3)
-        surf.blit(s, (int(self.px) - r, int(self.py) - r))
+        s = pygame.Surface((r * 2 + 8, r * 2 + 8), pygame.SRCALPHA)
+        cx2, cy2 = r + 4, r + 4
+        # filled area - more visible
+        pygame.draw.circle(s, (*C_CLOWN, 55), (cx2, cy2), r)
+        # bright solid border
+        pygame.draw.circle(s, (*C_CLOWN, 200), (cx2, cy2), r, 3)
+        # outer glow ring
+        pygame.draw.circle(s, (255, 120, 120, 80), (cx2, cy2), r + 3, 2)
+        surf.blit(s, (int(self.px) - cx2, int(self.py) - cy2))
 
-    # ── info panels ───────────────────────────────────────────────────────────
+    # -- info panels --
     def get_info(self):
         slow_pct = int(self._SLOW_CFG[self.level] * 100)
         info = {
@@ -3358,7 +3378,7 @@ class Clown(Unit):
         }
 
 
-# ── Archer ─────────────────────────────────────────────────────────────────────
+# -- Archer --
 # Arrow types
 ARROW_NORMAL = "normal"
 ARROW_ICE    = "ice"
@@ -3370,8 +3390,8 @@ C_ARCHER = (139, 90, 43)  # brown
 ARCHER_LEVELS = [
     {"dmg": 5,  "fr": 0.580, "rng": 6.0, "pierce": 2, "cost": None,  "hd": False},  # 0
     {"dmg": 6,  "fr": 0.530, "rng": 6.0, "pierce": 3, "cost": 350,   "hd": False},  # 1
-    {"dmg": 7,  "fr": 0.500, "rng": 6.5, "pierce": 3, "cost": 600,   "hd": False},  # 2  ice arrow unlocked
-    {"dmg": 10, "fr": 0.480, "rng": 6.5, "pierce": 4, "cost": 800,   "hd": False},  # 3  flame arrow unlocked
+    {"dmg": 7,  "fr": 0.500, "rng": 6.5, "pierce": 3, "cost": 600,   "hd": True},   # 2  ice arrow + hidden detection unlocked
+    {"dmg": 10, "fr": 0.480, "rng": 6.5, "pierce": 4, "cost": 800,   "hd": True},   # 3  flame arrow unlocked
     {"dmg": 12, "fr": 0.450, "rng": 7.0, "pierce": 5, "cost": 1300,  "hd": True},   # 4
     {"dmg": 15, "fr": 0.420, "rng": 7.5, "pierce": 7, "cost": 1700,  "hd": True},   # 5
 ]
@@ -3386,7 +3406,9 @@ class ArrowProjectile:
 
     def __init__(self, ox, oy, target, damage, pierce, arrow_type, hidden_detection=False):
         self.x = float(ox); self.y = float(oy)
+        self.ox = float(ox); self.oy = float(oy)
         self.alive = True
+        self._target = target
         self._damage = damage
         self._pierce_left = pierce
         self._arrow_type = arrow_type
@@ -3403,6 +3425,17 @@ class ArrowProjectile:
 
     def update(self, dt, enemies):
         if not self.alive: return False
+
+        # Steer toward primary target if still alive (homing)
+        if self._target and self._target.alive:
+            dx = self._target.x - self.x; dy = self._target.y - self.y
+            d = math.hypot(dx, dy) or 1
+            tx = dx / d * self._SPD; ty = dy / d * self._SPD
+            steer = min(1.0, dt * 12)
+            self.vx = self.vx + (tx - self.vx) * steer
+            self.vy = self.vy + (ty - self.vy) * steer
+            self._angle = math.degrees(math.atan2(self.vy, self.vx))
+
         self.x += self.vx * dt
         self.y += self.vy * dt
         self._dist_traveled += self._SPD * dt
@@ -3551,54 +3584,113 @@ class Archer(Unit):
         self._projectiles = [p for p in self._projectiles if p.update(dt, enemies)]
 
     def draw(self, surf):
-        cx, cy = int(self.px), int(self.py)
-        t = self._anim_t
-
-        # Draw projectiles
+        # Draw projectiles at real positions
         for p in self._projectiles:
             p.draw(surf)
+        # Draw scaled body
+        super().draw(surf)
+    def _draw_body(self, surf, cx, cy):
+        t = self._anim_t
 
-        # Shadow
-        pygame.draw.ellipse(surf, (30, 20, 10), (cx - 20, cy + 18, 40, 12))
-
-        # Body base (dark brown)
-        pygame.draw.circle(surf, (80, 50, 20), (cx, cy), 36)
-        # Main circle (brown)
-        pygame.draw.circle(surf, C_ARCHER, (cx, cy), 28)
-        # Highlight
-        pygame.draw.circle(surf, (180, 130, 70), (cx - 9, cy - 9), 9)
-
-        # Draw a bow on the circle
-        # Bow arc (left side)
-        bow_col = (100, 65, 25)
-        bow_rect = pygame.Rect(cx - 18, cy - 22, 14, 44)
-        pygame.draw.arc(surf, bow_col, bow_rect, math.radians(270), math.radians(90), 4)
-        # Bow string
-        pygame.draw.line(surf, (220, 200, 160), (cx - 11, cy - 22), (cx - 11, cy + 22), 1)
-        # Arrow on bow (nocked)
-        arr_col = (200, 160, 80) if self._arrow_type == ARROW_NORMAL else \
-                  (100, 200, 255) if self._arrow_type == ARROW_ICE else (255, 120, 30)
-        pygame.draw.line(surf, arr_col, (cx - 11, cy), (cx + 18, cy), 2)
-        pygame.draw.circle(surf, arr_col, (cx + 18, cy), 3)
-
-        # Arrow type indicator dot (top right)
+        # Arrow type colours
         if self._arrow_type == ARROW_ICE:
-            pygame.draw.circle(surf, (100, 200, 255), (cx + 24, cy - 26), 7)
-            pygame.draw.circle(surf, (200, 240, 255), (cx + 24, cy - 26), 7, 2)
+            arr_col   = (100, 210, 255)
+            arr_glow  = (160, 230, 255)
+            theme_col = (60, 140, 200)
         elif self._arrow_type == ARROW_FLAME:
-            pygame.draw.circle(surf, (255, 100, 20), (cx + 24, cy - 26), 7)
-            pygame.draw.circle(surf, (255, 200, 50), (cx + 24, cy - 26), 7, 2)
+            arr_col   = (255, 110, 20)
+            arr_glow  = (255, 200, 60)
+            theme_col = (200, 70, 10)
+        else:
+            arr_col   = (210, 170, 80)
+            arr_glow  = (240, 210, 130)
+            theme_col = (130, 90, 30)
 
-        # Hidden detection indicator
+        # ── Shadow ──────────────────────────────────────────────────────────
+        pygame.draw.ellipse(surf, (20, 14, 6), (cx - 22, cy + 20, 44, 13))
+
+        # ── Outer glow ring (theme-coloured) ────────────────────────────────
+        glow_surf = pygame.Surface((80, 80), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surf, (*theme_col, 55), (40, 40), 36)
+        surf.blit(glow_surf, (cx - 40, cy - 40))
+
+        # ── Base circle — dark forest green cloak ───────────────────────────
+        pygame.draw.circle(surf, (28, 52, 28), (cx, cy), 30)
+
+        # ── Cloak — gradient feel with two arcs of slightly lighter green ───
+        pygame.draw.circle(surf, (42, 78, 38), (cx, cy), 27)
+        pygame.draw.circle(surf, (55, 95, 48), (cx - 2, cy + 2), 20)
+
+        # ── Hood shadow (top dark half-circle) ──────────────────────────────
+        hood_rect = pygame.Rect(cx - 20, cy - 28, 40, 36)
+        pygame.draw.ellipse(surf, (18, 35, 18), hood_rect)
+
+        # ── Hood highlight (slightly lighter arc inside) ─────────────────────
+        pygame.draw.arc(surf, (70, 115, 60), pygame.Rect(cx - 14, cy - 24, 28, 24),
+                        math.radians(30), math.radians(150), 3)
+
+        # ── Face / eye slit ─────────────────────────────────────────────────
+        pygame.draw.ellipse(surf, (230, 195, 130), (cx - 8, cy - 14, 16, 8))
+        # narrow shadow above eyes
+        pygame.draw.ellipse(surf, (25, 40, 20), (cx - 8, cy - 17, 16, 5))
+        # glowing eyes
+        eye_pulse = int(30 * math.sin(t * 3.5))
+        eye_r = (255, min(255, 200 + eye_pulse), 50)
+        pygame.draw.circle(surf, eye_r, (cx - 4, cy - 11), 2)
+        pygame.draw.circle(surf, eye_r, (cx + 4, cy - 11), 2)
+
+        # ── Bow (left side, elegant long-bow shape) ──────────────────────────
+        bow_col    = (90, 58, 18)
+        bow_hi_col = (155, 110, 45)
+        # outer bow limb
+        bow_rect = pygame.Rect(cx - 22, cy - 26, 16, 52)
+        pygame.draw.arc(surf, bow_col,    bow_rect, math.radians(270), math.radians(90), 5)
+        pygame.draw.arc(surf, bow_hi_col, bow_rect, math.radians(285), math.radians(75), 2)
+
+        # ── Bow string — slightly tensed based on anim ───────────────────────
+        tension = 2.0 + 1.5 * abs(math.sin(t * 2.8))
+        sx = cx - 14 + int(tension)
+        pygame.draw.line(surf, (215, 195, 150), (cx - 14, cy - 26), (sx, cy),     1)
+        pygame.draw.line(surf, (215, 195, 150), (cx - 14, cy + 26), (sx, cy),     1)
+
+        # ── Nocked arrow ─────────────────────────────────────────────────────
+        ax_start = sx
+        ax_end   = cx + 22
+        pygame.draw.line(surf, arr_col,  (ax_start, cy), (ax_end, cy), 2)
+        # arrowhead triangle
+        pts = [(ax_end + 6, cy),
+               (ax_end - 2, cy - 4),
+               (ax_end - 2, cy + 4)]
+        pygame.draw.polygon(surf, arr_glow, pts)
+        # fletching (small lines at back)
+        pygame.draw.line(surf, arr_glow, (ax_start + 4, cy), (ax_start + 2, cy - 5), 2)
+        pygame.draw.line(surf, arr_glow, (ax_start + 4, cy), (ax_start + 2, cy + 5), 2)
+
+        # ── Arrow-type badge (bottom-right of circle) ─────────────────────────
+        bx, by = cx + 20, cy + 18
+        pygame.draw.circle(surf, (15, 25, 15), (bx, by), 9)
+        pygame.draw.circle(surf, arr_col,       (bx, by), 7)
+        pygame.draw.circle(surf, arr_glow,      (bx, by), 7, 2)
+
+        # ── Hidden-detection indicator ────────────────────────────────────────
         if self.hidden_detection:
-            pygame.draw.circle(surf, (100, 255, 100), (cx + 26, cy - 30), 7)
+            hx, hy = cx + 22, cy - 22
+            pulse = int(20 * abs(math.sin(t * 2.2)))
+            pygame.draw.circle(surf, (30 + pulse, 255, 100), (hx, hy), 6)
+            pygame.draw.circle(surf, (200, 255, 220),         (hx, hy), 6, 2)
 
-        # Level pips
+        # ── Level pips ────────────────────────────────────────────────────────
+        pip_y = cy + 24
+        total_pip_w = (self.level - 1) * 7
         for i in range(self.level):
-            pygame.draw.circle(surf, C_GOLD, (cx - 10 + i * 5, cy + 28), 3)
+            px_pip = cx - total_pip_w // 2 + i * 7
+            inner = (255, 210, 60) if i < self.level else (70, 70, 70)
+            pygame.draw.circle(surf, (120, 80, 10), (px_pip, pip_y), 4)
+            pygame.draw.circle(surf, inner,          (px_pip, pip_y), 3)
 
-        # Border ring
-        pygame.draw.circle(surf, (180, 120, 60), (cx, cy), 28, 2)
+        # ── Outer border ring ────────────────────────────────────────────────
+        pygame.draw.circle(surf, (90, 140, 80),  (cx, cy), 30, 2)
+        pygame.draw.circle(surf, (140, 200, 120), (cx, cy), 30, 1)
 
     def get_info(self):
         arrow_label = {"normal": "Normal", "ice": "Ice", "flame": "Flame"}
@@ -3623,7 +3715,7 @@ class Archer(Unit):
         }
 
 
-# ── Zigres ─────────────────────────────────────────────────────────────────────
+# -- Zigres --
 C_ZIGRES = (80, 200, 255)   # electric blue
 
 # (damage, firerate, range_tiles, sentinel_hp, sentinel_dmg, upgrade_cost)
@@ -4202,7 +4294,7 @@ class StaticSentinel:
         t = self._anim_t
         lv = self.level   # 0-5
 
-        # ── per-level palette ──────────────────────────────────────────────────
+        # -- per-level palette --
         # cloak, plate, accent, crest, glow
         PALETTES = [
             ((30,  50, 100), (60, 100, 180), (80,  200, 255), (80,  200, 255), (80,  200, 255)),  # 0 blue
@@ -4242,7 +4334,7 @@ class StaticSentinel:
         pygame.draw.ellipse(surf, (15, 20, 35),
                             (cx - R, cy + R - 4, R * 2, 10 + lv))
 
-        # ── Lv4+ fire aura behind body ────────────────────────────────────────
+        # -- Lv4+ fire aura behind body --
         if lv >= 4:
             for i in range(6):
                 a = math.radians(i * 60 + t * 90)
@@ -4253,7 +4345,7 @@ class StaticSentinel:
                 pygame.draw.circle(fs, (255, 100, 20, 80), (fr + 2, fr + 2), fr)
                 surf.blit(fs, (fx - fr - 2, fy - fr - 2))
 
-        # ── Lv5 dark energy rings ─────────────────────────────────────────────
+        # -- Lv5 dark energy rings --
         if lv >= 5:
             for i in range(2):
                 ring_r = R + 8 + i * 6 + int(abs(math.sin(t * 3 + i)) * 4)
@@ -4285,7 +4377,7 @@ class StaticSentinel:
                             (cx - int(R * 0.3), cy - int(R * 0.45),
                              int(R * 0.5), int(R * 0.35)))
 
-        # ── Lv3+ extra decorative runes on chest ──────────────────────────────
+        # -- Lv3+ extra decorative runes on chest --
         if lv >= 3:
             for i in range(lv - 1):
                 a = math.radians(i * (360 / max(1, lv - 1)) + t * 20)
@@ -4375,7 +4467,7 @@ class StaticSentinel:
             pygame.draw.circle(surf, (255, 200, 0), (duck_x + 4, cy - 4), 3)
             pygame.draw.line(surf, (255, 140, 20), (duck_x + 6, cy - 4), (duck_x + 10, cy - 3), 2)
 
-        # ── sword ─────────────────────────────────────────────────────────────
+        # -- sword --
         blade_col = (200, 230, 255) if sw < 0.1 else (255, 255, 180)
         # Lv3+ golden blade, Lv4+ fiery, Lv5 dark
         if lv >= 5:   blade_col = (180, 200, 255) if sw < 0.1 else (220, 240, 255)
@@ -4571,7 +4663,7 @@ class Zigres(Unit):
                 self._beam_last_target = tgt
                 self._beam_flash = 0.35  # longer flash so animation is visible
 
-                # Resonance: same enemy hit by both beam and sentinel → AoE flash
+                # Resonance: same enemy hit by both beam and sentinel -> AoE flash
                 if self._resonance and id(tgt) in sentinel_hit_ids:
                     effects.append(ZigresResonanceEffect(tgt.x, tgt.y))
                     for e in enemies:
@@ -4624,7 +4716,12 @@ class Zigres(Unit):
                 pygame.draw.circle(beam_s, (255, 200, 255, int(180 * flash_ratio)), (ex2, ey2), impact_r)
             surf.blit(beam_s, (0, 0))
 
-        # ── LUNTIK TOWER DRAWING ───────────────────────────────────────────────
+        # Draw scaled body on top of beams
+        super().draw(surf)
+
+    def _draw_body(self, surf, cx, cy):
+        t = self._anim_t
+        # -- LUNTIK TOWER DRAWING --
         bob = int(math.sin(t * 2.5) * 3)   # gentle breathing bob
         by = cy + bob                        # body Y with bob
 
@@ -4638,7 +4735,7 @@ class Zigres(Unit):
         C_LUNT_NOSE   = (255, 160, 180)   # nose
         C_LUNT_CHEEK  = (255, 180, 200)   # cheek blush
 
-        # ── glow aura (pulsing purple) ─────────────────────────────────────────
+        # -- glow aura (pulsing purple) --
         pulse = int(abs(math.sin(t * 3)) * 8)
         flash_boost = 12 if self._beam_flash > 0 else 0
         glow_r = 46 + pulse + flash_boost
@@ -4647,7 +4744,7 @@ class Zigres(Unit):
         pygame.draw.circle(gs, (200, 120, 255, glow_a), (glow_r+2, glow_r+2), glow_r)
         surf.blit(gs, (cx - glow_r - 2, by - glow_r - 2))
 
-        # ── EARS (drawn behind body) ───────────────────────────────────────────
+        # -- EARS (drawn behind body) --
         ear_wobble = int(math.sin(t * 3.5) * 4)
         # left ear — big rounded ear
         le_cx = cx - 20; le_ty = by - 54 + ear_wobble
@@ -4666,7 +4763,7 @@ class Zigres(Unit):
         pygame.draw.ellipse(surf, C_LUNT_INNER,
                             (re_cx - 5,  re_ty + 5, 12, 20))
 
-        # ── rotating magic orbs around body ───────────────────────────────────
+        # -- rotating magic orbs around body --
         orb_col = (220, 160, 255) if self._beam_flash == 0 else (255, 220, 255)
         for i in range(3 + self.level):
             a = math.radians(t * 100 + i * (360 / (3 + self.level)))
@@ -4675,7 +4772,7 @@ class Zigres(Unit):
             pygame.draw.circle(surf, orb_col, (ox2, oy2), 4)
             pygame.draw.circle(surf, (255, 255, 255), (ox2, oy2), 2)
 
-        # ── BODY ──────────────────────────────────────────────────────────────
+        # -- BODY --
         # main round body
         pygame.draw.circle(surf, C_LUNT_DARK, (cx, by + 2), 33)   # shadow outline
         pygame.draw.circle(surf, C_LUNT_BODY, (cx, by),     31)
@@ -4683,7 +4780,7 @@ class Zigres(Unit):
         pygame.draw.ellipse(surf, C_LUNT_BELLY,
                             (cx - 14, by - 10, 28, 26))
 
-        # ── FACE ──────────────────────────────────────────────────────────────
+        # -- FACE --
         # head is the upper part of the body circle, draw face features
         face_y = by - 8  # face centre
 
@@ -4716,7 +4813,7 @@ class Zigres(Unit):
         surf.blit(bs, (cx - 22, face_y + 6))
         surf.blit(bs, (cx + 4,  face_y + 6))
 
-        # ── antennae / magic feelers ───────────────────────────────────────────
+        # -- antennae / magic feelers --
         ant_wobble = math.sin(t * 4) * 6
         # left antennae
         pygame.draw.line(surf, C_LUNT_DARK,
@@ -4731,18 +4828,18 @@ class Zigres(Unit):
         pygame.draw.circle(surf, (255, 200, 80),
                            (cx + 18 - int(ant_wobble), by - 48), 4)
 
-        # ── hidden detection indicator ─────────────────────────────────────────
+        # -- hidden detection indicator --
         if self.hidden_detection:
             pygame.draw.circle(surf, (100, 255, 100), (cx + 30, by - 30), 7)
             pygame.draw.circle(surf, (200, 255, 200), (cx + 30, by - 30), 4)
 
-        # ── level pips ────────────────────────────────────────────────────────
+        # -- level pips --
         for i in range(self.level):
             pip_col = (255, 220, 80) if i < 5 else (255, 100, 200)
             pygame.draw.circle(surf, pip_col,
                                (cx - 10 + i * 7, by + 32), 3)
 
-        # ── spawn timer arc ────────────────────────────────────────────────────
+        # -- spawn timer arc --
         timer_ratio = max(0, 1.0 - self._spawn_timer / self._SPAWN_INTERVAL)
         if timer_ratio < 1.0:
             arc_rect = pygame.Rect(cx - 36, by - 36, 72, 72)
@@ -4796,16 +4893,16 @@ class Zigres(Unit):
         return info
 
 
-# ── Gunner ─────────────────────────────────────────────────────────────────────
+# -- Gunner --
 # Простая пушечная башня — доступна только через Shop за монеты
 C_GUNNER = (80, 160, 220)    # стальной синий (премиальный)
 
 GUNNER_LEVELS = [
-    {"dmg": 14, "fr": 0.92,  "rng": 5.5, "cost": None},   # 0 base  (нерф: 18→14, fr 0.85→0.92)
-    {"dmg": 20, "fr": 0.82,  "rng": 6.0, "cost": 500},    # 1       (нерф: 26→20)
-    {"dmg": 30, "fr": 0.70,  "rng": 6.5, "cost": 1100},   # 2       (нерф: 38→30)
-    {"dmg": 44, "fr": 0.60,  "rng": 7.0, "cost": 2500},   # 3       (нерф: 55→44)
-    {"dmg": 62, "fr": 0.46,  "rng": 7.5, "cost": 5000},   # 4  max  (нерф: 80→62)
+    {"dmg": 14, "fr": 0.92,  "rng": 5.5, "cost": None},   # 0 base  (нерф: 18->14, fr 0.85->0.92)
+    {"dmg": 20, "fr": 0.82,  "rng": 6.0, "cost": 500},    # 1       (нерф: 26->20)
+    {"dmg": 30, "fr": 0.70,  "rng": 6.5, "cost": 1100},   # 2       (нерф: 38->30)
+    {"dmg": 44, "fr": 0.60,  "rng": 7.0, "cost": 2500},   # 3       (нерф: 55->44)
+    {"dmg": 62, "fr": 0.46,  "rng": 7.5, "cost": 5000},   # 4  max  (нерф: 80->62)
 ]
 
 GUNNER_SHOP_PRICE = 1200   # цена покупки в Shop за shop_coins
@@ -4861,25 +4958,24 @@ class Gunner(Unit):
             # bullet trail effect
             effects.append(GunnerBulletEffect(self.px, self.py, t[0].x, t[0].y))
 
-    def draw(self, surf):
-        cx, cy = int(self.px), int(self.py)
+    def _draw_body(self, surf, cx, cy):
         t = self._anim_t
         ang_r = math.radians(self._barrel_angle)
         lv = self.level
 
-        # ── shadow ────────────────────────────────────────────────────────────
+        # -- shadow --
         pygame.draw.ellipse(surf, (5, 8, 18), (cx - 26, cy + 18, 52, 16))
 
-        # ── armoured base platform (hexagonal look via thick ellipse) ────────
+        # -- armoured base platform (hexagonal look via thick ellipse) --
         pygame.draw.ellipse(surf, (18, 24, 38), (cx - 28, cy + 8, 56, 20))
         pygame.draw.ellipse(surf, (35, 50, 75), (cx - 25, cy + 9, 50, 16))
         pygame.draw.ellipse(surf, (55, 80, 120), (cx - 22, cy + 11, 44, 10))
 
-        # ── outer ring – dark steel with blue edge ────────────────────────────
+        # -- outer ring – dark steel with blue edge --
         pygame.draw.circle(surf, (20, 28, 44), (cx, cy), 30)
         pygame.draw.circle(surf, (38, 58, 90), (cx, cy), 27)
 
-        # ── armour panels (6 wedges via arc-like segments) ───────────────────
+        # -- armour panels (6 wedges via arc-like segments) --
         for i in range(6):
             a0 = math.radians(i * 60 + t * 15)
             a1 = math.radians(i * 60 + 38 + t * 15)
@@ -4891,10 +4987,10 @@ class Gunner(Unit):
             col = (48, 70, 105) if i % 2 == 0 else (30, 45, 72)
             pygame.draw.polygon(surf, col, pts_panel)
 
-        # ── inner ring border ─────────────────────────────────────────────────
+        # -- inner ring border --
         pygame.draw.circle(surf, (60, 100, 160), (cx, cy), 25, 2)
 
-        # ── energy nodes at panel edges (Color scales with level) ─────────────
+        # -- energy nodes at panel edges (Color scales with level) --
         node_col = (20, 60, 110)
         node_glow = (80, 180, 255)
         if lv >= 3:
@@ -4911,7 +5007,7 @@ class Gunner(Unit):
             pygame.draw.circle(surf, node_col, (nx, ny), 4 + (1 if lv>=4 else 0))
             pygame.draw.circle(surf, node_glow, (nx, ny), 2 + (1 if lv>=4 else 0))
 
-        # ── Barrels (length and style scale with level) ───────────────────────
+        # -- Barrels (length and style scale with level) --
         perp_x = -math.sin(ang_r)
         perp_y =  math.cos(ang_r)
         barrel_len = 34 + lv * 2  
@@ -4969,7 +5065,7 @@ class Gunner(Unit):
         pygame.draw.circle(surf, (80, 150, 230) if lv < 4 else (140, 80, 220), (mid_x, mid_y), 4 + (1 if lv>=4 else 0))
         pygame.draw.circle(surf, (160, 220, 255) if lv < 4 else (220, 160, 255), (mid_x, mid_y), 2)
 
-        # ── muzzle flash ──────────────────────────────────────────────────────
+        # -- muzzle flash --
         if self._muzzle_flash > 0:
             frac = self._muzzle_flash / 0.18
             fs = pygame.Surface((60, 60), pygame.SRCALPHA)
@@ -4983,13 +5079,13 @@ class Gunner(Unit):
                 flash_y = cy + int(math.sin(ang_r) * blen) + int(perp_y * offset)
                 surf.blit(fs, (flash_x - 30, flash_y - 30))
 
-        # ── turret dome ───────────────────────────────────────────────────────
+        # -- turret dome --
         dome_r = 16 + (1 if lv>=3 else 0)
         pygame.draw.circle(surf, (25, 38, 62), (cx, cy), dome_r)
         pygame.draw.circle(surf, (50, 90, 150), (cx, cy), dome_r - 3)
         pygame.draw.circle(surf, (80, 140, 210), (cx, cy), dome_r - 6)
 
-        # ── Level Details on Dome ─────────────────────────────────────────────
+        # -- Level Details on Dome --
         fw_x = math.cos(ang_r); fw_y = math.sin(ang_r)
         
         if lv >= 1:
@@ -5034,7 +5130,7 @@ class Gunner(Unit):
             pygame.draw.circle(surf, (180, 220, 255), (cx - 4, cy - 4), 4)
             pygame.draw.circle(surf, (240, 250, 255), (cx - 5, cy - 5), 2)
 
-        # ── level pips ────────────────────────────────────────────────────────
+        # -- level pips --
         pip_col1 = (60, 140, 220) if lv < 4 else (140, 60, 220)
         pip_col2 = (180, 220, 255) if lv < 4 else (220, 180, 255)
         for i in range(self.level):
@@ -5056,10 +5152,10 @@ class Gunner(Unit):
         return {"Damage": cfg["dmg"], "Range": cfg["rng"],
                 "Firerate": f"{cfg['fr']:.2f}"}
 
-        # ── inner ring border ─────────────────────────────────────────────────
+        # -- inner ring border --
         pygame.draw.circle(surf, (60, 100, 160), (cx, cy), 25, 2)
 
-        # ── blue energy nodes at panel edges ─────────────────────────────────
+        # -- blue energy nodes at panel edges --
         for i in range(6):
             a = math.radians(i * 60 + t * 15)
             nx = cx + int(math.cos(a) * 22)
@@ -5067,7 +5163,7 @@ class Gunner(Unit):
             pygame.draw.circle(surf, (20, 60, 110), (nx, ny), 4)
             pygame.draw.circle(surf, (80, 180, 255), (nx, ny), 2)
 
-        # ── double barrel (twin guns offset perpendicularly) ──────────────────
+        # -- double barrel (twin guns offset perpendicularly) --
         perp_x = -math.sin(ang_r)
         perp_y =  math.cos(ang_r)
         barrel_len = 34
@@ -5096,7 +5192,7 @@ class Gunner(Unit):
         pygame.draw.circle(surf, (80, 150, 230), (mid_x, mid_y), 4)
         pygame.draw.circle(surf, (160, 220, 255), (mid_x, mid_y), 2)
 
-        # ── muzzle flash (blue-white) ─────────────────────────────────────────
+        # -- muzzle flash (blue-white) --
         if self._muzzle_flash > 0:
             frac = self._muzzle_flash / 0.18
             fs = pygame.Surface((60, 60), pygame.SRCALPHA)
@@ -5107,7 +5203,7 @@ class Gunner(Unit):
                 flash_y = cy + int(math.sin(ang_r) * barrel_len) + int(perp_y * offset)
                 surf.blit(fs, (flash_x - 30, flash_y - 30))
 
-        # ── turret dome – dark glossy ─────────────────────────────────────────
+        # -- turret dome – dark glossy --
         pygame.draw.circle(surf, (25, 38, 62), (cx, cy), 16)
         pygame.draw.circle(surf, (50, 90, 150), (cx, cy), 13)
         pygame.draw.circle(surf, (80, 140, 210), (cx, cy), 10)
@@ -5115,7 +5211,7 @@ class Gunner(Unit):
         pygame.draw.circle(surf, (180, 220, 255), (cx - 4, cy - 4), 4)
         pygame.draw.circle(surf, (240, 250, 255), (cx - 5, cy - 5), 2)
 
-        # ── level pips (blue diamonds) ────────────────────────────────────────
+        # -- level pips (blue diamonds) --
         for i in range(self.level):
             px2 = cx - 10 + i * 7
             py2 = cy + 33
@@ -5157,7 +5253,7 @@ class GunnerBulletEffect:
         surf.blit(s, (0, 0))
 
 
-# ── UI ─────────────────────────────────────────────────────────────────────────
+# -- UI --
 class UI:
     SLOT_TYPES=[Assassin,Accelerator,Clown,Archer,Zigres]
     def __init__(self):
@@ -5284,7 +5380,7 @@ class UI:
 
     def draw(self,surf,units,money,wave_mgr,player_hp,player_maxhp,enemies,boss_enemy=None):
         wave=wave_mgr.wave
-        # ── TOP BAR gradient ────────────────────────────────────────────────────
+        # -- TOP BAR gradient --
         draw_rect_gradient(surf,(22,26,44),(14,18,32),(0,0,SCREEN_W,72),alpha=248)
         pygame.draw.line(surf,(80,90,140),(0,72),(SCREEN_W,72),1)
         pygame.draw.line(surf,(40,50,90),(0,73),(SCREEN_W,73),2)
@@ -5302,18 +5398,35 @@ class UI:
             t_col=(255,200,50) if tl>2 else (255,100,50)
             txt(surf,f"[T] {tl:.1f}s",(26,56),(90,100,130),font_sm)
 
-        # Money display
-        money_str = str(money)
+        # Money display — single badge, centred in top bar
+        money_str = f"{money:,}"
         money_surf = font_lg.render(money_str, True, C_GOLD)
-        total_w = (ICO_COIN.get_width() + 8 if ICO_COIN else 0) + money_surf.get_width()
-        mx_off = SCREEN_W // 2 - total_w // 2
-        if ICO_COIN:
-            surf.blit(ICO_COIN, (mx_off, 12))
-            mx_off += ICO_COIN.get_width() + 8
-        else:
-            txt(surf, "[C]", (mx_off, 28), C_GOLD, font_lg)
-            mx_off += 36
-        surf.blit(money_surf, (mx_off, 28))
+        ico_money = ICO_MONEY or ICO_COIN
+        ico_size = 48
+        if ico_money:
+            ico_scaled = pygame.transform.smoothscale(ico_money, (ico_size, ico_size))
+        gap = 10
+        total_w = (ico_size + gap if ico_money else 0) + money_surf.get_width()
+        badge_pad_x, badge_pad_y = 16, 6
+        badge_w = total_w + badge_pad_x * 2
+        badge_h = 56
+        badge_x = SCREEN_W // 2 - badge_w // 2
+        badge_y = 8
+        # badge background
+        draw_rect_gradient(surf, (30, 24, 8), (18, 14, 4),
+                           (badge_x, badge_y, badge_w, badge_h), alpha=220, brad=14)
+        pygame.draw.rect(surf, (160, 120, 30),
+                         (badge_x, badge_y, badge_w, badge_h), 2, border_radius=14)
+        # inner highlight line
+        pygame.draw.rect(surf, (200, 170, 60),
+                         (badge_x + 2, badge_y + 2, badge_w - 4, 2), border_radius=14)
+        # icon
+        content_x = badge_x + badge_pad_x
+        if ico_money:
+            surf.blit(ico_scaled, (content_x, badge_y + (badge_h - ico_size) // 2))
+            content_x += ico_size + gap
+        # amount text
+        surf.blit(money_surf, (content_x, badge_y + (badge_h - money_surf.get_height()) // 2))
 
         # HP bar (right side) — gradient fill
         bx=SCREEN_W-403; bw2=317; bh2=28
@@ -5328,7 +5441,7 @@ class UI:
         pygame.draw.rect(surf,(60,70,110),(bx,20,bw2,bh2),2,border_radius=7)
         txt(surf,f"HP  {player_hp}/{player_maxhp}",(bx+bw2//2,34),C_WHITE,font_sm,center=True)
 
-        # ── BOSS BAR ────────────────────────────────────────────────────────────
+        # -- BOSS BAR --
         if boss_enemy and boss_enemy.alive:
             ratio = max(0.0, boss_enemy.hp / boss_enemy.maxhp)
             bbw = SCREEN_W - 160; bbh = 22
@@ -5368,16 +5481,11 @@ class UI:
             hp_w = font_sm.size(hp_str)[0]
             txt(surf, hp_str, (bbx+bbw-hp_w-6, bby+bbh//2), (255,200,200), font_sm)
 
-        # ── SLOT PANEL gradient ──────────────────────────────────────────────────
+        # -- SLOT PANEL gradient --
         draw_rect_gradient(surf,(20,22,38),(14,16,28),(0,SLOT_AREA_Y,SCREEN_W,SCREEN_H-SLOT_AREA_Y),alpha=248)
         pygame.draw.line(surf,(80,90,140),(0,SLOT_AREA_Y),(SCREEN_W,SLOT_AREA_Y),1)
         pygame.draw.line(surf,(40,50,80),(0,SLOT_AREA_Y+1),(SCREEN_W,SLOT_AREA_Y+1),2)
-        # slot panel money
-        if ICO_COIN:
-            surf.blit(ICO_COIN, (14, SLOT_AREA_Y - 38))
-            txt(surf, f" {money}", (50, SLOT_AREA_Y - 34), C_GOLD, font_md)
-        else:
-            txt(surf, f"[C] {money}", (14, SLOT_AREA_Y - 34), C_GOLD, font_md)
+        # slot panel money — removed (shown in top bar only)
         _lo = Lobby.__new__(Lobby)
         mx2h,my2h=pygame.mouse.get_pos()
         for i,slot in enumerate(self.slots):
@@ -5398,8 +5506,8 @@ class UI:
                 _lo._draw_tower_icon(surf, UType, cx2, cy2, size=22)
                 nc=UType.COLOR if sel else (200,210,230)
                 txt(surf,UType.NAME,(slot.centerx,slot.bottom-24),nc,font_sm,center=True)
-                if ICO_COIN:
-                    coin_slot=pygame.transform.smoothscale(ICO_COIN,(18,18))
+                if ICO_MONEY or ICO_COIN:
+                    coin_slot=pygame.transform.smoothscale(ICO_MONEY or ICO_COIN,(18,18))
                     cost_str=f"${UType.PLACE_COST}"
                     cost_w3=font_sm.size(cost_str)[0]
                     cost_x=slot.centerx-(20+4+cost_w3)//2
@@ -5429,23 +5537,21 @@ class UI:
                 txt(surf,str(i+1),badge_rect.center,(100,90,130),font_sm,center=True)
 
         mx2,my2=pygame.mouse.get_pos()
-        for u in units:
-            if dist((u.px,u.py),(mx2,my2))<43 and self.open_unit!=u: u.draw_range(surf)
 
         if self.open_unit:
-            u=self.open_unit; u.draw_range(surf)
+            u=self.open_unit
             menu,btns=self._menu_rects(u)
             mx0,my0=menu.x,menu.y; mw,mh=menu.w,menu.h
 
-            # ── Drop shadow ──────────────────────────────────────────────
+            # -- Drop shadow --
             draw_rect_alpha(surf,(0,0,0),(mx0+6,my0+8,mw,mh),80,brad=16)
 
-            # ── Glassmorphism panel background ───────────────────────────
+            # -- Glassmorphism panel background --
             draw_rect_alpha(surf,(12,16,30),(mx0,my0,mw,mh),245,brad=16)
             # subtle inner glow along top edge
             draw_rect_alpha(surf,(80,60,160),(mx0,my0,mw,2),60,brad=16)
 
-            # ── Gradient header strip ────────────────────────────────────
+            # -- Gradient header strip --
             header_h=60
             for row in range(header_h):
                 t=row/header_h
@@ -5458,7 +5564,7 @@ class UI:
                 alpha_sep=80-i*25
                 draw_rect_alpha(surf,u.COLOR,(mx0,my0+header_h+i,mw,1),alpha_sep)
 
-            # ── Tower icon badge ─────────────────────────────────────────
+            # -- Tower icon badge --
             icon_cx=mx0+40; icon_cy=my0+header_h//2
             draw_rect_alpha(surf,(0,0,0),(icon_cx-20,icon_cy-20,40,40),80,brad=20)
             pygame.draw.circle(surf,(30,20,60),(icon_cx,icon_cy),20)
@@ -5467,12 +5573,12 @@ class UI:
             pygame.draw.circle(surf,u.COLOR,(icon_cx,icon_cy),16)
             pygame.draw.circle(surf,(255,255,255),(icon_cx,icon_cy),16,2)
 
-            # ── Tower name ───────────────────────────────────────────────
+            # -- Tower name --
             name_f=pygame.font.SysFont("consolas",24,bold=True)
             name_surf=name_f.render(u.NAME,True,C_WHITE)
             surf.blit(name_surf,(mx0+72,my0+7))
 
-            # ── Level bar (modern segmented) ─────────────────────────────
+            # -- Level bar (modern segmented) --
             max_lv=getattr(u,'_max_level',None) or (len(ASSASSIN_LEVELS)-1 if isinstance(u,Assassin) else len(ACCEL_LEVELS)-1 if isinstance(u,Accelerator) else len(ARCHER_LEVELS)-1 if isinstance(u,Archer) else len(CLOWN_LEVELS)-1)
             lv_label_f=pygame.font.SysFont("consolas",19)
             lv_surf=lv_label_f.render(f"LVL {u.level}/{max_lv}",True,(180,160,255))
@@ -5488,16 +5594,16 @@ class UI:
                 pygame.draw.rect(surf,(60,50,90) if not filled else (200,200,255),
                                  (seg_x+i*(seg_w+seg_gap),seg_y,seg_w,seg_h),1,border_radius=3)
 
-            # ── Close button ─────────────────────────────────────────────
+            # -- Close button --
             cx2,cy2=btns["close"].center
             draw_rect_alpha(surf,(100,20,20),(*btns["close"].topleft,btns["close"].w,btns["close"].h),200,brad=12)
             pygame.draw.rect(surf,(200,60,60),btns["close"],2,border_radius=12)
-            txt(surf,"✕",(cx2,cy2),(255,140,140),font_sm,center=True)
+            txt(surf,"X",(cx2,cy2),(255,140,140),font_sm,center=True)
 
-            # ── Panel border ─────────────────────────────────────────────
+            # -- Panel border --
             pygame.draw.rect(surf,(60,45,110),menu,2,border_radius=16)
 
-            # ── Stats section ────────────────────────────────────────────
+            # -- Stats section --
             cur=u.get_info(); nxt=u.get_next_info()
             stat_y=my0+header_h+14
 
@@ -5539,22 +5645,22 @@ class UI:
                         better=(nvf>cvf) if k!="Firerate" else (nvf<cvf)
                         same=(cvf==nvf)
                         if same:     arrow="—"; acol=(70,75,100)
-                        elif better: arrow="▲"; acol=(60,220,110)
-                        else:        arrow="▼"; acol=(220,70,70)
+                        elif better: arrow="^"; acol=(60,220,110)
+                        else:        arrow="v"; acol=(220,70,70)
                     except:
                         same=(v==nv)
-                        arrow="—" if same else "▲"; acol=(70,75,100) if same else (60,220,110)
+                        arrow="-" if same else "^"; acol=(70,75,100) if same else (60,220,110)
 
                     cv_surf = val_f.render(str(v),  True, (190,195,220))
                     nv_surf = val_f.render(str(nv),  True, (80,230,120))
                     surf.blit(cv_surf, (COL_CUR - cv_surf.get_width(), ry+10))
                     # Arrow: use image if available, else text glyph
-                    if ICO_ARROW and arrow in ("▲","▼"):
+                    if ICO_ARROW and arrow in ("^","v"):
                         ar_ico = ICO_ARROW
                         # tint by flipping/rotating not possible easily; just blit tinted via surface
                         tinted = ar_ico.copy()
                         tinted.fill((*acol, 200), special_flags=pygame.BLEND_RGBA_MULT)
-                        if arrow == "▼":
+                        if arrow == "v":
                             tinted = pygame.transform.flip(tinted, False, True)
                         surf.blit(tinted, (COL_ARROW - tinted.get_width()//2, ry + (row_h-4)//2 - tinted.get_height()//2))
                     else:
@@ -5565,13 +5671,13 @@ class UI:
                     cv_surf = val_f.render(str(v), True, (200,205,230))
                     surf.blit(cv_surf, (COL_NXT - cv_surf.get_width(), ry+10))
 
-            # ── Divider before buttons ────────────────────────────────────
+            # -- Divider before buttons --
             _has_extra_btn = (u.ability and u.level>=2) or (isinstance(u, Archer) and u.level>=2)
             div_y=my0+mh-(96+20+(_has_extra_btn*(72+16))+28)
             for i,dcol in enumerate([(60,45,110),(40,30,80),(20,15,40)]):
                 pygame.draw.line(surf,dcol,(mx0+20,div_y+i),(mx0+mw-20,div_y+i),2)
 
-            # ── Archer arrow-type switch button ──────────────────────────
+            # -- Archer arrow-type switch button --
             if isinstance(u, Archer) and u.level >= 2:
                 ab_rect = btns["archer_arrow"]
                 avail = u._available_arrows()
@@ -5590,7 +5696,7 @@ class UI:
                     filled = (atype == u._arrow_type)
                     pygame.draw.circle(surf, dc, (dot_x + ai*36, ab_rect.bottom-12), 6, 0 if filled else 2)
 
-            # ── Ability button ───────────────────────────────────────────
+            # -- Ability button --
             if u.ability and u.level>=2:
                 ab=u.ability; ready=ab.ready()
                 ab_rect=btns["ability"]
@@ -5611,7 +5717,7 @@ class UI:
                     pygame.draw.rect(surf,(60,180,200),(ab_rect.x+10,ab_rect.centery+6,int(bar_w*r3),4),border_radius=2)
                     txt(surf,f"CD {ab.cd_left:.1f}s",ab_rect.center,(70,80,105),font_sm,center=True)
 
-            # ── Sell button ──────────────────────────────────────────────
+            # -- Sell button --
             sell_rect=btns["sell"]
             refund_val=max(1,int(getattr(u,'_total_spent',u.PLACE_COST)*0.30))
             mx_h,my_h=pygame.mouse.get_pos()
@@ -5626,15 +5732,15 @@ class UI:
             sell_f=pygame.font.SysFont("consolas",18,bold=True)
             txt(surf,"[X] SELL",(sell_rect.centerx,sell_rect.y+10),(255,120,120),sell_f,center=True)
             # Refund amount with coin icon
-            if ICO_COIN:
-                coin_sm = pygame.transform.smoothscale(ICO_COIN, (20, 20))
+            if ICO_MONEY or ICO_COIN:
+                coin_sm = pygame.transform.smoothscale(ICO_MONEY or ICO_COIN, (20, 20))
                 coin_x = sell_rect.centerx - sell_f.size(f"+${refund_val}")[0]//2 - 14
                 surf.blit(coin_sm, (coin_x, sell_rect.y+26))
                 txt(surf,f"+${refund_val}",(coin_x+22, sell_rect.y+28),(255,200,80),sell_f)
             else:
                 txt(surf,f"+${refund_val}",(sell_rect.centerx,sell_rect.y+28),(255,200,80),sell_f,center=True)
 
-            # ── Upgrade button ───────────────────────────────────────────
+            # -- Upgrade button --
             cost=u.upgrade_cost()
             up_rect=btns["upgrade"]
             if cost:
@@ -5651,8 +5757,8 @@ class UI:
                     draw_rect_alpha(surf,(255,255,255),(*up_rect.topleft,up_rect.w,3),30,brad=10)
                     upg_f=pygame.font.SysFont("consolas",18,bold=True)
                     txt(surf,"[E] UPGRADE",(up_rect.centerx,up_rect.y+10),(100,255,130),upg_f,center=True)
-                    if ICO_COIN:
-                        coin_sm2 = pygame.transform.smoothscale(ICO_COIN, (20, 20))
+                    if ICO_MONEY or ICO_COIN:
+                        coin_sm2 = pygame.transform.smoothscale(ICO_MONEY or ICO_COIN, (20, 20))
                         cost_w = upg_f.size(f"${cost}")[0]
                         cx3 = up_rect.centerx - (cost_w + 30)//2
                         surf.blit(coin_sm2, (cx3, up_rect.y+26))
@@ -5664,8 +5770,8 @@ class UI:
                     pygame.draw.rect(surf,(110,35,35),up_rect,2,border_radius=10)
                     upg_f=pygame.font.SysFont("consolas",18,bold=True)
                     txt(surf,"[E] UPGRADE",(up_rect.centerx,up_rect.y+10),(160,65,65),upg_f,center=True)
-                    if ICO_COIN:
-                        coin_sm3 = pygame.transform.smoothscale(ICO_COIN, (20, 20))
+                    if ICO_MONEY or ICO_COIN:
+                        coin_sm3 = pygame.transform.smoothscale(ICO_MONEY or ICO_COIN, (20, 20))
                         cost_w2 = upg_f.size(f"${cost}")[0]
                         cx4 = up_rect.centerx - (cost_w2 + 30)//2
                         coin_sm3.set_alpha(120)
@@ -5677,12 +5783,16 @@ class UI:
                 draw_rect_alpha(surf,(30,26,50),(*up_rect.topleft,up_rect.w,up_rect.h),220,brad=10)
                 pygame.draw.rect(surf,(100,85,140),up_rect,2,border_radius=10)
                 draw_rect_alpha(surf,C_GOLD,(*up_rect.topleft,up_rect.w,2),50,brad=10)
-                txt(surf,"★ MAX LEVEL",up_rect.center,(220,190,80),font_md,center=True)
+                txt(surf,"MAX LEVEL",up_rect.center,(220,190,80),font_md,center=True)
 
         if self.drag_unit:
             mx2,my2=pygame.mouse.get_pos()
             self.drag_unit.px=mx2; self.drag_unit.py=my2
-            self.drag_unit.draw_range(surf); self.drag_unit.draw(surf)
+            _old_clip2 = surf.get_clip()
+            surf.set_clip(pygame.Rect(0, 0, SCREEN_W, SLOT_AREA_Y))
+            self.drag_unit.draw_range(surf)
+            surf.set_clip(_old_clip2)
+            self.drag_unit.draw(surf)
             # hint text
             _on_road_ok = getattr(self.drag_unit, 'ON_ROAD', False)
             _road_bad = (abs(my2-PATH_Y)<PATH_H+5) and not _on_road_ok
@@ -5717,7 +5827,7 @@ class UI:
 
 
 
-# ── Difficulty Settings ────────────────────────────────────────────────────────
+# -- Difficulty Settings --
 DIFFICULTIES = {
     "Easy": {
         "hp_mult": 1.5,
@@ -5751,7 +5861,7 @@ DIFFICULTIES = {
     },
 }
 
-# ── TDS-style game cover art (drawn procedurally) ──────────────────────────────
+# -- TDS-style game cover art (drawn procedurally) --
 def draw_easy_cover(surf, rect):
     """Sunny green grassland map with winding path"""
     x, y, w, h = rect
@@ -5891,7 +6001,7 @@ def draw_hell_cover(surf, rect):
 COVER_DRAW_FUNCS = {"Easy": draw_easy_cover, "Hard": draw_hard_cover, "Hell": draw_hell_cover}
 
 
-# ── In-Game Clown Key Widget ───────────────────────────────────────────────────
+# -- In-Game Clown Key Widget --
 # Keys appear during normal gameplay. Players click them to collect.
 # Positions are fixed per difficulty per session.
 
@@ -6041,7 +6151,7 @@ class InGameKeyManager:
         return all(not k["alive"] for k in self._keys) if self._keys else True
 
 
-# ── Clown Boss Arena ───────────────────────────────────────────────────────────
+# -- Clown Boss Arena --
 class ClownBossArena:
     """
     Clown Boss Arena — переработанный бой.
@@ -6081,7 +6191,7 @@ class ClownBossArena:
         self._arena_bg_phase = -1
         self._reset()
 
-    # ─────────────────────────────────────────────────────────────────────────
+    # --
     def _reset(self):
         self.anim_t   = 0.0
         self.state    = "playing"
@@ -6131,7 +6241,7 @@ class ClownBossArena:
         # Конец боя
         self._end_t = 0.0
 
-        # ── НОВЫЕ СПОСОБНОСТИ ────────────────────────────────────────────────
+        # -- НОВЫЕ СПОСОБНОСТИ --
         # Зеркальный снаряд (фаза 1+): снаряды отражаются от стен
         self._mirror_cd = 0.0
 
@@ -6160,7 +6270,7 @@ class ClownBossArena:
         self._nova_t       = 0.0    # анимация вспышки
         self._nova_warn_t  = 0.0    # предупреждение
 
-    # ── хелперы фаз ──────────────────────────────────────────────────────────
+    # -- хелперы фаз --
     @property
     def _hp_frac(self):
         return max(0.0, self.boss_hp / self.BOSS_MAX_HP)
@@ -6176,7 +6286,7 @@ class ClownBossArena:
     def _atk_interval(self):
         return {1: 2.2, 2: 1.4, 3: 0.9}[self._get_phase()]
 
-    # ── частицы ──────────────────────────────────────────────────────────────
+    # -- частицы --
     def _spawn_particles(self, x, y, color, n=20, big=False):
         for _ in range(n):
             spd = random.uniform(200, 440) if big else random.uniform(90, 280)
@@ -6207,7 +6317,7 @@ class ClownBossArena:
             pygame.draw.circle(ps, (*p["color"][:3], a), (sz, sz), sz)
             surf.blit(ps, (int(p["x"])-sz, int(p["y"])-sz))
 
-    # ── снаряды ──────────────────────────────────────────────────────────────
+    # -- снаряды --
     def _fire_volley(self, tx, ty, pattern=0):
         bx, by = self._boss_x, self._boss_y
         base = math.atan2(ty - by, tx - bx)
@@ -6257,7 +6367,7 @@ class ClownBossArena:
             "bounces": 0,   # количество отражений от стен
         })
 
-    # ── Зеркальный снаряд: отражается от стен ────────────────────────────────
+    # -- Зеркальный снаряд: отражается от стен --
     def _fire_mirror_volley(self, cx, cy):
         """Пускает снаряды которые отражаются от краёв экрана (до 2 раз)."""
         bx, by = self._boss_x, self._boss_y
@@ -6271,11 +6381,11 @@ class ClownBossArena:
                 "vx": math.cos(a)*spd, "vy": math.sin(a)*spd,
                 "color": (100, 220, 255),
                 "r": 9, "alive": True, "t": 0.0,
-                "homing": False, "bounces": 2,   # ← будет отражаться 2 раза
+                "homing": False, "bounces": 2,   # will bounce 2 times
             }
             self._projectiles.append(p)
 
-    # ── Карточный бросок ─────────────────────────────────────────────────────
+    # -- Карточный бросок --
     def _fire_card_throw(self, cx, cy):
         """Веер «карт»-снарядов (вытянутых ромбов) к курсору."""
         bx, by = self._boss_x, self._boss_y
@@ -6294,7 +6404,7 @@ class ClownBossArena:
                 "homing": False, "bounces": 0, "card": True,
             })
 
-    # ── Лазерный луч ─────────────────────────────────────────────────────────
+    # -- Лазерный луч --
     def _update_laser(self, dt, cx, cy):
         if self._laser_warn_t > 0:
             self._laser_warn_t -= dt
@@ -6345,7 +6455,7 @@ class ClownBossArena:
                              (int(end_x), int(end_y)), 6)
             surf.blit(ls, (0,0))
 
-    # ── Бомбы-клоуны ─────────────────────────────────────────────────────────
+    # -- Бомбы-клоуны --
     def _spawn_bombs(self, cx, cy):
         ph = self._get_phase()
         n = {2: 3, 3: 5}[ph]
@@ -6398,7 +6508,7 @@ class ClownBossArena:
                 ft = ff.render("BOOM!", True, (255,50,50,fuse_alpha))
                 surf.blit(ft, (bx-ft.get_width()//2, by-pulse-22))
 
-    # ── Гравитационный притяг (фаза 3) ───────────────────────────────────────
+    # -- Гравитационный притяг (фаза 3) --
     def _update_gravity(self, dt, cx, cy):
         if not self._gravity_active:
             return cx, cy
@@ -6424,7 +6534,7 @@ class ClownBossArena:
                                (ring_r+2, ring_r+2), ring_r, 4)
             surf.blit(gs, (int(self._boss_x)-ring_r-2, int(self._boss_y)-ring_r-2))
 
-    # ── Финальный взрыв (фаза 3, однократно) ─────────────────────────────────
+    # -- Финальный взрыв (фаза 3, однократно) --
     def _trigger_nova(self):
         self._nova_warn_t = 2.0
         self._nova_t = 0.0
@@ -6468,7 +6578,7 @@ class ClownBossArena:
                                (int(self._boss_x), int(self._boss_y)), 200, 4)
             surf.blit(safe_s, (0,0))
             nf = pygame.font.SysFont("consolas", 20, bold=True)
-            wt = nf.render("⚠ NOVA — GET CLOSE!", True, (255, 240, 80))
+            wt = nf.render("! NOVA - GET CLOSE!", True, (255, 240, 80))
             wt.set_alpha(alpha+80)
             surf.blit(wt, (SCREEN_W//2 - wt.get_width()//2, SCREEN_H//2 - 60))
         elif self._nova_t > 0:
@@ -6530,7 +6640,7 @@ class ClownBossArena:
             sx = cx + int(math.cos(ang)*(r-3)); sy = cy + int(math.sin(ang)*(r-3))
             pygame.draw.circle(surf, (255,255,255), (sx, sy), 2)
 
-    # ── миньоны ──────────────────────────────────────────────────────────────
+    # -- миньоны --
     def _spawn_minions(self, cx, cy, n=4):
         for i in range(n):
             a = math.pi*2 * i / n + random.uniform(0, 0.5)
@@ -6584,7 +6694,7 @@ class ClownBossArena:
             pygame.draw.circle(surf, (255,80,200), (mx, my), pulse)
             pygame.draw.circle(surf, (255,255,255), (mx, my), pulse, 2)
 
-    # ── AoE предупреждения ───────────────────────────────────────────────────
+    # -- AoE предупреждения --
     def _spawn_aoe(self, x, y, r, delay=1.0):
         self._aoe_warnings.append({"x": x, "y": y, "r": r, "t": 0.0, "max_t": delay, "fired": False})
 
@@ -6632,7 +6742,7 @@ class ClownBossArena:
                 pygame.draw.circle(fs, (255,120,20, 35), (fill_r, fill_r), fill_r)
                 surf.blit(fs, (int(a["x"])-fill_r, int(a["y"])-fill_r))
 
-    # ── орбитальные снаряды (фаза 3) ─────────────────────────────────────────
+    # -- орбитальные снаряды (фаза 3) --
     def _init_orbitals(self):
         n = 4  # было 6 — меньше орбиталей, можно найти окно
         self._orbitals = [{"angle": math.pi*2*i/n, "r": 75, "spd": 2.0} for i in range(n)]  # радиус 75 вместо 110, скорость 2.0 вместо 2.8
@@ -6660,7 +6770,7 @@ class ClownBossArena:
             sy = oy + int(math.sin(o["angle"]+math.pi/2)*7)
             pygame.draw.circle(surf, (255,255,180), (sx,sy), 3)
 
-    # ── щит ──────────────────────────────────────────────────────────────────
+    # -- щит --
     def _activate_shield(self):
         self._shield_active = True
         n = 3
@@ -6715,7 +6825,7 @@ class ClownBossArena:
                 return True
         return False
 
-    # ── телепорт ─────────────────────────────────────────────────────────────
+    # -- телепорт --
     def _do_teleport(self):
         pts = [p for p in self.PATROL_PTS
                if math.hypot(p[0]-self._boss_x, p[1]-self._boss_y) > 300]
@@ -6727,7 +6837,7 @@ class ClownBossArena:
         self._tele_flash = 0.22
         self._spawn_particles(int(tx), int(ty), (255,200,80), n=30, big=True)
 
-    # ── урон игроку ──────────────────────────────────────────────────────────
+    # -- урон игроку --
     def _take_damage(self, cx, cy):
         self.lives -= 1
         self._life_flash = 0.45
@@ -6735,7 +6845,7 @@ class ClownBossArena:
         if self.lives <= 0:
             self.state = "lose"
 
-    # ── движение босса ───────────────────────────────────────────────────────
+    # -- движение босса --
     def _update_boss(self, dt):
         spd = self._boss_speed()
         tx, ty = self.PATROL_PTS[self._patrol_idx]
@@ -6749,7 +6859,7 @@ class ClownBossArena:
         if self._hit_flash > 0:
             self._hit_flash = max(0.0, self._hit_flash - dt)
 
-    # ── фоновый рисунок арены ────────────────────────────────────────────────
+    # -- фоновый рисунок арены --
     def _draw_arena(self, surf):
         # Статичный фон (полигоны + spot) — кэшируется, рисуется один раз
         if self._arena_bg_cache is None:
@@ -6787,14 +6897,14 @@ class ClownBossArena:
             pygame.draw.circle(surf, col_b, (lx, ly), 7)
             pygame.draw.circle(surf, (255,255,255), (lx-2, ly-2), 2)
 
-    # ── анимированное кольцо арены ───────────────────────────────────────────
+    # -- анимированное кольцо арены --
     def _draw_arena_ring(self, surf):
         """
         Кольцо арены — не просто декор.
         • Пульсирует фиолетовым в норме
         • Краснеет + усиливает пульсацию если БОСС ВНУТРИ кольца (R=520)
-          → игрок видит: «босс в центре — опаснее!»
-        • По кольцу вращаются 8 рун (★) — маркеры арены
+          -> игрок видит: «босс в центре — опаснее!»
+        # По кольцу вращаются 8 рун (*) - маркеры арены
         """
         RING_R = 520
         cx2, cy2 = SCREEN_W // 2, SCREEN_H // 2
@@ -6836,7 +6946,7 @@ class ClownBossArena:
 
         # 8 вращающихся рун-маркеров по кольцу
         n_runes = 8
-        rune_chars = ["★", "◆", "★", "◆", "★", "◆", "★", "◆"]
+        rune_chars = ["*", "+", "*", "+", "*", "+", "*", "+"]
         rune_font = pygame.font.SysFont("segoe ui symbol", 13, bold=True)
         spin = self.anim_t * (0.6 if boss_inside else 0.25)
         for i in range(n_runes):
@@ -6853,11 +6963,11 @@ class ClownBossArena:
             warn_alpha = int(180 + math.sin(self.anim_t * 6) * 75)
             warn_alpha = max(0, min(255, warn_alpha))
             wf = pygame.font.SysFont("consolas", 14, bold=True)
-            warn_surf = wf.render("⚠ BOSS IN ARENA CENTER", True, (255, 120, 80))
+            warn_surf = wf.render("! BOSS IN ARENA CENTER", True, (255, 120, 80))
             warn_surf.set_alpha(warn_alpha)
             surf.blit(warn_surf, (cx2 - warn_surf.get_width() // 2, cy2 + RING_R + 14))
 
-    # ── спрайт босса ─────────────────────────────────────────────────────────
+    # -- спрайт босса --
     def _draw_boss_sprite(self, surf):
         bx, by = int(self._boss_x), int(self._boss_y)
         r = self.BOSS_RADIUS
@@ -6939,7 +7049,7 @@ class ClownBossArena:
         txt(surf, f"{max(0,self.boss_hp)}/{self.BOSS_MAX_HP}", (bx, by4+bar_h//2),
             (255,255,255), hpf, center=True)
 
-    # ── HUD ──────────────────────────────────────────────────────────────────
+    # -- HUD --
     def _draw_hud(self, surf, font_med, font_lg, dash_cd):
         phase = self._get_phase()
         phase_names = {1: "PHASE 1 — The Jester", 2: "PHASE 2 — The Madman", 3: "PHASE 3 — FINAL STAND"}
@@ -6971,18 +7081,18 @@ class ClownBossArena:
                 (SCREEN_W//2, SCREEN_H - 52), (100,200,255), sf, center=True)
         elif self._gravity_active:
             sf = pygame.font.SysFont("consolas", 16, bold=True)
-            txt(surf, f"⚠ GRAVITATIONAL PULL — DASH to escape! ({self._gravity_t:.1f}s)",
+            txt(surf, f"! GRAVITATIONAL PULL - DASH to escape! ({self._gravity_t:.1f}s)",
                 (SCREEN_W//2, SCREEN_H - 52), (200, 80, 255), sf, center=True)
         elif self._laser_active:
             sf = pygame.font.SysFont("consolas", 16, bold=True)
-            txt(surf, f"⚠ LASER BEAM — dodge the line! ({self._laser_t:.1f}s)",
+            txt(surf, f"! LASER BEAM - dodge the line! ({self._laser_t:.1f}s)",
                 (SCREEN_W//2, SCREEN_H - 52), (255, 80, 80), sf, center=True)
         else:
             hint = pygame.font.SysFont("consolas", 13)
             txt(surf, "CLICK THE BOSS — dodge projectiles — SPACE to dash",
                 (SCREEN_W//2, SCREEN_H - 22), (80, 90, 120), hint, center=True)
 
-    # ── главный цикл ─────────────────────────────────────────────────────────
+    # -- главный цикл --
     def run(self):
         font_huge = pygame.font.SysFont("consolas", 72, bold=True)
         font_big  = pygame.font.SysFont("consolas", 42, bold=True)
@@ -7067,7 +7177,7 @@ class ClownBossArena:
                                         self._spawn_particles(int(self._boss_x), int(self._boss_y),
                                                               (255, 220, 50), n=60, big=True)
 
-                # ── Update ────────────────────────────────────────────────
+                # -- Update --
                 if self.state == "playing":
                     prev_phase = self._phase
                     self._phase = self._get_phase()
@@ -7131,7 +7241,7 @@ class ClownBossArena:
                         self._atk_pattern += 1
                         self._fire_volley(cx, cy, pattern)
 
-                    # ── НОВЫЕ СПОСОБНОСТИ ────────────────────────────────
+                    # -- НОВЫЕ СПОСОБНОСТИ --
                     # Зеркальный снаряд (все фазы)
                     self._mirror_cd -= dt
                     if self._mirror_cd <= 0:
@@ -7212,7 +7322,7 @@ class ClownBossArena:
 
                 self._update_particles(dt)
 
-                # ── Draw ──────────────────────────────────────────────────
+                # -- Draw --
                 surf = self.screen
                 self._draw_arena(surf)
 
@@ -7299,7 +7409,7 @@ class ClownBossArena:
 
 
 
-# ── Lobby ──────────────────────────────────────────────────────────────────────
+# -- Lobby --
 class Lobby:
     def __init__(self, screen):
         self.screen = screen
@@ -7308,7 +7418,7 @@ class Lobby:
         self.selected_difficulty = None
         self.anim_t = 0.0
         
-        # ── Загрузка кастомного фона ───────────────────────────────────
+        # -- Загрузка кастомного фона --
         theme_path = os.path.join(ASSETS_DIR, "Lobby_theme.png")
         try:
             self.bg_image = pygame.image.load(theme_path).convert()
@@ -7316,7 +7426,7 @@ class Lobby:
         except Exception as e:
             print(f"[lobby] failed to load Lobby_theme.png: {e}")
             self.bg_image = None
-        # ───────────────────────────────────────────────────────────────
+        # --
 
         self._changelog_scroll = 0   # pixel scroll offset for changelog
         # ... остальной код __init__ ...
@@ -7338,17 +7448,17 @@ class Lobby:
         self.drag_tower = None
         self.drag_from_slot = None
 
-        # ── Частицы главного меню ─────────────────────────────────────────
+        # -- Частицы главного меню --
         self._menu_particles = []
         self._mp_spawn_timer = 0.0
         # Предзаполняем сцену частицами
         for _ in range(120):
             self._spawn_menu_particle(preplace=True)
-        # ─────────────────────────────────────────────────────────────────
+        # --
 
         self._build_rects()
 
-    # ── Частицы главного меню ────────────────────────────────────────────────
+    # -- Частицы главного меню --
     def _spawn_menu_particle(self, preplace=False):
         """Создаём красивую частицу, которая плавно улетает к центру или от него."""
         # Цветовые темы: синие, фиолетовые, голубые, белые — сочетаются с любым тёмным фоном
@@ -7458,7 +7568,7 @@ class Lobby:
                 ps2 = pygame.Surface((int(sz*2)+2, int(sz*2)+2), pygame.SRCALPHA)
                 pygame.draw.circle(ps2, (*col, a), (int(sz)+1, int(sz)+1), max(1, int(sz)))
                 surf.blit(ps2, (ix - int(sz) - 1, iy - int(sz) - 1), special_flags=pygame.BLEND_RGBA_ADD)
-    # ─────────────────────────────────────────────────────────────────────────
+    # --
 
     def _build_rects(self):
         cx = SCREEN_W // 2
@@ -7674,21 +7784,55 @@ class Lobby:
             pygame.draw.circle(surf, C_RED, p(0, 0), r(6))
 
         elif TType is Archer:
-            pygame.draw.ellipse(surf, (30, 20, 10),
-                                (cx - r(20), cy + r(18), r(40), r(12)))
-            pygame.draw.circle(surf, (80, 50, 20),    (cx, cy), r(36))
-            pygame.draw.circle(surf, (140, 90, 40),   (cx, cy), r(28))
-            pygame.draw.circle(surf, (180, 130, 70),  p(-9, -9), r(9))
-            # bow arc
-            bow_rect = pygame.Rect(cx - r(18), cy - r(22), r(14), r(44))
-            pygame.draw.arc(surf, (100, 65, 25), bow_rect,
-                            math.radians(270), math.radians(90), max(1, r(4)))
-            pygame.draw.line(surf, (220, 200, 160), p(-11, -22), p(-11, 22), 1)
-            pygame.draw.line(surf, (200, 160, 80),  p(-11, 0),   p(18, 0),   max(1, r(2)))
-            pygame.draw.circle(surf, (180, 120, 60), (cx, cy), r(28), max(1, r(2)))
+            # Shadow
+            pygame.draw.ellipse(surf, (20, 14, 6),
+                                (cx - r(22), cy + r(20), r(44), r(13)))
+            # Outer glow ring (green theme)
+            glow_s = pygame.Surface((r(80), r(80)), pygame.SRCALPHA)
+            pygame.draw.circle(glow_s, (55, 130, 50, 55), (r(40), r(40)), r(36))
+            surf.blit(glow_s, (cx - r(40), cy - r(40)))
+            # Base circle — dark forest green cloak
+            pygame.draw.circle(surf, (28, 52, 28), (cx, cy), r(30))
+            pygame.draw.circle(surf, (42, 78, 38),  (cx, cy), r(27))
+            pygame.draw.circle(surf, (55, 95, 48),  p(-2, 2), r(20))
+            # Hood shadow
+            pygame.draw.ellipse(surf, (18, 35, 18),
+                                (cx - r(20), cy - r(28), r(40), r(36)))
+            # Hood highlight arc
+            pygame.draw.arc(surf, (70, 115, 60),
+                            pygame.Rect(cx - r(14), cy - r(24), r(28), r(24)),
+                            math.radians(30), math.radians(150), max(1, r(3)))
+            # Face / eye slit
+            pygame.draw.ellipse(surf, (230, 195, 130),
+                                (cx - r(8), cy - r(14), r(16), r(8)))
+            pygame.draw.ellipse(surf, (25, 40, 20),
+                                (cx - r(8), cy - r(17), r(16), r(5)))
+            # Glowing eyes
+            pygame.draw.circle(surf, (255, 210, 50), p(-4, -11), r(2))
+            pygame.draw.circle(surf, (255, 210, 50), p( 4, -11), r(2))
+            # Bow (left side)
+            bow_rect = pygame.Rect(cx - r(22), cy - r(26), r(16), r(52))
+            pygame.draw.arc(surf, (90, 58, 18), bow_rect,
+                            math.radians(270), math.radians(90), max(1, r(5)))
+            pygame.draw.arc(surf, (155, 110, 45), bow_rect,
+                            math.radians(285), math.radians(75), max(1, r(2)))
+            # Bow string
+            pygame.draw.line(surf, (215, 195, 150), p(-14, -26), p(-12, 0),  1)
+            pygame.draw.line(surf, (215, 195, 150), p(-14,  26), p(-12, 0),  1)
+            # Nocked arrow (normal — gold)
+            pygame.draw.line(surf, (210, 170, 80), p(-12, 0), p(22, 0), max(1, r(2)))
+            # Arrowhead
+            head_pts = [p(28, 0), p(20, -4), p(20, 4)]
+            pygame.draw.polygon(surf, (240, 210, 130), head_pts)
+            # Fletching
+            pygame.draw.line(surf, (240, 210, 130), p(-8, 0), p(-10, -5), max(1, r(2)))
+            pygame.draw.line(surf, (240, 210, 130), p(-8, 0), p(-10,  5), max(1, r(2)))
+            # Border ring
+            pygame.draw.circle(surf, (90, 140, 80),   (cx, cy), r(30), max(1, r(2)))
+            pygame.draw.circle(surf, (140, 200, 120),  (cx, cy), r(30), max(1, r(1)))
 
         elif TType is Zigres:
-            # ── Mini Luntik (Zigres) icon ──────────────────────────────────
+            # -- Mini Luntik (Zigres) icon --
             C_LB = (180, 100, 220); C_LBEL = (230, 180, 255)
             C_LE = (200, 120, 240); C_LI = (255, 180, 220)
             C_LD = (120,  50, 160); C_LEY = (30,  20,  50)
@@ -7756,13 +7900,13 @@ class Lobby:
             pygame.draw.circle(surf, TType.COLOR,   (cx, cy), r(28))
             pygame.draw.circle(surf, C_WHITE,        (cx, cy), r(28), 2)
 
-    # ── MAIN LOBBY SCREEN ──────────────────────────────────────────────────────
+    # -- MAIN LOBBY SCREEN --
     def _draw_main(self):
         self._draw_bg()
         surf = self.screen
         t = self.anim_t
 
-        # ── Animated title glow ──────────────────────────────────────────────
+        # -- Animated title glow --
         pulse_glow = int(abs(math.sin(t * 1.2)) * 30)
         for gr in range(120, 0, -20):
             ga = max(0, int((18 + pulse_glow//2) * (1 - gr/120)))
@@ -7795,7 +7939,7 @@ class Lobby:
         txt(surf, "v2.0", vr.center, (100,255,140),
             pygame.font.SysFont("consolas",14), center=True)
 
-        # ── Decorative tower icons with orbiting dots ────────────────────────
+        # -- Decorative tower icons with orbiting dots --
         for tx2, ty2, col2, phase in [
             (240, 212, C_ASSASSIN, 0.0),
             (SCREEN_W-240, 212, C_ACCEL, 1.0),
@@ -7822,7 +7966,7 @@ class Lobby:
                 pygame.draw.circle(surf, col2, (ox3, oy3), 5)
                 pygame.draw.circle(surf, C_WHITE, (ox3, oy3), 2)
 
-        # ── Fancy gradient buttons ───────────────────────────────────────────
+        # -- Fancy gradient buttons --
         mx2, my2 = pygame.mouse.get_pos()
 
         def fancy_btn(rect, label, c_top, c_bot, tc=C_WHITE, fnt=font_xl, gc=None):
@@ -7837,11 +7981,11 @@ class Lobby:
             pygame.draw.rect(surf, brd, rect, 2, border_radius=12)
             txt(surf, label, rect.center, tc, fnt, center=True)
 
-        fancy_btn(self.btn_play,      "▶  PLAY",
+        fancy_btn(self.btn_play,      "PLAY",
                   (20,70,165),(14,45,110), C_WHITE, font_xl, (60,140,255))
-        fancy_btn(self.btn_loadout,   "⚙  LOADOUT",
+        fancy_btn(self.btn_loadout,   "LOADOUT",
                   (42,42,98),(26,26,65),  C_CYAN,  font_lg, (80,80,200))
-        fancy_btn(self.btn_sandbox,   "🧪 SANDBOX",
+        fancy_btn(self.btn_sandbox,   "SANDBOX",
                   (14,65,44),(9,40,28),   (80,255,160), font_lg, (40,180,100))
         fancy_btn(self.btn_shop,      "[S] SHOP",
                   (50,38,10),(32,22,5),   C_GOLD, font_lg, (200,160,40))
@@ -7849,22 +7993,22 @@ class Lobby:
         _clown_locked = not is_clown_unlocked()
         _keys_now = total_clown_keys()
         if not _clown_locked:
-            mg_label = "🗝️ KEY HUNT  ✔ Clown Unlocked"
+            mg_label = "KEY HUNT  [Clown Unlocked]"
             mg_col   = (80,200,80)
             mg_bg1, mg_bg2, mg_bdr = (20,60,20),(12,36,12),(60,180,60)
         elif _keys_now >= CLOWN_KEYS_TOTAL:
-            mg_label = f"🗝️ BOSS FIGHT READY! ({_keys_now}/{CLOWN_KEYS_TOTAL} keys)"
+            mg_label = f"BOSS FIGHT READY! ({_keys_now}/{CLOWN_KEYS_TOTAL} keys)"
             mg_col   = (255,200,50)
             mg_bg1, mg_bg2, mg_bdr = (60,45,5),(38,28,3),(220,160,30)
         else:
-            mg_label = f"🗝️ Keys: {_keys_now}/{CLOWN_KEYS_TOTAL}  — Play to find more!"
+            mg_label = f"Keys: {_keys_now}/{CLOWN_KEYS_TOTAL}  - Play to find more!"
             mg_col   = (180,80,255)
             mg_bg1, mg_bg2, mg_bdr = (55,20,80),(32,10,50),(140,60,200)
         fancy_btn(self.btn_minigame, mg_label,
                   mg_bg1, mg_bg2, mg_col, font_sm, mg_bdr)
-        fancy_btn(self.btn_quit,      "✕  QUIT",
+        fancy_btn(self.btn_quit,      "QUIT",
                   (72,20,20),(46,12,12),  (255,120,120), font_md, (180,50,50))
-        fancy_btn(self.btn_changelog, "📋 CHANGELOG",
+        fancy_btn(self.btn_changelog, "CHANGELOG",
                   (14,45,55),(9,28,35),   (100,210,220), font_sm)
 
         # bottom hint
@@ -7872,7 +8016,7 @@ class Lobby:
             "Keys:  [1-5] select tower  |  [E] upgrade  |  [X] sell  |  [F] ability  |  [ESC] pause",
             (SCREEN_W//2, SCREEN_H-28), (50,60,80), font_sm, center=True)
 
-        # ── Shop coin counter (top-right corner) ──────────────────────────────
+        # -- Shop coin counter (top-right corner) --
         coins = get_shop_coins()
         coin_badge_w = 160
         coin_badge_h = 40
@@ -7894,7 +8038,7 @@ class Lobby:
         coin_lbl_f = pygame.font.SysFont("consolas", 10)
         txt(surf, "shop coins", (coin_badge_x + coin_badge_w//2 + 10, coin_cy3+11), (180,150,60), coin_lbl_f, center=True)
 
-    # ── CHANGELOG SCREEN ───────────────────────────────────────────────────────
+    # -- CHANGELOG SCREEN --
     def _draw_changelog(self):
         self._draw_bg()
         surf = self.screen
@@ -7958,7 +8102,7 @@ class Lobby:
             pygame.draw.rect(surf, brd_col, (full_rect.x, full_rect.y, full_rect.w, full_rect.h), 1, border_radius=10)
 
             # chevron
-            chev = "▾" if is_open else "▸"
+            chev = "v" if is_open else ">"
             chev_font = pygame.font.SysFont("consolas", 20, bold=True)
             txt(surf, chev, (CONTENT_X + 20, oy + ROW_H//2),
                 C_CYAN if is_open else (100, 120, 160), chev_font, center=False)
@@ -8019,9 +8163,9 @@ class Lobby:
             thumb_h = max(30, int(sb_h * CONTENT_H / (total_h + 1)))
             thumb_y = sb_y + int((sb_h - thumb_h) * self._changelog_scroll / max(1, max_scroll))
             draw_rect_alpha(surf, (80,100,160), (sb_x, thumb_y, 8, thumb_h), 220, brad=4)
-            txt(surf, "▲▼ scroll", (SCREEN_W//2, SCREEN_H - 16), (60,70,95), font_sm, center=True)
+            txt(surf, "^ scroll", (SCREEN_W//2, SCREEN_H - 16), (60,70,95), font_sm, center=True)
 
-    # ── DIFFICULTY SELECTION ───────────────────────────────────────────────────
+    # -- DIFFICULTY SELECTION --
     def _draw_difficulty(self):
         self._draw_bg()
         surf = self.screen
@@ -8078,7 +8222,7 @@ class Lobby:
 
             # desc
             for di, line in enumerate(info["desc"]):
-                txt(surf, "• "+line, (rect.x+13, rect.y+239+di*22), (160,170,200), font_sm)
+                txt(surf, "- "+line, (rect.x+13, rect.y+239+di*22), (160,170,200), font_sm)
 
             # stats preview
             iy2 = rect.y+rect.h-58
@@ -8097,13 +8241,13 @@ class Lobby:
             pygame.draw.rect(surf, (50,55,70), self.btn_diff_start, 2, border_radius=10)
             txt(surf, "<- Select a difficulty", self.btn_diff_start.center, (80,90,110), font_lg, center=True)
 
-    # ── LOADOUT SCREEN ─────────────────────────────────────────────────────────
+    # -- LOADOUT SCREEN --
     def _draw_loadout(self):
         self._draw_bg()
         surf = self.screen
         mx, my = pygame.mouse.get_pos()
 
-        # ─── helpers ───────────────────────────────────────────────────────────
+        # -- helpers --
         def panel(r, bg=(18, 22, 38), alpha=240, brad=14):
             draw_rect_alpha(surf, bg, r, alpha, brad=brad)
             pygame.draw.rect(surf, (40, 50, 78), r, 1, border_radius=brad)
@@ -8116,7 +8260,7 @@ class Lobby:
             f = pygame.font.SysFont("consolas", fsize, bold=bold)
             txt(surf, text, (cx, y), col, f, center=True)
 
-        # ─── rebuild list rects (scroll-aware) ────────────────────────────────
+        # -- rebuild list rects (scroll-aware) --
         self.palette_rects = []
         for i in range(len(self.all_towers)):
             ry = (self._lo_list_y + i * (self._lo_list_item_h + self._lo_list_gap)
@@ -8124,10 +8268,10 @@ class Lobby:
             self.palette_rects.append(pygame.Rect(
                 self._lo_list_x, ry, self._lo_list_item_w, self._lo_list_item_h))
 
-        # ─── tower data tables ─────────────────────────────────────────────────
+        # -- tower data tables --
         tower_tags = {
-            Assassin:    ["MELEE", "HD DETECT", "ABILITY"],
-            Accelerator: ["LONG RANGE", "HD DETECT", "LASER"],
+            Assassin:    ["MELEE", "ABILITY"],
+            Accelerator: ["LONG RANGE", "LASER"],
             Clown:       ["AoE AURA", "SLOW", "DEBUFF"],
             Archer:      ["ON-ROAD", "PIERCE", "ELEMENTS"],
             Zigres:      ["SUMMONS", "AoE", "COLOSSUS"],
@@ -8142,17 +8286,17 @@ class Lobby:
             Gunner:      [("DMG", "HIGH"), ("SPD", "MED"),  ("RNG", "LONG")],
         }
         tower_abilities = {
-            Assassin:    ["Lv2: Shadow Step  (F key)", "Lv2: Detects Hidden"],
-            Accelerator: ["Lv3: Dual-Target Lock", "Always Detects Hidden"],
+            Assassin:    ["Lv2: Shadow Step  (F key)"],
+            Accelerator: ["Lv3: Dual-Target Lock"],
             Clown:       ["Lv2: Slow Aura", "Lv4: Laugh Debuff", "Lv5: Confetti Burst"],
-            Archer:      ["Lv2: Ice Arrow", "Lv3: Flame Arrow", "Lv4: Detects Hidden"],
+            Archer:      ["Lv2: Ice Arrow", "Lv3: Flame Arrow"],
             Zigres:      ["Lv3: Resonance AoE", "Lv4: Sentinel Thorns",
                           "Lv6: COLOSSUS Form"],
             Gunner:      ["Rotating turret barrel", "Lv3: Extended range",
                           "Shop exclusive — buy with coins"],
         }
 
-        # ─── BACKGROUND PANELS ─────────────────────────────────────────────────
+        # -- BACKGROUND PANELS --
         # Left panel background
         lp = pygame.Rect(self._lo_list_x - 14, 96,
                          self._lo_list_item_w + 28,
@@ -8170,7 +8314,7 @@ class Lobby:
         panel(deck_bg, (10, 13, 24), 235, 18)
         pygame.draw.rect(surf, (30, 38, 65), deck_bg, 1, border_radius=18)
 
-        # ─── HEADER ────────────────────────────────────────────────────────────
+        # -- HEADER --
         hf = pygame.font.SysFont("consolas", 36, bold=True)
         txt(surf, "LOADOUT", (SCREEN_W // 2, 34), C_WHITE, hf, center=True)
         pygame.draw.line(surf, (35, 45, 75),
@@ -8181,10 +8325,10 @@ class Lobby:
         glabel("TOWER DETAILS",
                self._lo_detail_x, 76, (100, 120, 170), 11, bold=True)
         filled = sum(1 for t in self.loadout if t is not None)
-        glabel(f"DECK  {filled}/5",
+        glabel(f"LOADOUT  {filled}/5",
                deck_bg.x + 24, SCREEN_H - 160, (100, 120, 170), 11, bold=True)
 
-        # ─── LEFT: tower list ──────────────────────────────────────────────────
+        # -- LEFT: tower list --
         clip = pygame.Rect(self._lo_list_x - 14, 96,
                            self._lo_list_item_w + 28,
                            SCREEN_H - 96 - 168)
@@ -8224,8 +8368,8 @@ class Lobby:
             # cost row
             cf = pygame.font.SysFont("consolas", 12)
             cost_str = f"${TType.PLACE_COST}"
-            if ICO_COIN:
-                ci = pygame.transform.smoothscale(ICO_COIN, (16, 16))
+            if ICO_MONEY or ICO_COIN:
+                ci = pygame.transform.smoothscale(ICO_MONEY or ICO_COIN, (16, 16))
                 surf.blit(ci, (r.x + 84, r.y + 42))
                 txt(surf, cost_str, (r.x + 104, r.y + 44), C_GOLD, cf)
             else:
@@ -8248,7 +8392,7 @@ class Lobby:
                 bd_r = pygame.Rect(r.right - 72, r.y + 10, 64, 22)
                 draw_rect_alpha(surf, (20, 100, 50), bd_r, 210, brad=5)
                 bf = pygame.font.SysFont("consolas", 10, bold=True)
-                txt(surf, "IN DECK", (bd_r.centerx, bd_r.centery),
+                txt(surf, "IN LOADOUT", (bd_r.centerx, bd_r.centery),
                     (80, 230, 130), bf, center=True)
 
             # SHOP badge for shop-exclusive towers
@@ -8291,7 +8435,7 @@ class Lobby:
 
         surf.set_clip(old_clip)
 
-        # ─── RIGHT: detail panel ───────────────────────────────────────────────
+        # -- RIGHT: detail panel --
         T = self._lo_selected_tower
         if T:
             dx = self._lo_detail_x
@@ -8306,8 +8450,8 @@ class Lobby:
             nf2 = pygame.font.SysFont("consolas", 26, bold=True)
             txt(surf, T.NAME, (dx + dw // 2, dy + 162), T.COLOR, nf2, center=True)
             cf2 = pygame.font.SysFont("consolas", 14)
-            if ICO_COIN:
-                ci2 = pygame.transform.smoothscale(ICO_COIN, (20, 20))
+            if ICO_MONEY or ICO_COIN:
+                ci2 = pygame.transform.smoothscale(ICO_MONEY or ICO_COIN, (20, 20))
                 coin_tx = dx + dw // 2 - 40
                 surf.blit(ci2, (coin_tx, dy + 186))
                 txt(surf, f"${T.PLACE_COST}", (coin_tx + 24, dy + 188), C_GOLD, cf2)
@@ -8365,24 +8509,24 @@ class Lobby:
                     pygame.draw.circle(surf, dot_col, (dx + 20, ay + 7), 3)
                     txt(surf, ab, (dx + 30, ay), (160, 175, 210), af)
 
-            # ── ADD/REMOVE button ──
+            # -- ADD/REMOVE button --
             ab_r = self._lo_btn_add
             in_deck_now = T in self.loadout
             deck_full = all(t is not None for t in self.loadout)
             if in_deck_now:
                 btn_bg = (80, 22, 22)
                 btn_brd = (200, 50, 50)
-                btn_lbl = "✕  REMOVE FROM DECK"
+                btn_lbl = "REMOVE FROM LOADOUT"
                 btn_col = (220, 80, 80)
             elif deck_full:
                 btn_bg = (28, 32, 50)
                 btn_brd = (50, 60, 85)
-                btn_lbl = "DECK FULL  (remove a slot first)"
+                btn_lbl = "LOADOUT FULL  (remove a slot first)"
                 btn_col = (60, 70, 100)
             else:
                 btn_bg = (18, 75, 38)
                 btn_brd = (50, 200, 100)
-                btn_lbl = "+  ADD TO DECK"
+                btn_lbl = "+  ADD TO LOADOUT"
                 btn_col = (80, 220, 130)
             btn_hov = ab_r.collidepoint(mx, my)
             bg2 = tuple(min(255, c + 15) for c in btn_bg) if btn_hov else btn_bg
@@ -8391,7 +8535,7 @@ class Lobby:
             bf2 = pygame.font.SysFont("consolas", 16, bold=True)
             txt(surf, btn_lbl, ab_r.center, btn_col, bf2, center=True)
 
-        # ─── BOTTOM: deck slots ────────────────────────────────────────────────
+        # -- BOTTOM: deck slots --
         for i, r3 in enumerate(self.loadout_slot_rects):
             T3 = self.loadout[i]
             is_hov3 = r3.collidepoint(mx, my)
@@ -8434,8 +8578,8 @@ class Lobby:
                 ef2 = pygame.font.SysFont("consolas", 10)
                 txt(surf, "EMPTY", (r3.centerx, r3.bottom - 22), (45, 58, 88), ef2, center=True)
 
-        # ─── NAV BUTTONS ──────────────────────────────────────────────────────
-        self._draw_button(self.btn_lo_back, "← BACK",
+        # -- NAV BUTTONS --
+        self._draw_button(self.btn_lo_back, "< BACK",
                           (22, 28, 48), C_WHITE, font_md, border=(55, 68, 105))
         sv2 = self.btn_lo_save
         sv2_hov = sv2.collidepoint(mx, my)
@@ -8446,7 +8590,7 @@ class Lobby:
         txt(surf, "SAVE LOADOUT", sv2.center, (90, 240, 140), sf3, center=True)
 
 
-    # ── SANDBOX SCREEN ─────────────────────────────────────────────────────────
+    # -- SANDBOX SCREEN --
     def _build_sandbox_rects(self):
         """Build all UI rects for the sandbox config screen."""
         # Map selection buttons (3 maps)
@@ -8471,25 +8615,25 @@ class Lobby:
             (HiddenBoss,       "HiddenBoss",  (80,  160, 80)),
             (Necromancer,      "Necromancer", (100, 0,   160)),
             (GraveDigger,      "GraveDigger", (30,  100, 30)),
-            # ── Sandbox-exclusive ──────────────────────────
+            # -- Sandbox-exclusive --
             (GlassEnemy,       "Glass",       (160, 220, 255)),
             (SteelGolem,       "SteelGolem",  (120, 140, 160)),
             (RegeneratorEnemy, "Regen",       (40,  200, 90)),
             (PhantomBoss,      "Phantom",     (160, 60,  220)),
             (SwarmBoss,        "SwarmQueen",  (220, 120, 30)),
             (AbyssLord,        "AbyssLord",   (80,  0,   160)),
-            # ── Weak starters ──────────────────────────────
+            # -- Weak starters --
             (BlobEnemy,        "Blob",        (40,  200, 80)),
             (PaperEnemy,       "Paper",       (220, 215, 170)),
             (ZombieEnemy,      "Zombie",      (90,  160, 50)),
             (BabyDragonEnemy,  "BabyDragon",  (220, 90,  30)),
-            # ── Mid-game ────────────────────────────────────
+            # -- Mid-game --
             (MirrorShield,     "MirrorShield",(180, 200, 220)),
             (ShadowStepper,    "ShadowStep",  (130, 60,  220)),
             (VoltCrawler,      "VoltCrawler", (60,  200, 255)),
             (IronMaiden,       "IronMaiden",  (160, 155, 145)),
             (TimeBender,       "TimeBender",  (240, 200, 50)),
-            # ── Demonic (Hell) ──────────────────────────────
+            # -- Demonic (Hell) --
             (HellHound,        "HellHound",   (220, 60,  15)),
             (AbyssalSpawn,     "AbyssSpawn",  (200, 30,  30)),
             (InfernoWyrm,      "InfernoWyrm", (255, 100, 0 )),
@@ -8579,13 +8723,13 @@ class Lobby:
         if not hasattr(self, '_sb_map_rects'):
             self._build_sandbox_rects()
 
-        # ── Header ──
+        # -- Header --
         hf = pygame.font.SysFont("consolas", 38, bold=True)
-        txt(surf, "🧪 SANDBOX MODE", (SCREEN_W//2, 46), (80,255,160), hf, center=True)
-        txt(surf, "Infinite money  •  Custom enemies & loadout  •  No waves",
+        txt(surf, "SANDBOX MODE", (SCREEN_W//2, 46), (80,255,160), hf, center=True)
+        txt(surf, "Infinite money  |  Custom enemies & loadout  |  No waves",
             (SCREEN_W//2, 84), (80,110,90), font_sm, center=True)
 
-        # ── Section: Map ──
+        # -- Section: Map --
         txt(surf, "MAP", (SCREEN_W//2, 96), (120,130,160), font_sm, center=True)
         for name, r in self._sb_map_rects.items():
             sel = (self._sandbox_cfg["map"] == name)
@@ -8596,7 +8740,7 @@ class Lobby:
             txt(surf, name, r.center, col if sel else (140,150,170),
                 pygame.font.SysFont("consolas",16,bold=True), center=True)
 
-        # ── Section: Enemies ──
+        # -- Section: Enemies --
         ey_label_y = self._sb_enemy_rects[0].y - 22
         txt(surf, "ENEMIES  (click to toggle, +/- to set count)", (SCREEN_W//2, ey_label_y),
             (120,130,160), font_sm, center=True)
@@ -8615,7 +8759,7 @@ class Lobby:
             pygame.draw.rect(surf, ecol if active else (70, 80, 100), r,
                              2 if active else 1, border_radius=8)
 
-            # ── Иконка врага (слева, крупная) ──
+            # -- Иконка врага (слева, крупная) --
             icon_cx = r.x + ICON_R + 8
             icon_cy = r.centery
             icon_surf = pygame.Surface((ICON_R*4, ICON_R*4), pygame.SRCALPHA)
@@ -8643,7 +8787,7 @@ class Lobby:
                 pygame.draw.circle(icon_surf, ecol, (ICON_R*2, ICON_R*2), ICON_R)
             surf.blit(icon_surf, (icon_cx - ICON_R*2, icon_cy - ICON_R*2))
 
-            # ── Имя + HP ──
+            # -- Имя + HP --
             tx = icon_cx + ICON_R + 8
             base_hp = ecls.BASE_HP
             name_col = (255, 255, 255) if active else (190, 200, 220)
@@ -8652,7 +8796,7 @@ class Lobby:
             txt(surf, f"HP: {base_hp}", (tx, r.centery + 7),
                 (160, 175, 200) if active else (110, 120, 145), hp_f)
 
-            # ── Компактный спиннер справа ──
+            # -- Компактный спиннер справа --
             rm = self._sb_count_rects_minus[i]
             rp = self._sb_count_rects_plus[i]
             draw_rect_alpha(surf, (80, 15, 15), rm, 230, brad=5)
@@ -8665,7 +8809,7 @@ class Lobby:
             txt(surf, str(count), (cnt_cx, rm.centery),
                 (240, 240, 240) if active else (160, 170, 190), spin_f, center=True)
 
-        # ── Section: Towers (loadout) ──
+        # -- Section: Towers (loadout) --
         tow_label_y = self._sb_tower_rects[0].y - 20
         txt(surf, "LOADOUT  (click to add/remove)", (SCREEN_W//2, tow_label_y),
             (120,130,160), font_sm, center=True)
@@ -8697,7 +8841,7 @@ class Lobby:
             else:
                 txt(surf, "—", r.center, (50,60,80), font_sm, center=True)
 
-        # ── Section: Difficulty mode (for money rewards) ──
+        # -- Section: Difficulty mode (for money rewards) --
         diff_lbl_y = self._sb_diff_rects["Easy"].y - 20
         txt(surf, "MONEY REWARDS  (optional — leave unselected for infinite money only)",
             (SCREEN_W//2, diff_lbl_y), (120,130,160), font_sm, center=True)
@@ -8707,22 +8851,22 @@ class Lobby:
             bg2 = (30,50,30) if sel else (22,28,40)
             draw_rect_alpha(surf, bg2, r, 220, brad=8)
             pygame.draw.rect(surf, col if sel else C_BORDER, r, 2 if sel else 1, border_radius=8)
-            label_d = f"{'✔ ' if sel else ''}{name}"
+            label_d = f"{"[X] " if sel else ""}{name}"
             txt(surf, label_d, r.center, col if sel else (140,150,170),
                 pygame.font.SysFont("consolas",15,bold=True), center=True)
 
-        # ── Start button ──
+        # -- Start button --
         any_enemy = any(v > 0 for v in self._sb_enemy_counts.values())
         start_col = (20,110,60) if any_enemy else (30,40,40)
         start_tcol = (80,255,160) if any_enemy else (60,70,70)
         self._draw_button(self._sb_btn_start_sandbox,
-                          "▶  START SANDBOX" if any_enemy else "Select at least 1 enemy",
+                          "START SANDBOX" if any_enemy else "Select at least 1 enemy",
                           start_col, start_tcol, font_lg)
 
         # Back
         self._draw_button(self._sb_btn_back, "<- BACK", (40,40,70), C_WHITE, font_md)
 
-    # ── SHOP SCREEN ────────────────────────────────────────────────────────────
+    # -- SHOP SCREEN --
     def _build_shop_items(self):
         """Returns list of (tower_class, shop_price, label, desc) for shop items."""
         return [
@@ -8768,12 +8912,12 @@ class Lobby:
 
         coins = get_shop_coins()
 
-        # ── Header ──
+        # -- Header --
         hf = pygame.font.SysFont("consolas", 48, bold=True)
         txt(surf, "[S] SHOP", (SCREEN_W//2, 52), C_GOLD, hf, center=True)
         pygame.draw.line(surf, (80, 60, 20), (200, 88), (SCREEN_W-200, 88), 1)
 
-        # ── Coin display bar ──
+        # -- Coin display bar --
         coin_bar_w = 280; coin_bar_h = 52
         coin_bar_x = SCREEN_W//2 - coin_bar_w//2
         coin_bar_y = 102
@@ -8790,12 +8934,12 @@ class Lobby:
         cf_big = pygame.font.SysFont("consolas", 26, bold=True)
         txt(surf, f"{coins}  coins", (ccx + cr2 + 10, ccy), C_GOLD, cf_big)
 
-        # ── Info text ──
+        # -- Info text --
         info_f = pygame.font.SysFont("consolas", 14)
         txt(surf, "Earn coins by completing waves. More coins on higher difficulties.",
             (SCREEN_W//2, 176), (130, 110, 60), info_f, center=True)
 
-        # ── Shop items ──
+        # -- Shop items --
         items = self._build_shop_items()
         item_w = 580; item_h = 180
         self._shop_item_rects = []
@@ -8844,7 +8988,7 @@ class Lobby:
             # price / owned badge
             if already_owned:
                 badge_f = pygame.font.SysFont("consolas", 16, bold=True)
-                txt(surf, "✔  OWNED", (ix + 160, iy + 118), (80, 230, 120), badge_f)
+                txt(surf, "OWNED", (ix + 160, iy + 118), (80, 230, 120), badge_f)
             else:
                 pf = pygame.font.SysFont("consolas", 18, bold=True)
                 p_col = C_GOLD if can_afford else (100, 85, 50)
@@ -8864,7 +9008,7 @@ class Lobby:
                 bf = pygame.font.SysFont("consolas", 16, bold=True)
                 txt(surf, "BUY", btn_r.center, C_GOLD, bf, center=True)
 
-        # ── Message ──
+        # -- Message --
         if self._shop_msg and self._shop_msg_t > 0:
             alpha = min(255, int(self._shop_msg_t * 180))
             mf = pygame.font.SysFont("consolas", 22, bold=True)
@@ -8872,11 +9016,11 @@ class Lobby:
             ms.set_alpha(alpha)
             surf.blit(ms, ms.get_rect(center=(SCREEN_W//2, SCREEN_H//2 - 60)))
 
-        # ── Back button ──
+        # -- Back button --
         self._shop_btn_back = pygame.Rect(29, 29, 140, 46)
         self._draw_button(self._shop_btn_back, "<- BACK", (40,40,70), C_WHITE, font_md)
 
-    # ── EVENT HANDLING ─────────────────────────────────────────────────────────
+    # -- EVENT HANDLING --
     def handle_event(self, ev):
         if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
             if self.state != "main":
@@ -8925,7 +9069,7 @@ class Lobby:
             elif self.btn_lo_save.collidepoint(pos):
                 self.state = "main"
             else:
-                # Click on tower list row → select for detail panel
+                # Click on tower list row -> select for detail panel
                 for i, r in enumerate(self.palette_rects):
                     if r.collidepoint(pos):
                         self._lo_selected_tower = self.all_towers[i]
@@ -8945,16 +9089,19 @@ class Lobby:
                                 if self.loadout[si] is T:
                                     self.loadout[si] = None
                                     break
+                            save_loadout(self.loadout)
                         else:
                             for si in range(5):
                                 if self.loadout[si] is None:
                                     self.loadout[si] = T
                                     break
+                            save_loadout(self.loadout)
 
-                # Click on deck slot → clear it
+                # Click on deck slot -> clear it
                 for i, r in enumerate(self.loadout_slot_rects):
                     if r.collidepoint(pos) and self.loadout[i] is not None:
                         self.loadout[i] = None
+                        save_loadout(self.loadout)
 
         elif self.state == "changelog":
             if self.btn_diff_back.collidepoint(pos):
@@ -9071,7 +9218,7 @@ class Lobby:
             pygame.display.flip()
 
 
-# ── Game with difficulty applied ───────────────────────────────────────────────
+# -- Game with difficulty applied --
 class Game:
     def __init__(self, difficulty="Hard", loadout=None, screen_override=None):
         if screen_override is not None:
@@ -9531,7 +9678,7 @@ class Game:
         draw_rect_alpha(surf, (100,120,255), (px+20, py, pw-40, 3), 200, brad=3)
         # Title
         draw_glow_circle(surf, (60,80,200), (SCREEN_W//2, py+50), 80, 28)
-        txt(surf, "⏸  PAUSED", (SCREEN_W//2, py+50), C_WHITE,
+        txt(surf, "PAUSED", (SCREEN_W//2, py+50), C_WHITE,
             pygame.font.SysFont("consolas", 37, bold=True), center=True)
         pygame.draw.line(surf, (40,50,80), (px+30, py+84), (px+pw-30, py+84), 1)
         # Resume button
@@ -9541,13 +9688,13 @@ class Game:
                            (32,105,46) if hov_r else (22,68,32), btn_resume, 235, brad=12)
         draw_rect_alpha(surf,(255,255,255),(btn_resume.x,btn_resume.y,btn_resume.w,btn_resume.h//3),18,brad=12)
         pygame.draw.rect(surf, (90,230,110) if hov_r else (55,175,75), btn_resume, 2, border_radius=12)
-        txt(surf, "▶  Resume", btn_resume.center, C_WHITE, font_lg, center=True)
+        txt(surf, "Resume", btn_resume.center, C_WHITE, font_lg, center=True)
         # Exit button
         hov_e = btn_exit.collidepoint(mx, my)
         draw_rect_gradient(surf, (152,40,40) if hov_e else (100,28,28),
                            (102,24,24) if hov_e else (66,16,16), btn_exit, 235, brad=12)
         pygame.draw.rect(surf, (230,90,90) if hov_e else (160,55,55), btn_exit, 2, border_radius=12)
-        txt(surf, "✕  Exit to Lobby", btn_exit.center, C_WHITE, font_lg, center=True)
+        txt(surf, "Exit to Lobby", btn_exit.center, C_WHITE, font_lg, center=True)
 
     def update(self, dt):
         self.wave_mgr.update(dt,self.enemies)
@@ -9696,6 +9843,18 @@ class Game:
         # Башни с hidden_detection — обнаруживают только врагов в своём радиусе
         hd_units = [u for u in self.units if getattr(u, 'hidden_detection', False)]
         mx,my=pygame.mouse.get_pos()
+        # -- Draw range indicators (clipped to game area, below UI) --
+        _game_clip = pygame.Rect(0, 0, SCREEN_W, SLOT_AREA_Y)
+        _old_clip  = self.screen.get_clip()
+        self.screen.set_clip(_game_clip)
+        _mx_r, _my_r = pygame.mouse.get_pos()
+        for u in self.units:
+            if dist((u.px, u.py), (_mx_r, _my_r)) < 43 and self.ui.open_unit is not u:
+                u.draw_range(self.screen)
+        if self.ui.open_unit:
+            self.ui.open_unit.draw_range(self.screen)
+        self.screen.set_clip(_old_clip)
+        # -- Draw towers --
         for u in self.units: u.draw(self.screen)
         for e in self.enemies:
             if not e.alive: continue
@@ -9718,19 +9877,19 @@ class Game:
             self._key_mgr.draw_hud(self.screen, self.anim_t)
         self.ui.draw(self.screen,self.units,self.money,self.wave_mgr,
                      self.player_hp,self.player_maxhp,self.enemies,self._boss_enemy)
-        # ── Speed x2 button ───────────────────────────────────────────────────
+        # -- Speed x2 button --
         btn_speed = pygame.Rect(26, 78, 115, 37)
         spd_active = self.speed_x2
         if spd_active:
             draw_rect_gradient(self.screen,(80,50,165),(50,30,115),btn_speed,alpha=242,brad=10)
             draw_rect_alpha(self.screen,(255,255,255),(btn_speed.x,btn_speed.y,btn_speed.w,5),22,brad=10)
             pygame.draw.rect(self.screen,(200,130,255),btn_speed,2,border_radius=10)
-            txt(self.screen,"⏩ x2 ON",btn_speed.center,(230,180,255),font_md,center=True)
+            txt(self.screen,"x2 ON",btn_speed.center,(230,180,255),font_md,center=True)
         else:
             draw_rect_gradient(self.screen,(36,33,68),(22,20,46),btn_speed,alpha=222,brad=10)
             pygame.draw.rect(self.screen,(80,70,130),btn_speed,1,border_radius=10)
-            txt(self.screen,"⏩ x2",btn_speed.center,(150,120,210),font_md,center=True)
-        # ── Skip wave button (appears after 10s) ──────────────────────────────
+            txt(self.screen,"x2",btn_speed.center,(150,120,210),font_md,center=True)
+        # -- Skip wave button (appears after 10s) --
         wave_in_progress = self.wave_mgr.state in ("spawning", "waiting")
         skip_visible = (wave_in_progress and self.wave_mgr.wave_elapsed >= 10.0
                         and not self.wave_mgr.extra_queue
@@ -9744,8 +9903,8 @@ class Game:
                 draw_rect_gradient(self.screen,(92,54,12),(62,36,8),btn_skip,alpha=222,brad=10)
             pygame.draw.rect(self.screen,(255,192,70) if hov_skip else (192,132,42),btn_skip,2,border_radius=10)
             draw_rect_alpha(self.screen,(255,255,255),(btn_skip.x,btn_skip.y,btn_skip.w,4),16,brad=10)
-            txt(self.screen,"⏭ SKIP",btn_skip.center,(255,220,110),font_md,center=True)
-        # ── Game Over ─────────────────────────────────────────────────────────
+            txt(self.screen,"SKIP",btn_skip.center,(255,220,110),font_md,center=True)
+        # -- Game Over --
         if self.game_over:
             draw_rect_alpha(self.screen,C_BLACK,(0,0,SCREEN_W,SCREEN_H),175)
             gvs=pygame.Surface((SCREEN_W,SCREEN_H),pygame.SRCALPHA)
@@ -9776,14 +9935,14 @@ class Game:
                 pygame.draw.circle(gvs2,(200,170,0,av2),(SCREEN_W//2,SCREEN_H//2),rv2)
             self.screen.blit(gvs2,(0,0))
 
-            # ── Panel ──────────────────────────────────────────────────────────
+            # -- Panel --
             pw2,ph2 = 700, 340
             px3,py3 = SCREEN_W//2-pw2//2, SCREEN_H//2-ph2//2
             draw_rect_gradient(self.screen,(38,58,18),(18,34,8),(px3,py3,pw2,ph2),alpha=248,brad=22)
             pygame.draw.rect(self.screen,(100,220,60),(px3,py3,pw2,ph2),3,border_radius=22)
             draw_rect_alpha(self.screen,(180,255,80),(px3,py3,pw2,5),130,brad=22)
 
-            # ── Spinning star burst ────────────────────────────────────────────
+            # -- Spinning star burst --
             star_cx, star_cy = SCREEN_W//2, py3+72
             for si2 in range(8):
                 sa = math.radians(t_win*60 + si2*45)
@@ -9794,11 +9953,11 @@ class Game:
             pygame.draw.circle(self.screen, C_GOLD, (star_cx,star_cy), 18)
             pygame.draw.circle(self.screen, (255,240,160),(star_cx,star_cy), 10)
 
-            # ── YOU WIN heading ────────────────────────────────────────────────
-            txt(self.screen,"★  YOU WIN!  ★",
+            # -- YOU WIN heading --
+            txt(self.screen,"YOU WIN!",
                 (SCREEN_W//2, py3+128), C_GREEN, font_xl, center=True)
 
-            # ── Difficulty badge ───────────────────────────────────────────────
+            # -- Difficulty badge --
             dcol = DIFFICULTIES.get(self._difficulty_name,{}).get("color", C_WHITE)
             dname = self._difficulty_name.upper()
             dbadge_f = pygame.font.SysFont("consolas", 16, bold=True)
@@ -9808,11 +9967,11 @@ class Game:
             pygame.draw.rect(self.screen, dcol, dbr, 1, border_radius=8)
             txt(self.screen, dname, dbr.center, dcol, dbadge_f, center=True)
 
-            # ── Divider ───────────────────────────────────────────────────────
+            # -- Divider --
             pygame.draw.line(self.screen,(60,100,40),
                              (px3+30,py3+196),(px3+pw2-30,py3+196),1)
 
-            # ── Coin reward row ────────────────────────────────────────────────
+            # -- Coin reward row --
             reward = self._win_coins_earned
             coin_y = py3+222
             reward_f = pygame.font.SysFont("consolas",22,bold=True)
@@ -9826,7 +9985,7 @@ class Game:
                 coin_s2 = pygame.Surface((coin_r_draw*2+4,coin_r_draw*2+4),pygame.SRCALPHA)
                 pygame.draw.circle(coin_s2,(200,160,0,220),(coin_r_draw+2,coin_r_draw+2),coin_r_draw)
                 pygame.draw.circle(coin_s2,(255,220,60,255),(coin_r_draw+2,coin_r_draw+2),coin_r_draw,3)
-                coin_lbl = pygame.font.SysFont("consolas",14,bold=True).render("¢",True,(255,240,100))
+                coin_lbl = pygame.font.SysFont("consolas",14,bold=True).render("$",True,(255,240,100))
                 coin_s2.blit(coin_lbl,(coin_r_draw+2-coin_lbl.get_width()//2,
                                        coin_r_draw+2-coin_lbl.get_height()//2))
                 self.screen.blit(coin_s2,(coin_cx2-coin_r_draw-2, coin_y-coin_r_draw-2))
@@ -9847,12 +10006,12 @@ class Game:
                 txt(self.screen,"No coins awarded (Sandbox or already rewarded)",
                     (SCREEN_W//2, coin_y),(80,100,70),label_f,center=True)
 
-            # ── Return hint ────────────────────────────────────────────────────
+            # -- Return hint --
             txt(self.screen,"Press ESC to return to lobby",
                 (SCREEN_W//2,py3+ph2-32),(120,200,80),font_md,center=True)
 
 
-# ── Sandbox Game Mode ──────────────────────────────────────────────────────────
+# -- Sandbox Game Mode --
 class SandboxGame(Game):
     """Infinite-money sandbox: custom enemies, custom loadout, chosen map."""
 
@@ -9907,7 +10066,7 @@ class SandboxGame(Game):
         self._sb_panel_scroll = 0   # pixel scroll offset
 
         ALL_ENEMIES = [
-            # ── Standard ──
+            # -- Standard --
             (Enemy,           "Normal",       (160, 50,  50),  Enemy.BASE_HP),
             (TankEnemy,       "Tank",         (100, 60,  20),  TankEnemy.BASE_HP),
             (ScoutEnemy,      "Scout",        (40,  140, 180), ScoutEnemy.BASE_HP),
@@ -9919,25 +10078,25 @@ class SandboxGame(Game):
             (HiddenBoss,      "HiddenBoss",   (80,  160, 80),  NormalBoss.BASE_HP),
             (Necromancer,     "Necromancer",  (100, 0,   160), Necromancer.BASE_HP),
             (GraveDigger,     "GraveDigger",  (30,  100, 30),  GraveDigger.BASE_HP),
-            # ── Sandbox-exclusive ──
+            # -- Sandbox-exclusive --
             (GlassEnemy,      "Glass",        (160, 220, 255), GlassEnemy.BASE_HP),
             (SteelGolem,      "SteelGolem",   (120, 140, 160), SteelGolem.BASE_HP),
             (RegeneratorEnemy,"Regen",        (40,  200, 90),  RegeneratorEnemy.BASE_HP),
             (PhantomBoss,     "Phantom",      (160, 60,  220), PhantomBoss.BASE_HP),
             (SwarmBoss,       "SwarmQueen",   (220, 120, 30),  SwarmBoss.BASE_HP),
             (AbyssLord,       "AbyssLord",    (80,  0,   160), AbyssLord.BASE_HP),
-            # ── Weak starters ──
+            # -- Weak starters --
             (BlobEnemy,       "Blob",         (40,  200, 80),  BlobEnemy.BASE_HP),
             (PaperEnemy,      "Paper",        (220, 215, 170), PaperEnemy.BASE_HP),
             (ZombieEnemy,     "Zombie",       (90,  160, 50),  ZombieEnemy.BASE_HP),
             (BabyDragonEnemy, "BabyDragon",   (220, 90,  30),  BabyDragonEnemy.BASE_HP),
-            # ── Mid-game ──
+            # -- Mid-game --
             (MirrorShield,    "MirrorShield", (180, 200, 220), MirrorShield.BASE_HP),
             (ShadowStepper,   "ShadowStep",   (130, 60,  220), ShadowStepper.BASE_HP),
             (VoltCrawler,     "VoltCrawler",  (60,  200, 255), VoltCrawler.BASE_HP),
             (IronMaiden,      "IronMaiden",   (160, 155, 145), IronMaiden.BASE_HP),
             (TimeBender,      "TimeBender",   (240, 200, 50),  TimeBender.BASE_HP),
-            # ── Demonic (Hell) ──
+            # -- Demonic (Hell) --
             (HellHound,       "HellHound",    (220, 60,  15),  HellHound.BASE_HP),
             (AbyssalSpawn,    "AbyssSpawn",   (200, 30,  30),  AbyssalSpawn.BASE_HP),
             (InfernoWyrm,     "InfernoWyrm",  (255, 100, 0 ),  InfernoWyrm.BASE_HP),
@@ -9973,12 +10132,12 @@ class SandboxGame(Game):
         surf = self.screen
         mx, my = pygame.mouse.get_pos()
 
-        # ── Spawn toggle button ──
+        # -- Spawn toggle button --
         hov = self._sb_spawn_btn.collidepoint(mx, my)
         bg_col = (20,80,50) if self._sb_panel_open else (15,55,35)
         draw_rect_alpha(surf, bg_col, self._sb_spawn_btn, 230, brad=8)
         pygame.draw.rect(surf, (60,220,120), self._sb_spawn_btn, 2, border_radius=8)
-        label_s = "✕ SPAWNER" if self._sb_panel_open else "* SPAWNER"
+        label_s = "[X] SPAWNER" if self._sb_panel_open else "[+] SPAWNER"
         txt(surf, label_s, self._sb_spawn_btn.center, (80,255,150), font_sm, center=True)
 
         if not self._sb_panel_open:
@@ -9994,7 +10153,7 @@ class SandboxGame(Game):
         self._sb_panel_scroll = max(0, min(self._sb_panel_scroll, max_scroll))
         sc = self._sb_panel_scroll
 
-        # ── Panel background ──
+        # -- Panel background --
         draw_rect_alpha(surf, (12,18,30), pr, 245, brad=12)
         pygame.draw.rect(surf, (40,200,100), pr, 2, border_radius=12)
 
@@ -10005,7 +10164,7 @@ class SandboxGame(Game):
         txt(surf, "enemy           HP     count   send",
             (pr.x+10, pr.y+30), (70,80,100), col_f)
 
-        # ── Clip to scrollable content area ──
+        # -- Clip to scrollable content area --
         clip = pygame.Rect(pr.x+2, pr.y+HDR, pr.width-14, pr.height-HDR-4)
         old_clip = surf.get_clip()
         surf.set_clip(clip)
@@ -10062,7 +10221,7 @@ class SandboxGame(Game):
 
         surf.set_clip(old_clip)
 
-        # ── Scrollbar ──
+        # -- Scrollbar --
         if max_scroll > 0:
             sb_x = pr.right - 10
             sb_y = pr.y + HDR + 2
@@ -10073,11 +10232,11 @@ class SandboxGame(Game):
             draw_rect_alpha(surf, (60,200,120), (sb_x, thumb_y, 7, thumb_h), 220, brad=3)
             # scroll hint
             hint_f = pygame.font.SysFont("consolas", 10)
-            txt(surf, "▲▼ scroll", (pr.centerx, pr.bottom - 12),
+            txt(surf, "^ scroll", (pr.centerx, pr.bottom - 12),
                 (50,80,60), hint_f, center=True)
 
         # Money label below panel
-        txt(surf, "∞ MONEY: ∞", (pr.x+8, pr.bottom+8), (60,180,100), font_sm)
+        txt(surf, "INF MONEY: INF", (pr.x+8, pr.bottom+8), (60,180,100), font_sm)
 
     def _handle_sb_panel_click(self, pos):
         if self._sb_spawn_btn.collidepoint(pos):
@@ -10122,7 +10281,7 @@ class SandboxGame(Game):
         self._draw_sb_panel()
         # Sandbox label top-center
         sb_f = pygame.font.SysFont("consolas", 14, bold=True)
-        txt(self.screen, "🧪 SANDBOX  •  ∞ Money", (SCREEN_W//2, 8),
+        txt(self.screen, "SANDBOX  |  INF Money", (SCREEN_W//2, 8),
             (60, 200, 120), sb_f, center=True)
 
     def run(self):
