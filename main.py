@@ -438,6 +438,27 @@ MAX_WAVES   = 20
 # -- Changelog --
 CHANGELOG = [
     {
+        "version": "v2.7",
+        "date": "01 May 2026",
+        "title": "Auto-Start Wave Button",
+        "entries": [
+            ("NEW",    C_GREEN, "[v2.7] AUTO button — автоматически начинает следующую волну без паузы"),
+            ("NEW",    C_GREEN, "[v2.7] Хоткей [N] — переключить авто-старт"),
+            ("NEW",    C_GREEN, "[v2.7] Кнопка SKIP сдвинута вправо, AUTO стоит между x2 и SKIP"),
+        ],
+    },
+    {
+        "version": "v2.6",
+        "date": "01 May 2026",
+        "title": "Results Screen",
+        "entries": [
+            ("NEW",    C_GREEN, "[v2.6] Results screen after win/defeat — replaces old simple panels"),
+            ("NEW",    C_GREEN, "[v2.6] Shows: enemies killed, waves survived, HP remaining, time, money spent"),
+            ("NEW",    C_GREEN, "[v2.6] Win screen: animated star, difficulty badge, shop coin reward"),
+            ("NEW",    C_GREEN, "[v2.6] Defeat screen: shows damage taken instead of HP remaining"),
+        ],
+    },
+    {
         "version": "v2.5",
         "date": "30 Apr 2026",
         "title": "AshWraith Nerf + Console HP Fix",
@@ -8156,7 +8177,7 @@ class Lobby:
 
         # bottom hint
         txt(surf,
-            "Keys:  [1-5] select tower  |  [E] upgrade  |  [X] sell  |  [F] ability  |  [ESC] pause",
+            "Keys:  [1-5] select tower  |  [E] upgrade  |  [X] sell  |  [F] ability  |  [N] auto-start  |  [ESC] pause",
             (SCREEN_W//2, SCREEN_H-28), (50,60,80), font_sm, center=True)
 
         # -- Shop coin counter (top-right corner) --
@@ -9386,8 +9407,17 @@ class Game:
 
         self.game_over=False; self.win=False; self._win_coins_earned=0
         self._defeat_this_frame=False; self._boss_enemy=None
-        self.speed_x2=False  # 2x speed toggle
-        self.anim_t=0.0      # for win/lose screen animations
+        self.speed_x2=False   # 2x speed toggle
+        self.auto_start=False  # auto-start next wave when prep ends
+        self.anim_t=0.0       # for win/lose screen animations
+
+        # --- Statistics tracking ---
+        self._stat_enemies_killed  = 0   # total enemies killed by towers
+        self._stat_hp_lost         = 0   # total player HP lost
+        self._stat_money_spent     = 0   # money spent on towers/upgrades
+        self._stat_time            = 0.0 # real seconds played (not paused)
+        self._stat_tower_kills     = {}  # {tower_name: kills}
+        self._stat_waves_survived  = 0   # last completed wave index
 
         # Clown Key fragments appear during gameplay if Clown not yet unlocked
         if not is_clown_unlocked():
@@ -9710,6 +9740,8 @@ class Game:
             raw_dt = min(self.clock.tick(FPS)/1000.0, 0.05)
             dt = raw_dt * (2.0 if self.speed_x2 else 1.0)
             self.anim_t += raw_dt
+            if not getattr(self, 'paused', False) and not self.game_over and not self.win:
+                self._stat_time += raw_dt
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
 
@@ -9736,16 +9768,25 @@ class Game:
                         # Speed x2 toggle
                         if btn_speed.collidepoint(ev.pos):
                             self.speed_x2 = not self.speed_x2
+                        # Auto-start toggle
+                        btn_auto = pygame.Rect(147, 78, 120, 37)
+                        if btn_auto.collidepoint(ev.pos):
+                            self.auto_start = not self.auto_start
+                            self.ui.show_msg("Auto-start ON" if self.auto_start else "Auto-start OFF", 1.5)
                         # Skip wave button (visible after 10s)
                         wave_in_progress = self.wave_mgr.state in ("spawning", "waiting")
                         skip_visible = (wave_in_progress and self.wave_mgr.wave_elapsed >= 10.0
                                         and not self.wave_mgr.extra_queue
                                         and self.wave_mgr.wave < MAX_WAVES)
+                        btn_skip = pygame.Rect(273, 78, 144, 37)
                         if skip_visible and btn_skip.collidepoint(ev.pos):
                             # Start next wave in parallel — current enemies keep going
                             if not self.wave_mgr.extra_queue:
                                 self.wave_mgr.skip_wave()
-                        self.money += self.ui.handle_click(ev.pos, self.units, self.money, self.effects, self.enemies)
+                        _delta = self.ui.handle_click(ev.pos, self.units, self.money, self.effects, self.enemies)
+                        self.money += _delta
+                        if _delta < 0:
+                            self._stat_money_spent += -_delta
                         # Clown key collection
                         if self._key_mgr:
                             if self._key_mgr.handle_click(ev.pos):
@@ -9761,6 +9802,10 @@ class Game:
                         self.money += self.ui.select_slot_by_key(
                             slot_idx, (mx2t, my2t), self.units, self.money)
                     if ev.key == pygame.K_a: self.money += 1000
+                    # N = toggle auto-start next wave
+                    if ev.key == pygame.K_n:
+                        self.auto_start = not self.auto_start
+                        self.ui.show_msg("Auto-start ON" if self.auto_start else "Auto-start OFF", 1.5)
                     # E = upgrade selected tower
                     if ev.key == pygame.K_e and self.ui.open_unit:
                         u2=self.ui.open_unit; cost=u2.upgrade_cost()
@@ -9799,6 +9844,9 @@ class Game:
                             self.wave_mgr.state = "between"; self.wave_mgr.prep_timer = 0.1
 
             if not self.paused and not self.game_over:
+                # Auto-start: instantly skip inter-wave countdown
+                if self.auto_start and self.wave_mgr.state == "between":
+                    self.wave_mgr.prep_timer = 0.0
                 self.update(dt)
             self.draw()
 
@@ -9856,7 +9904,9 @@ class Game:
             if e.alive and getattr(e, '_shadow_marked', 0) > 0:
                 e._shadow_marked = max(0.0, e._shadow_marked - dt)
         for e in dead_reached:
-            self.player_hp=max(0,self.player_hp-max(1,int(e.hp))); e.alive=False
+            dmg = max(1,int(e.hp))
+            self.player_hp=max(0,self.player_hp-dmg); e.alive=False
+            self._stat_hp_lost += dmg
         if dead_reached: self._defeat_this_frame=True
         if self.player_hp<=0: self.game_over=True
 
@@ -9954,7 +10004,12 @@ class Game:
                 kr = getattr(e.__class__, 'KILL_REWARD', 0)
                 if kr > 0:
                     self.money += kr
+                self._stat_enemies_killed += 1
         self.enemies=[e for e in self.enemies if e.alive]+new_enemies
+
+        # track waves survived
+        if self.wave_mgr.wave > self._stat_waves_survived:
+            self._stat_waves_survived = self.wave_mgr.wave
 
         # boss ref
         gds=[e for e in self.enemies if isinstance(e,GraveDigger) and e.alive]
@@ -10039,13 +10094,25 @@ class Game:
             draw_rect_gradient(self.screen,(36,33,68),(22,20,46),btn_speed,alpha=222,brad=10)
             pygame.draw.rect(self.screen,(80,70,130),btn_speed,1,border_radius=10)
             txt(self.screen,"x2",btn_speed.center,(150,120,210),font_md,center=True)
+        # -- Auto-start button --
+        btn_auto = pygame.Rect(147, 78, 120, 37)
+        auto_hov = btn_auto.collidepoint(mx, my)
+        if self.auto_start:
+            draw_rect_gradient(self.screen,(20,100,60),(10,60,35),btn_auto,alpha=242,brad=10)
+            draw_rect_alpha(self.screen,(120,255,160),(btn_auto.x,btn_auto.y,btn_auto.w,5),80,brad=10)
+            pygame.draw.rect(self.screen,(60,220,110),btn_auto,2,border_radius=10)
+            txt(self.screen,"AUTO ON",btn_auto.center,(100,255,150),font_md,center=True)
+        else:
+            draw_rect_gradient(self.screen,(22,40,30),(12,24,18),btn_auto,alpha=222,brad=10)
+            pygame.draw.rect(self.screen,(40,90,55) if not auto_hov else (60,160,90),btn_auto,1,border_radius=10)
+            txt(self.screen,"AUTO",btn_auto.center,(70,150,90) if not auto_hov else (100,210,130),font_md,center=True)
         # -- Skip wave button (appears after 10s) --
         wave_in_progress = self.wave_mgr.state in ("spawning", "waiting")
         skip_visible = (wave_in_progress and self.wave_mgr.wave_elapsed >= 10.0
                         and not self.wave_mgr.extra_queue
                         and self.wave_mgr.wave < MAX_WAVES)
         if skip_visible:
-            btn_skip = pygame.Rect(151, 78, 144, 37)
+            btn_skip = pygame.Rect(273, 78, 144, 37)
             hov_skip = btn_skip.collidepoint(mx, my)
             if hov_skip:
                 draw_rect_gradient(self.screen,(162,92,22),(112,62,12),btn_skip,alpha=242,brad=10)
@@ -10054,111 +10121,158 @@ class Game:
             pygame.draw.rect(self.screen,(255,192,70) if hov_skip else (192,132,42),btn_skip,2,border_radius=10)
             draw_rect_alpha(self.screen,(255,255,255),(btn_skip.x,btn_skip.y,btn_skip.w,4),16,brad=10)
             txt(self.screen,"SKIP",btn_skip.center,(255,220,110),font_md,center=True)
-        # -- Game Over --
-        if self.game_over:
-            draw_rect_alpha(self.screen,C_BLACK,(0,0,SCREEN_W,SCREEN_H),175)
-            gvs=pygame.Surface((SCREEN_W,SCREEN_H),pygame.SRCALPHA)
-            for rv in range(500,0,-50):
-                av=max(0,int(32*(1-rv/500)))
-                pygame.draw.circle(gvs,(180,0,0,av),(SCREEN_W//2,SCREEN_H//2),rv)
-            self.screen.blit(gvs,(0,0))
-            pw,ph=600,220; px2,py2=SCREEN_W//2-pw//2,SCREEN_H//2-ph//2
-            draw_rect_gradient(self.screen,(50,10,10),(26,5,5),(px2,py2,pw,ph),alpha=242,brad=20)
-            pygame.draw.rect(self.screen,(200,40,40),(px2,py2,pw,ph),3,border_radius=20)
-            draw_rect_alpha(self.screen,(255,80,80),(px2,py2,pw,4),120,brad=20)
-            skx,sky=SCREEN_W//2,py2+65
-            pygame.draw.circle(self.screen,(180,30,30),(skx,sky),30)
-            pygame.draw.circle(self.screen,(220,60,60),(skx,sky),26)
-            pygame.draw.circle(self.screen,(20,5,5),(skx-8,sky-4),7)
-            pygame.draw.circle(self.screen,(20,5,5),(skx+8,sky-4),7)
-            pygame.draw.rect(self.screen,(20,5,5),(skx-9,sky+8,18,8),border_radius=2)
-            txt(self.screen,"GAME OVER",(SCREEN_W//2,py2+118),C_RED,font_xl,center=True)
-            txt(self.screen,"Press ESC to return to lobby",(SCREEN_W//2,py2+162),(180,100,100),font_md,center=True)
-        elif self.win:
-            t_win = self.anim_t if hasattr(self,'anim_t') else 0.0
-            draw_rect_alpha(self.screen, C_BLACK, (0,0,SCREEN_W,SCREEN_H), 160)
+        # -- Game Over / Win: Results Screen --
+        if self.game_over or self.win:
+            t_res = self.anim_t
+            is_win = self.win
 
-            # Gold radial glow
-            gvs2 = pygame.Surface((SCREEN_W,SCREEN_H), pygame.SRCALPHA)
-            for rv2 in range(600,0,-50):
-                av2 = max(0, int(30*(1-rv2/600)))
-                pygame.draw.circle(gvs2,(200,170,0,av2),(SCREEN_W//2,SCREEN_H//2),rv2)
-            self.screen.blit(gvs2,(0,0))
+            # Overlay
+            draw_rect_alpha(self.screen, C_BLACK, (0,0,SCREEN_W,SCREEN_H), 185)
 
-            # -- Panel --
-            pw2,ph2 = 700, 340
-            px3,py3 = SCREEN_W//2-pw2//2, SCREEN_H//2-ph2//2
-            draw_rect_gradient(self.screen,(38,58,18),(18,34,8),(px3,py3,pw2,ph2),alpha=248,brad=22)
-            pygame.draw.rect(self.screen,(100,220,60),(px3,py3,pw2,ph2),3,border_radius=22)
-            draw_rect_alpha(self.screen,(180,255,80),(px3,py3,pw2,5),130,brad=22)
+            # Radial glow behind panel
+            gvs_r = pygame.Surface((SCREEN_W,SCREEN_H), pygame.SRCALPHA)
+            glow_col = (40,160,40) if is_win else (160,20,20)
+            for rv in range(550,0,-50):
+                av = max(0,int(28*(1-rv/550)))
+                pygame.draw.circle(gvs_r, (*glow_col,av), (SCREEN_W//2,SCREEN_H//2), rv)
+            self.screen.blit(gvs_r,(0,0))
 
-            # -- Spinning star burst --
-            star_cx, star_cy = SCREEN_W//2, py3+72
-            for si2 in range(8):
-                sa = math.radians(t_win*60 + si2*45)
-                sxp = star_cx + int(math.cos(sa)*32)
-                syp = star_cy + int(math.sin(sa)*32)
-                pygame.draw.circle(self.screen, C_GOLD, (sxp,syp), 5)
-                pygame.draw.circle(self.screen, (255,240,160), (sxp,syp), 2)
-            pygame.draw.circle(self.screen, C_GOLD, (star_cx,star_cy), 18)
-            pygame.draw.circle(self.screen, (255,240,160),(star_cx,star_cy), 10)
+            # Panel
+            pw,ph = 780, 490
+            px,py = SCREEN_W//2-pw//2, SCREEN_H//2-ph//2
+            panel_top_col    = (22,50,18) if is_win else (48,10,10)
+            panel_bot_col    = (10,26,8)  if is_win else (24,5,5)
+            border_col       = (80,210,50) if is_win else (210,40,40)
+            shine_col        = (160,255,80) if is_win else (255,80,80)
+            draw_rect_gradient(self.screen, panel_top_col, panel_bot_col, (px,py,pw,ph), alpha=252, brad=22)
+            pygame.draw.rect(self.screen, border_col, (px,py,pw,ph), 3, border_radius=22)
+            draw_rect_alpha(self.screen, shine_col, (px,py,pw,5), 120, brad=22)
 
-            # -- YOU WIN heading --
-            txt(self.screen,"YOU WIN!",
-                (SCREEN_W//2, py3+128), C_GREEN, font_xl, center=True)
-
-            # -- Difficulty badge --
-            dcol = DIFFICULTIES.get(self._difficulty_name,{}).get("color", C_WHITE)
-            dname = self._difficulty_name.upper()
-            dbadge_f = pygame.font.SysFont("consolas", 16, bold=True)
-            dbw = dbadge_f.size(dname)[0]+24
-            dbr = pygame.Rect(SCREEN_W//2-dbw//2, py3+160, dbw, 26)
-            draw_rect_alpha(self.screen, dcol, dbr, 55, brad=8)
-            pygame.draw.rect(self.screen, dcol, dbr, 1, border_radius=8)
-            txt(self.screen, dname, dbr.center, dcol, dbadge_f, center=True)
-
-            # -- Divider --
-            pygame.draw.line(self.screen,(60,100,40),
-                             (px3+30,py3+196),(px3+pw2-30,py3+196),1)
-
-            # -- Coin reward row --
-            reward = self._win_coins_earned
-            coin_y = py3+222
-            reward_f = pygame.font.SysFont("consolas",22,bold=True)
-            label_f  = pygame.font.SysFont("consolas",13)
-            if reward > 0:
-                # animated coin pulse
-                pulse_r = abs(math.sin(t_win*3.0))
-                coin_r_draw = int(18 + pulse_r*4)
-                # coin icon (circle with C)
-                coin_cx2 = SCREEN_W//2 - 100
-                coin_s2 = pygame.Surface((coin_r_draw*2+4,coin_r_draw*2+4),pygame.SRCALPHA)
-                pygame.draw.circle(coin_s2,(200,160,0,220),(coin_r_draw+2,coin_r_draw+2),coin_r_draw)
-                pygame.draw.circle(coin_s2,(255,220,60,255),(coin_r_draw+2,coin_r_draw+2),coin_r_draw,3)
-                coin_lbl = pygame.font.SysFont("consolas",14,bold=True).render("$",True,(255,240,100))
-                coin_s2.blit(coin_lbl,(coin_r_draw+2-coin_lbl.get_width()//2,
-                                       coin_r_draw+2-coin_lbl.get_height()//2))
-                self.screen.blit(coin_s2,(coin_cx2-coin_r_draw-2, coin_y-coin_r_draw-2))
-
-                # "+350 Shop Coins" text
-                txt(self.screen, f"+{reward}",
-                    (coin_cx2+30, coin_y), C_GOLD, reward_f)
-                txt(self.screen, "shop coins earned!",
-                    (coin_cx2+30+reward_f.size(f"+{reward}")[0]+10, coin_y+4),
-                    (180,200,140), label_f)
-
-                # Running total
-                total_coins = get_shop_coins()
-                tot_f = pygame.font.SysFont("consolas",12)
-                txt(self.screen, f"Total: {total_coins} coins",
-                    (SCREEN_W//2, coin_y+36), (120,160,100), tot_f, center=True)
+            # Header icon area
+            icon_cx, icon_cy = SCREEN_W//2, py+54
+            if is_win:
+                # Spinning star
+                for si in range(8):
+                    sa = math.radians(t_res*55 + si*45)
+                    sxp = icon_cx + int(math.cos(sa)*28); syp = icon_cy + int(math.sin(sa)*28)
+                    pygame.draw.circle(self.screen, C_GOLD, (sxp,syp), 5)
+                pygame.draw.circle(self.screen, C_GOLD, (icon_cx,icon_cy), 20)
+                pygame.draw.circle(self.screen, (255,240,160), (icon_cx,icon_cy), 12)
             else:
-                txt(self.screen,"No coins awarded (Sandbox or already rewarded)",
-                    (SCREEN_W//2, coin_y),(80,100,70),label_f,center=True)
+                # Pulsing red X
+                pulse = abs(math.sin(t_res*4))*0.3+0.7
+                skull_r = int(24*pulse)
+                pygame.draw.circle(self.screen, (180,20,20), (icon_cx,icon_cy), skull_r+4)
+                pygame.draw.circle(self.screen, (230,50,50), (icon_cx,icon_cy), skull_r)
+                xf = pygame.font.SysFont("consolas",22,bold=True)
+                txt(self.screen,"✕",(icon_cx,icon_cy),(20,5,5),xf,center=True)
 
-            # -- Return hint --
+            # Title
+            title_str = "VICTORY!" if is_win else "DEFEATED"
+            title_col = (80,255,80) if is_win else (255,60,60)
+            txt(self.screen, title_str, (SCREEN_W//2, py+94), title_col, font_xl, center=True)
+
+            # Difficulty badge
+            dcol  = DIFFICULTIES.get(self._difficulty_name,{}).get("color", C_WHITE)
+            dname = self._difficulty_name.upper()
+            dbf   = pygame.font.SysFont("consolas",15,bold=True)
+            dbw   = dbf.size(dname)[0]+22
+            dbr   = pygame.Rect(SCREEN_W//2-dbw//2, py+126, dbw, 24)
+            draw_rect_alpha(self.screen, dcol, dbr, 60, brad=7)
+            pygame.draw.rect(self.screen, dcol, dbr, 1, border_radius=7)
+            txt(self.screen, dname, dbr.center, dcol, dbf, center=True)
+
+            # Divider
+            div_y = py+162
+            pygame.draw.line(self.screen,(50,80,40) if is_win else (80,30,30),
+                             (px+30,div_y),(px+pw-30,div_y),1)
+
+            # --- Stat rows ---
+            sf  = pygame.font.SysFont("consolas",18,bold=True)
+            svf = pygame.font.SysFont("consolas",18)
+            lf  = pygame.font.SysFont("consolas",13)
+
+            def stat_row(label, value, row_y, icon_char, val_col=C_WHITE, note=None):
+                ix = px+36
+                lx = px+68
+                vx = px+pw-36
+                label_col = (140,160,130) if is_win else (160,130,130)
+                ico_col   = (100,200,80)  if is_win else (200,80,80)
+                txt(self.screen, icon_char, (ix, row_y), ico_col, sf)
+                txt(self.screen, label,     (lx, row_y), label_col, svf)
+                # right-align value
+                vw = sf.size(value)[0]
+                txt(self.screen, value, (vx - vw, row_y), val_col, sf)
+                if note:
+                    nw = sf.size(value)[0]
+                    txt(self.screen, note, (vx - nw - 4, row_y+18), (100,130,90) if is_win else (130,80,80), lf)
+
+            # Format time
+            total_secs = int(self._stat_time)
+            mm, ss = divmod(total_secs, 60)
+            time_str = f"{mm}m {ss:02d}s"
+
+            # HP remaining / lost
+            hp_pct = int(100*self.player_hp/max(1,self.player_maxhp))
+            if is_win:
+                hp_str  = f"{self.player_hp} / {self.player_maxhp}  ({hp_pct}%)"
+                hp_col  = (80,220,80) if hp_pct>60 else ((220,200,60) if hp_pct>30 else (220,80,80))
+            else:
+                hp_str  = f"-{self._stat_hp_lost} damage taken"
+                hp_col  = (220,80,80)
+
+            # Waves
+            wave_str = f"{self._stat_waves_survived} / {MAX_WAVES}"
+            w_col    = (80,220,80) if is_win else (220,160,60)
+
+            row_start = div_y + 18
+            row_gap   = 46
+
+            stat_row("Enemies Killed",  f"{self._stat_enemies_killed}",
+                     row_start,          "⚔",  (220,220,80))
+            stat_row("Waves Survived",  wave_str,
+                     row_start+row_gap,  "🌊", w_col)
+            stat_row("HP Remaining" if is_win else "HP Damage Taken",
+                     hp_str,
+                     row_start+row_gap*2,"♥",  hp_col)
+            stat_row("Time Played",     time_str,
+                     row_start+row_gap*3,"⏱",  (140,180,220))
+            stat_row("Money Spent",     f"${self._stat_money_spent}",
+                     row_start+row_gap*4,"💰", C_GOLD)
+
+            # Divider before reward
+            div2_y = row_start+row_gap*5+4
+            pygame.draw.line(self.screen,(50,80,40) if is_win else (80,30,30),
+                             (px+30,div2_y),(px+pw-30,div2_y),1)
+
+            # Shop coins reward (win only)
+            reward = self._win_coins_earned
+            ry = div2_y+16
+            if is_win and reward > 0:
+                pulse_r2 = abs(math.sin(t_res*3.0))
+                cr = int(15+pulse_r2*4)
+                cs2 = pygame.Surface((cr*2+4,cr*2+4),pygame.SRCALPHA)
+                pygame.draw.circle(cs2,(200,160,0,220),(cr+2,cr+2),cr)
+                pygame.draw.circle(cs2,(255,220,60,255),(cr+2,cr+2),cr,2)
+                cl2 = pygame.font.SysFont("consolas",11,bold=True).render("$",True,(255,240,100))
+                cs2.blit(cl2,(cr+2-cl2.get_width()//2,cr+2-cl2.get_height()//2))
+                self.screen.blit(cs2,(SCREEN_W//2-120-cr-2,ry-cr-2))
+                rf2 = pygame.font.SysFont("consolas",20,bold=True)
+                lf2 = pygame.font.SysFont("consolas",13)
+                txt(self.screen,f"+{reward}",(SCREEN_W//2-100,ry),C_GOLD,rf2)
+                rw2 = rf2.size(f"+{reward}")[0]
+                txt(self.screen,"shop coins earned!",(SCREEN_W//2-100+rw2+8,ry+3),(180,210,140),lf2)
+                total_coins = get_shop_coins()
+                tf2 = pygame.font.SysFont("consolas",12)
+                txt(self.screen,f"Total: {total_coins}",(SCREEN_W//2,ry+26),(100,150,80),tf2,center=True)
+            elif not is_win:
+                lf3 = pygame.font.SysFont("consolas",14)
+                txt(self.screen,"Better luck next time!",(SCREEN_W//2,ry+8),(160,90,90),lf3,center=True)
+
+            # Return hint
+            hint_col = (100,200,70) if is_win else (180,80,80)
             txt(self.screen,"Press ESC to return to lobby",
-                (SCREEN_W//2,py3+ph2-32),(120,200,80),font_md,center=True)
+                (SCREEN_W//2,py+ph-28), hint_col, font_md, center=True)
 
 
 # -- Sandbox Game Mode --
