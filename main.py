@@ -209,7 +209,12 @@ class DevConsole:
 
             elif cmd == "hp":
                 n = int(args[0])
-                if hasattr(game, "hp"):
+                if hasattr(game, "player_hp"):
+                    game.player_hp = n
+                    if hasattr(game, "player_maxhp"):
+                        game.player_maxhp = max(game.player_maxhp, n)
+                    self._log(f"HP set to {n}", self.OK_COL)
+                elif hasattr(game, "hp"):
                     game.hp = n
                     self._log(f"HP set to {n}", self.OK_COL)
                 else:
@@ -433,6 +438,48 @@ MAX_WAVES   = 20
 # -- Changelog --
 CHANGELOG = [
     {
+        "version": "v2.5",
+        "date": "30 Apr 2026",
+        "title": "AshWraith Nerf + Console HP Fix",
+        "entries": [
+            ("FIX",    C_CYAN, "[v2.5] Dev console: команда hp теперь работает во всех режимах"),
+            ("FIX",    C_CYAN, "[v2.5] Исправлено: 'This game mode has no HP attribute'"),
+            ("CHANGE", C_GOLD, "[v2.5] AshWraith: HP снижено на 20% (96 -> 77 base)"),
+        ],
+    },
+    {
+        "version": "v2.4",
+        "date": "30 Apr 2026",
+        "title": "Hell & Sandbox HP Nerf (-40%)",
+        "entries": [
+            ("CHANGE", C_GOLD, "[v2.4] Hell mode: HP врагов снижено ещё на ~40% на всех волнах"),
+            ("CHANGE", C_GOLD, "[v2.4] Hell волны 1-3:  x0.45 -> x0.27"),
+            ("CHANGE", C_GOLD, "[v2.4] Hell волны 4-6:  x0.55 -> x0.33"),
+            ("CHANGE", C_GOLD, "[v2.4] Hell волны 7-10: x0.70 -> x0.42"),
+            ("CHANGE", C_GOLD, "[v2.4] Hell волны 11-14: x0.85 -> x0.51"),
+            ("CHANGE", C_GOLD, "[v2.4] Hell волны 15-20: x1.00 -> x0.60"),
+            ("CHANGE", C_GOLD, "[v2.4] Sandbox: базовый HP Hell-эксклюзивных врагов снижен на ~40%"),
+            ("CHANGE", C_GOLD, "[v2.4] HellHound: 55->33 HP; BrimstoneGolem: 1200->720 HP"),
+            ("CHANGE", C_GOLD, "[v2.4] SoulReaper: 350->210 HP; DemonKnight: 600->260 HP"),
+            ("CHANGE", C_GOLD, "[v2.4] InfernoWyrm: 180->108 HP; CursedWitch: 220->132 HP"),
+            ("CHANGE", C_GOLD, "[v2.4] AbyssalSpawn: 30->18 HP; DoomBringer: 8000->4800 HP"),
+            ("CHANGE", C_GOLD, "[v2.4] AshWraith: 160->96 HP; HellGateKeeper: 30000->18000 HP"),
+        ],
+    },
+    {
+        "version": "v2.3",
+        "date": "30 Apr 2026",
+        "title": "Hell Mode HP Nerf",
+        "entries": [
+            ("CHANGE", C_GOLD, "[v2.3] Hell mode: HP врагов снижено на ~30% на всех волнах"),
+            ("CHANGE", C_GOLD, "[v2.3] Hell волны 1-3:  x0.65 -> x0.45"),
+            ("CHANGE", C_GOLD, "[v2.3] Hell волны 4-6:  x0.80 -> x0.55"),
+            ("CHANGE", C_GOLD, "[v2.3] Hell волны 7-10: x1.00 -> x0.70"),
+            ("CHANGE", C_GOLD, "[v2.3] Hell волны 11-14: x1.20 -> x0.85"),
+            ("CHANGE", C_GOLD, "[v2.3] Hell волны 15-20: x1.40 -> x1.00"),
+        ],
+    },
+    {
         "version": "v2.2",
         "date": "28 Apr 2026",
         "title": "Gunner Visual Rework + Price Increase",
@@ -640,6 +687,7 @@ def _load_all_icons():
         "Firerate": ICO_FIRERATE,
         "Dual":     ICO_RDMG,
         "Slow":     ICO_SLOW,
+        "HidDet":   ICO_HIDDET,
     })
 
 def blit_icon(surf, ico, cx, cy):
@@ -902,7 +950,7 @@ class ClownProjectile:
 # -- Enemy base --
 class Enemy:
     DISPLAY_NAME="Normal"
-    BASE_HP=8; BASE_SPEED=110; KILL_REWARD=0
+    BASE_HP=8; BASE_SPEED=110; KILL_REWARD=2
     IS_HIDDEN=False; ARMOR=0.0
     _DEATH_COLOR=(200,80,80)
 
@@ -1049,7 +1097,7 @@ class Enemy:
 
 # -- Enemy subclasses --
 class TankEnemy(Enemy):
-    DISPLAY_NAME="Slow"; BASE_HP=30; BASE_SPEED=56; KILL_REWARD=0
+    DISPLAY_NAME="Slow"; BASE_HP=30; BASE_SPEED=56; KILL_REWARD=4
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp=max(1,self.BASE_HP+(wave-1)*4); self.maxhp=self.hp
@@ -1064,7 +1112,7 @@ class TankEnemy(Enemy):
         if hovered: self._hover_label(surf)
 
 class ScoutEnemy(Enemy):
-    DISPLAY_NAME="Fast"; BASE_HP=10; BASE_SPEED=280; KILL_REWARD=0
+    DISPLAY_NAME="Fast"; BASE_HP=10; BASE_SPEED=280; KILL_REWARD=2
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp=max(1,self.BASE_HP+(wave-1)); self.maxhp=self.hp
@@ -1079,7 +1127,7 @@ class ScoutEnemy(Enemy):
         if hovered: self._hover_label(surf)
 
 class NormalBoss(Enemy):
-    DISPLAY_NAME="Normal Boss"; BASE_HP=250; BASE_SPEED=110; KILL_REWARD=0
+    DISPLAY_NAME="Normal Boss"; BASE_HP=250; BASE_SPEED=110; KILL_REWARD=25
     _DEATH_COLOR=(220,180,40)
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1105,7 +1153,7 @@ class NormalBoss(Enemy):
         if hovered: self._hover_label(surf)
 
 class HiddenEnemy(Enemy):
-    DISPLAY_NAME="Hidden"; BASE_HP=8; BASE_SPEED=110; KILL_REWARD=0; IS_HIDDEN=True
+    DISPLAY_NAME="Hidden"; BASE_HP=8; BASE_SPEED=110; KILL_REWARD=2; IS_HIDDEN=True
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp=max(1,self.BASE_HP+(wave-1)*2); self.maxhp=self.hp
@@ -1124,7 +1172,7 @@ class HiddenEnemy(Enemy):
         if hovered: self._hover_label(surf)
 
 class BreakerEnemy(Enemy):
-    DISPLAY_NAME="Breaker"; BASE_HP=30; BASE_SPEED=110; KILL_REWARD=0
+    DISPLAY_NAME="Breaker"; BASE_HP=30; BASE_SPEED=110; KILL_REWARD=4
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp=30; self.maxhp=30; self.speed=self.BASE_SPEED; self.radius=22
@@ -1143,7 +1191,7 @@ class BreakerEnemy(Enemy):
         if hovered: self._hover_label(surf)
 
 class ArmoredEnemy(Enemy):
-    DISPLAY_NAME="Armored"; BASE_HP=25; BASE_SPEED=110; KILL_REWARD=0; ARMOR=0.20
+    DISPLAY_NAME="Armored"; BASE_HP=25; BASE_SPEED=110; KILL_REWARD=3; ARMOR=0.20
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp=max(1,self.BASE_HP+(wave-1)*3); self.maxhp=self.hp; self.radius=23
@@ -1162,7 +1210,7 @@ class ArmoredEnemy(Enemy):
         if hovered: self._hover_label(surf)
 
 class SlowBoss(Enemy):
-    DISPLAY_NAME="Slow Boss"; BASE_HP=1500; BASE_SPEED=56; KILL_REWARD=0
+    DISPLAY_NAME="Slow Boss"; BASE_HP=1500; BASE_SPEED=56; KILL_REWARD=58
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp=1500; self.maxhp=1500; self.speed=self.BASE_SPEED; self.radius=40
@@ -1202,7 +1250,7 @@ class HiddenBoss(NormalBoss):
         if hovered: self._hover_label(surf)
 
 class Necromancer(Enemy):
-    DISPLAY_NAME="Necromancer"; BASE_HP=360; BASE_SPEED=110; KILL_REWARD=0
+    DISPLAY_NAME="Necromancer"; BASE_HP=360; BASE_SPEED=110; KILL_REWARD=36
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp=360; self.maxhp=360; self.speed=self.BASE_SPEED
@@ -1230,11 +1278,11 @@ class Necromancer(Enemy):
         if hovered: self._hover_label(surf)
 
 class GraveDigger(Enemy):
-    DISPLAY_NAME="Grave Digger"; BASE_HP=15000; BASE_SPEED=90; KILL_REWARD=0
+    DISPLAY_NAME="Grave Digger"; BASE_HP=15000; BASE_SPEED=55; KILL_REWARD=184
     _DEATH_COLOR=(80,255,80)
     def __init__(self):
         super().__init__(1)
-        self.hp=15000; self.maxhp=15000; self.speed=self.BASE_SPEED; self.radius=46
+        self.hp=15000; self.maxhp=15000; self.speed=55; self.radius=46
         self._rot=0.0
     def update(self, dt):
         self._rot+=dt*90; return super().update(dt)
@@ -1265,7 +1313,7 @@ class GraveDigger(Enemy):
 
 class GlassEnemy(Enemy):
     """Tiny, ultra-fragile enemy — 1 HP but extremely fast. Dies to any hit."""
-    DISPLAY_NAME = "Glass"; BASE_HP = 1; BASE_SPEED = 380; KILL_REWARD = 0
+    DISPLAY_NAME = "Glass"; BASE_HP = 1; BASE_SPEED = 380; KILL_REWARD = 1
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp = 1; self.maxhp = 1
@@ -1286,7 +1334,7 @@ class GlassEnemy(Enemy):
 class BlobEnemy(Enemy):
     """Wobbly green blob — 5 HP, average speed, bounces up and down wildly.
     Splits into 2 MicroBlobs on death (handled in update loop)."""
-    DISPLAY_NAME = "Blob"; BASE_HP = 5; BASE_SPEED = 115; KILL_REWARD = 0
+    DISPLAY_NAME = "Blob"; BASE_HP = 5; BASE_SPEED = 115; KILL_REWARD = 1
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp = 5; self.maxhp = 5
@@ -1324,7 +1372,7 @@ class BlobEnemy(Enemy):
 class PaperEnemy(Enemy):
     """A literal piece of paper — 3 HP, drifts sideways, crinkles as it moves.
     Very slow, but towers often miss due to its erratic vertical drift."""
-    DISPLAY_NAME = "Paper"; BASE_HP = 3; BASE_SPEED = 70; KILL_REWARD = 0
+    DISPLAY_NAME = "Paper"; BASE_HP = 3; BASE_SPEED = 70; KILL_REWARD = 1
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp = 3; self.maxhp = 3
@@ -1369,7 +1417,7 @@ class PaperEnemy(Enemy):
 class ZombieEnemy(Enemy):
     """Shambling undead — 6 HP, very slow, but heals 1 HP every 4 seconds.
     Glows sickly green and wobbles with a lurching gait."""
-    DISPLAY_NAME = "Zombie"; BASE_HP = 6; BASE_SPEED = 55; KILL_REWARD = 0
+    DISPLAY_NAME = "Zombie"; BASE_HP = 6; BASE_SPEED = 55; KILL_REWARD = 2
     _HEAL_INTERVAL = 4.0
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1409,7 +1457,7 @@ class ZombieEnemy(Enemy):
 class BabyDragonEnemy(Enemy):
     """Tiny hatchling dragon — 8 HP, medium speed, leaves a tiny flame trail.
     Adorable but flammable. Has hidden detection immunity to Archer fire."""
-    DISPLAY_NAME = "Baby Dragon"; BASE_HP = 8; BASE_SPEED = 130; KILL_REWARD = 0
+    DISPLAY_NAME = "Baby Dragon"; BASE_HP = 8; BASE_SPEED = 130; KILL_REWARD = 2
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp = 8; self.maxhp = 8
@@ -1463,7 +1511,7 @@ class BabyDragonEnemy(Enemy):
 
 class SteelGolem(Enemy):
     """Massive tank with 80% armour — extremely resistant but very slow."""
-    DISPLAY_NAME = "Steel Golem"; BASE_HP = 800; BASE_SPEED = 30; KILL_REWARD = 0
+    DISPLAY_NAME = "Steel Golem"; BASE_HP = 800; BASE_SPEED = 30; KILL_REWARD = 80
     ARMOR = 0.80
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1494,7 +1542,7 @@ class SteelGolem(Enemy):
 
 class RegeneratorEnemy(Enemy):
     """Mid-HP enemy that rapidly regenerates health over time."""
-    DISPLAY_NAME = "Regenerator"; BASE_HP = 120; BASE_SPEED = 100; KILL_REWARD = 0
+    DISPLAY_NAME = "Regenerator"; BASE_HP = 120; BASE_SPEED = 100; KILL_REWARD = 12
     _REGEN_RATE = 8.0   # HP per second
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1527,7 +1575,7 @@ class RegeneratorEnemy(Enemy):
 class PhantomBoss(Enemy):
     """Large boss that becomes fully invisible every 4 seconds for 1.5s.
     Requires hidden detection to hit during phase — otherwise invulnerable."""
-    DISPLAY_NAME = "Phantom Boss"; BASE_HP = 2000; BASE_SPEED = 90; KILL_REWARD = 0
+    DISPLAY_NAME = "Phantom Boss"; BASE_HP = 2000; BASE_SPEED = 90; KILL_REWARD = 67
     IS_HIDDEN = False   # changes dynamically
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1582,7 +1630,7 @@ class PhantomBoss(Enemy):
 
 class SwarmBoss(Enemy):
     """Medium boss that spawns a small scout every 3 seconds while alive."""
-    DISPLAY_NAME = "Swarm Queen"; BASE_HP = 600; BASE_SPEED = 75; KILL_REWARD = 0
+    DISPLAY_NAME = "Swarm Queen"; BASE_HP = 600; BASE_SPEED = 75; KILL_REWARD = 60
     def __init__(self, wave=1):
         super().__init__(wave)
         self.hp = 600; self.maxhp = 600
@@ -1623,7 +1671,7 @@ class SwarmBoss(Enemy):
 
 class AbyssLord(Enemy):
     """Ultimate sandbox boss — massive HP, high armor, stun-immune, slow."""
-    DISPLAY_NAME = "Abyss Lord"; BASE_HP = 50000; BASE_SPEED = 40; KILL_REWARD = 0
+    DISPLAY_NAME = "Abyss Lord"; BASE_HP = 50000; BASE_SPEED = 40; KILL_REWARD = 335
     ARMOR = 0.50
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1667,7 +1715,7 @@ class MirrorShield(Enemy):
     """Metallic enemy that reflects 30% of all damage back to the last attacking
     tower (visual only — deals no real damage to tower, but confuses the player).
     40% armour, medium speed. Rotates a glinting shield plate while walking."""
-    DISPLAY_NAME = "Mirror Shield"; BASE_HP = 180; BASE_SPEED = 88; KILL_REWARD = 0
+    DISPLAY_NAME = "Mirror Shield"; BASE_HP = 180; BASE_SPEED = 88; KILL_REWARD = 18
     ARMOR = 0.40
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1716,7 +1764,7 @@ class ShadowStepper(Enemy):
     """Teleports forward by 120 px every 5 seconds — makes a dramatic void-burst
     visual when it blinks. IS_HIDDEN between blinks (2 s window).
     Medium HP, above-average speed."""
-    DISPLAY_NAME = "Shadow Stepper"; BASE_HP = 140; BASE_SPEED = 120; KILL_REWARD = 0
+    DISPLAY_NAME = "Shadow Stepper"; BASE_HP = 140; BASE_SPEED = 120; KILL_REWARD = 14
     IS_HIDDEN = False
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1781,7 +1829,7 @@ class VoltCrawler(Enemy):
     """Electrified centipede that chains arc damage to nearby enemies on death —
     when killed, emits a lightning burst hitting all enemies within 80 px for 5 dmg.
     Quick, low HP, draws attention as a priority kill."""
-    DISPLAY_NAME = "Volt Crawler"; BASE_HP = 60; BASE_SPEED = 160; KILL_REWARD = 0
+    DISPLAY_NAME = "Volt Crawler"; BASE_HP = 60; BASE_SPEED = 160; KILL_REWARD = 8
     CHAIN_RADIUS = 80
     CHAIN_DAMAGE = 5
     def __init__(self, wave=1):
@@ -1839,7 +1887,7 @@ class IronMaiden(Enemy):
     """A walking iron maiden trap — spiky, slow, 50% armour. Any tower that deals
     melee-range damage (within 60px) has a chance to trigger a visual spike burst.
     High HP, immune to push-back, very intimidating presence."""
-    DISPLAY_NAME = "Iron Maiden"; BASE_HP = 500; BASE_SPEED = 50; KILL_REWARD = 0
+    DISPLAY_NAME = "Iron Maiden"; BASE_HP = 500; BASE_SPEED = 50; KILL_REWARD = 50
     ARMOR = 0.50
     def __init__(self, wave=1):
         super().__init__(wave)
@@ -1894,7 +1942,7 @@ class TimeBender(Enemy):
     the attack speed of all towers within 180 px for 2 seconds (applied via a
     _time_slow flag on nearby units, checked in the game's unit update loop).
     Draws a swirling clock-face pattern. Medium HP and speed."""
-    DISPLAY_NAME = "Time Bender"; BASE_HP = 280; BASE_SPEED = 95; KILL_REWARD = 0
+    DISPLAY_NAME = "Time Bender"; BASE_HP = 280; BASE_SPEED = 95; KILL_REWARD = 28
     PULSE_RADIUS = 180
     PULSE_INTERVAL = 6.0
     PULSE_DURATION = 2.0
@@ -1965,10 +2013,10 @@ class TimeBender(Enemy):
 class HellHound(Enemy):
     """Fast demonic dog — low HP but charges in packs. Leaves a scorched trail.
     Every 3 s dashes forward 80 px in a burst of fire."""
-    DISPLAY_NAME = "Hell Hound"; BASE_HP = 25; BASE_SPEED = 155; KILL_REWARD = 0
+    DISPLAY_NAME = "Hell Hound"; BASE_HP = 25; BASE_SPEED = 155; KILL_REWARD = 3
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 55 + (wave-1)*4); self.maxhp = self.hp
+        self.hp = max(1, 33 + (wave-1)*2); self.maxhp = self.hp
         self.speed = self.BASE_SPEED + (wave-1)*5; self.radius = 17
         self._dash_cd = random.uniform(4.0, 7.0)
         self._flame = 0.0; self._run = 0.0
@@ -2017,11 +2065,11 @@ class BrimstoneGolem(Enemy):
     """Slow lava golem with 60% armour. Periodically erupts, dealing AoE damage
     to any unit within 90 px (visual only — stuns all enemies near it for 0.3 s
     via lava splash flag). Very high HP."""
-    DISPLAY_NAME = "Brimstone Golem"; BASE_HP = 1200; BASE_SPEED = 35; KILL_REWARD = 0
+    DISPLAY_NAME = "Brimstone Golem"; BASE_HP = 1200; BASE_SPEED = 35; KILL_REWARD = 52
     ARMOR = 0.60
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 1200 + (wave-1)*50); self.maxhp = self.hp
+        self.hp = max(1, 720 + (wave-1)*30); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 40
         self._erupt_cd = 6.0; self._erupt_t = 0.0; self._rot = 0.0
         self.erupt_fired = False
@@ -2064,11 +2112,11 @@ class BrimstoneGolem(Enemy):
 class SoulReaper(Enemy):
     """Reaper with a scythe that steals life — every 4 s heals 40 HP from
     the damage it dealt. Hidden, medium speed, menacing silhouette."""
-    DISPLAY_NAME = "Soul Reaper"; BASE_HP = 350; BASE_SPEED = 105; KILL_REWARD = 0
+    DISPLAY_NAME = "Soul Reaper"; BASE_HP = 350; BASE_SPEED = 105; KILL_REWARD = 35
     IS_HIDDEN = True
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 350 + (wave-1)*18); self.maxhp = self.hp
+        self.hp = max(1, 210 + (wave-1)*11); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 26
         self._drain_cd = 4.0; self._drain_t = 0.0; self._rot = 0.0
     def update(self, dt):
@@ -2117,11 +2165,11 @@ class DemonKnight(Enemy):
     """Heavily armoured demonic warrior — 45% armour, medium-slow speed.
     Periodically raises a dark shield making it briefly immune to damage (0.8 s
     every 5 s). Draws as a menacing horned knight."""
-    DISPLAY_NAME = "Demon Knight"; BASE_HP = 600; BASE_SPEED = 72; KILL_REWARD = 0
+    DISPLAY_NAME = "Demon Knight"; BASE_HP = 200; BASE_SPEED = 72; KILL_REWARD = 30
     ARMOR = 0.45
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 600 + (wave-1)*30); self.maxhp = self.hp
+        self.hp = max(1, 200 + (wave-1)*18); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 30
         self._shield_cd = 5.0; self._shield_t = 0.0; self._rot = 0.0
         self.shielded = False
@@ -2178,10 +2226,10 @@ class DemonKnight(Enemy):
 class InfernoWyrm(Enemy):
     """Long serpentine fire wyrm — 5 body segments, medium HP each.
     Leaves a burning trail that deals DoT visual. Fast, no armour."""
-    DISPLAY_NAME = "Inferno Wyrm"; BASE_HP = 70; BASE_SPEED = 145; KILL_REWARD = 0
+    DISPLAY_NAME = "Inferno Wyrm"; BASE_HP = 70; BASE_SPEED = 145; KILL_REWARD = 9
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 180 + (wave-1)*10); self.maxhp = self.hp
+        self.hp = max(1, 108 + (wave-1)*6); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 20
         self._wave2 = 0.0; self._trail = []
     def update(self, dt):
@@ -2228,12 +2276,12 @@ class CursedWitch(Enemy):
     """A flying hex-caster. Every 5 s curses all towers within 160 px, doubling
     their cooldown for 1.5 s (same mechanic as TimeBender). Hidden by default.
     Medium HP, above average speed."""
-    DISPLAY_NAME = "Cursed Witch"; BASE_HP = 220; BASE_SPEED = 118; KILL_REWARD = 0
+    DISPLAY_NAME = "Cursed Witch"; BASE_HP = 220; BASE_SPEED = 118; KILL_REWARD = 22
     IS_HIDDEN = True
     PULSE_RADIUS = 160; PULSE_INTERVAL = 5.0; PULSE_DURATION = 1.5
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 220 + (wave-1)*12); self.maxhp = self.hp
+        self.hp = max(1, 132 + (wave-1)*7); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 22
         self._pulse_cd = self.PULSE_INTERVAL; self._spin = 0.0
         self.pulse_fired = False
@@ -2283,10 +2331,10 @@ class CursedWitch(Enemy):
 class AbyssalSpawn(Enemy):
     """Tiny but numerous demonic imp. Very fast, low HP. Splits into 2 on death
     (like Breaker). Drawn as a small winged imp with a tail."""
-    DISPLAY_NAME = "Abyssal Spawn"; BASE_HP = 12; BASE_SPEED = 170; KILL_REWARD = 0
+    DISPLAY_NAME = "Abyssal Spawn"; BASE_HP = 12; BASE_SPEED = 170; KILL_REWARD = 2
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 30 + (wave-1)*2); self.maxhp = self.hp
+        self.hp = max(1, 18 + (wave-1)*1); self.maxhp = self.hp
         self.speed = self.BASE_SPEED + (wave-1)*4; self.radius = 14
         self._wing = 0.0
     def update(self, dt):
@@ -2326,12 +2374,12 @@ class DoomBringer(Enemy):
     Every 7 s releases a shockwave that deals 40 dmg to all enemies (ally fire)
     — nope, actually debuffs nearest tower for 3 s (doubled cooldown).
     Intimidating boss presence with wings and crown of fire."""
-    DISPLAY_NAME = "Doom Bringer"; BASE_HP = 8000; BASE_SPEED = 55; KILL_REWARD = 0
+    DISPLAY_NAME = "Doom Bringer"; BASE_HP = 8000; BASE_SPEED = 55; KILL_REWARD = 134
     ARMOR = 0.35
     PULSE_RADIUS = 200; PULSE_INTERVAL = 7.0; PULSE_DURATION = 3.0
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 8000 + (wave-1)*400); self.maxhp = self.hp
+        self.hp = max(1, 4800 + (wave-1)*240); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 48
         self._rot = 0.0; self._pulse_cd = self.PULSE_INTERVAL
         self._pulse_t = 0.0; self.pulse_fired = False
@@ -2402,11 +2450,11 @@ class AshWraith(Enemy):
     """Ghostly ash-cloud enemy. IS_HIDDEN, moderate HP, medium-fast speed.
     Periodically becomes fully invisible for 2 s (like Phantom but shorter CD).
     Flickers in and out of visibility in ash-grey tones."""
-    DISPLAY_NAME = "Ash Wraith"; BASE_HP = 65; BASE_SPEED = 130; KILL_REWARD = 0
+    DISPLAY_NAME = "Ash Wraith"; BASE_HP = 65; BASE_SPEED = 130; KILL_REWARD = 8
     IS_HIDDEN = True
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 160 + (wave-1)*9); self.maxhp = self.hp
+        self.hp = max(1, 77 + (wave-1)*4); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 20
         self._phase_cd = 3.0; self._phased = False; self._phase_t = 0.0
         self._drift = 0.0
@@ -2460,12 +2508,12 @@ class HellGateKeeper(Enemy):
     stun-immune. Two abilities: fire shockwave (pulse_fired) every 8 s doubling
     tower CDs for 2 s, AND dark shield every 6 s for 1 s (invulnerable).
     Drawn with full demonic regalia — chains, crown, molten core."""
-    DISPLAY_NAME = "Hell Gate Keeper"; BASE_HP = 30000; BASE_SPEED = 44; KILL_REWARD = 0
+    DISPLAY_NAME = "Hell Gate Keeper"; BASE_HP = 30000; BASE_SPEED = 44; KILL_REWARD = 260
     ARMOR = 0.40
     PULSE_RADIUS = 220; PULSE_INTERVAL = 8.0; PULSE_DURATION = 2.0
     def __init__(self, wave=1):
         super().__init__(wave)
-        self.hp = max(1, 30000 + (wave-1)*2000); self.maxhp = self.hp
+        self.hp = max(1, 18000 + (wave-1)*1200); self.maxhp = self.hp
         self.speed = self.BASE_SPEED; self.radius = 54
         self._rot = 0.0; self._pulse_cd = self.PULSE_INTERVAL
         self._pulse_t = 0.0; self.pulse_fired = False
@@ -2759,10 +2807,10 @@ class WaveManager:
         if self.state in ("prep","between"): return max(0,self.prep_timer)
         return None
     def wave_lmoney(self):
-        if 1<=self.wave<=MAX_WAVES: return self._wave_data[self.wave][1]
+        if 1<=self.wave<=MAX_WAVES: return int(self._wave_data[self.wave][1] * 1.4)
         return 0
     def wave_bmoney(self):
-        if 1<=self.wave<=MAX_WAVES: return self._wave_data[self.wave][2]
+        if 1<=self.wave<=MAX_WAVES: return int(self._wave_data[self.wave][2] * 1.4)
         return 0
 
 # -- Ability --
@@ -3694,13 +3742,15 @@ class Archer(Unit):
 
     def get_info(self):
         arrow_label = {"normal": "Normal", "ice": "Ice", "flame": "Flame"}
-        return {
+        info = {
             "Damage":   self.damage,
             "Range":    self.range_tiles,
             "Firerate": f"{self.firerate:.3f}",
             "Pierce":   self._pierce,
             "Arrow":    arrow_label.get(self._arrow_type, self._arrow_type),
+            "HidDet":   "YES" if self.hidden_detection else "NO",
         }
+        return info
 
     def get_next_info(self):
         nl = self.level + 1
@@ -3712,6 +3762,7 @@ class Archer(Unit):
             "Firerate": f"{cfg['fr']:.3f}",
             "Pierce":   cfg["pierce"],
             "Arrow":    "—",
+            "HidDet":   "YES" if cfg["hd"] else "NO",
         }
 
 
@@ -5850,11 +5901,11 @@ DIFFICULTIES = {
         "img_label": "TDS Classic",
     },
     "Hell": {
-        "hp_mult": 0.7,
-        "money_mult": 0.9,
-        "enemy_hp_mult": 1.1,
-        "enemy_speed_mult": 1.0,
-        "start_money": 700,
+        "hp_mult": 0.6,
+        "money_mult": 0.75,
+        "enemy_hp_mult": 1.3,
+        "enemy_speed_mult": 1.1,
+        "start_money": 600,
         "color": (220, 60, 60),
         "desc": ["HP scales with waves", "Scarce resources", "Survive if you can"],
         "img_label": "Zombie Attack",
@@ -7460,114 +7511,161 @@ class Lobby:
 
     # -- Частицы главного меню --
     def _spawn_menu_particle(self, preplace=False):
-        """Создаём красивую частицу, которая плавно улетает к центру или от него."""
-        # Цветовые темы: синие, фиолетовые, голубые, белые — сочетаются с любым тёмным фоном
-        palettes = [
-            (100, 140, 255),   # синий
-            (140, 100, 255),   # фиолетовый
-            (80,  200, 255),   # голубой
-            (200, 140, 255),   # лавандовый
-            (255, 255, 255),   # белый
-            (60,  220, 200),   # бирюзовый
-            (255, 180, 100),   # золотой
-        ]
-        col = random.choice(palettes)
+        """Атмосферные частицы: медленно поднимающиеся светящиеся споры/пыль,
+        цветовая гамма подобрана под тёмный мистический фон с вихрем."""
 
-        # Частицы рождаются по краям экрана
-        edge = random.randint(0, 3)
-        if edge == 0:   x, y = random.uniform(0, SCREEN_W), -8.0
-        elif edge == 1: x, y = random.uniform(0, SCREEN_W), SCREEN_H + 8.0
-        elif edge == 2: x, y = -8.0,           random.uniform(0, SCREEN_H)
-        else:           x, y = SCREEN_W + 8.0, random.uniform(0, SCREEN_H)
+        # Тип частицы определяет поведение и внешний вид
+        kind = random.choices(
+            ['ember', 'dust', 'wisp', 'spark'],
+            weights=[40, 30, 20, 10]
+        )[0]
 
-        # Если preplace — ставим в случайное место экрана
+        if kind == 'ember':
+            # Тусклые тёплые угольки — медленно дрейфуют вверх
+            base = random.choice([
+                (220, 200, 160),  # тёплый белый
+                (180, 160, 130),  # бежевый
+                (200, 180, 140),  # кремовый
+            ])
+            size = random.uniform(0.8, 2.4)
+            alpha = random.uniform(40, 130)
+            life = random.uniform(6.0, 18.0)
+            speed_y = random.uniform(-22, -8)   # вверх
+            speed_x = random.uniform(-6, 6)
+            glow = random.random() < 0.3
+
+        elif kind == 'dust':
+            # Холодная серо-синяя пыль — очень медленно
+            base = random.choice([
+                (160, 175, 210),  # холодный серо-синий
+                (140, 155, 190),  # стальной
+                (170, 170, 200),  # серебристый
+                (130, 150, 180),  # пепельно-синий
+            ])
+            size = random.uniform(0.6, 1.8)
+            alpha = random.uniform(25, 90)
+            life = random.uniform(8.0, 22.0)
+            speed_y = random.uniform(-12, -3)
+            speed_x = random.uniform(-4, 4)
+            glow = False
+
+        elif kind == 'wisp':
+            # Призрачные огоньки с сильным свечением — редкие, крупные
+            base = random.choice([
+                (200, 215, 255),  # холодно-белый
+                (180, 220, 255),  # ледяной
+                (210, 200, 255),  # призрачно-лавандовый
+            ])
+            size = random.uniform(2.0, 4.0)
+            alpha = random.uniform(50, 110)
+            life = random.uniform(5.0, 12.0)
+            speed_y = random.uniform(-30, -12)
+            speed_x = random.uniform(-10, 10)
+            glow = True
+
+        else:  # spark
+            # Острые белые искры — быстрые, короткоживущие
+            base = (230, 235, 255)
+            size = random.uniform(0.5, 1.2)
+            alpha = random.uniform(80, 180)
+            life = random.uniform(2.0, 6.0)
+            speed_y = random.uniform(-50, -20)
+            speed_x = random.uniform(-15, 15)
+            glow = random.random() < 0.5
+
+        # Рождаются у нижней половины экрана (снизу поднимаются вверх)
         if preplace:
             x = random.uniform(0, SCREEN_W)
             y = random.uniform(0, SCREEN_H)
+        else:
+            x = random.uniform(0, SCREEN_W)
+            y = SCREEN_H + random.uniform(5, 20)
 
-        # Частица медленно дрейфует к центру с лёгким случайным отклонением
-        cx2 = SCREEN_W / 2 + random.uniform(-180, 180)
-        cy2 = SCREEN_H / 2 + random.uniform(-180, 180)
-        dx = cx2 - x
-        dy = cy2 - y
-        dist_val = max(1, math.hypot(dx, dy))
-        speed = random.uniform(18, 55)
-        vx = dx / dist_val * speed + random.uniform(-8, 8)
-        vy = dy / dist_val * speed + random.uniform(-8, 8)
+        # Лёгкое покачивание: фаза и частота
+        sway_phase = random.uniform(0, math.pi * 2)
+        sway_freq  = random.uniform(0.4, 1.2)
+        sway_amp   = random.uniform(4, 18)
 
-        size   = random.uniform(1.2, 4.5)
-        alpha  = random.uniform(60, 210)
-        life   = random.uniform(4.0, 14.0)
-        max_life = life
-        twinkle_speed = random.uniform(1.5, 4.0)
+        twinkle_speed = random.uniform(0.8, 2.5)
         twinkle_phase = random.uniform(0, math.pi * 2)
-        glow   = random.random() < 0.18   # 18% частиц имеют свечение
 
         self._menu_particles.append({
-            'x': x, 'y': y, 'vx': vx, 'vy': vy,
-            'size': size, 'col': col,
-            'alpha': alpha, 'life': life, 'max_life': max_life,
+            'x': x, 'y': y,
+            'vx': speed_x, 'vy': speed_y,
+            'size': size, 'col': base, 'kind': kind,
+            'alpha': alpha, 'life': life, 'max_life': life,
+            'sway_phase': sway_phase, 'sway_freq': sway_freq, 'sway_amp': sway_amp,
             'twinkle_speed': twinkle_speed, 'twinkle_phase': twinkle_phase,
             'glow': glow,
         })
 
     def _update_menu_particles(self, dt):
         self._mp_spawn_timer += dt
-        # Спавним 3-5 частиц в секунду
-        while self._mp_spawn_timer > 0.22:
-            self._mp_spawn_timer -= 0.22
+        # ~4-6 частиц в секунду
+        while self._mp_spawn_timer > 0.18:
+            self._mp_spawn_timer -= 0.18
             self._spawn_menu_particle()
 
+        t = self.anim_t
         live = []
         for p in self._menu_particles:
             p['life'] -= dt
             if p['life'] <= 0:
                 continue
-            p['x'] += p['vx'] * dt
+
+            # Покачивание по горизонтали (синусоидальное)
+            sway = p['sway_amp'] * math.sin(t * p['sway_freq'] + p['sway_phase'])
+            p['x'] += (p['vx'] + sway * 0.3) * dt
             p['y'] += p['vy'] * dt
-            # Лёгкое притяжение к центру
-            dx = SCREEN_W / 2 - p['x']
-            dy = SCREEN_H / 2 - p['y']
-            d = max(1, math.hypot(dx, dy))
-            p['vx'] += dx / d * 4 * dt
-            p['vy'] += dy / d * 4 * dt
+
+            # Очень лёгкое ускорение вверх (эффект тепла)
+            p['vy'] -= 1.5 * dt
+
             # Затухание у концов жизни
-            fade = min(1.0, p['life'] / 1.2, (p['max_life'] - p['life']) / 0.6)
+            fade = min(1.0, p['life'] / 1.5, (p['max_life'] - p['life']) / 1.0)
             p['_fade'] = fade
             live.append(p)
         self._menu_particles = live
 
-        # Поддерживаем минимум 80 частиц
-        while len(self._menu_particles) < 80:
+        # Поддерживаем минимум 90 частиц
+        while len(self._menu_particles) < 90:
             self._spawn_menu_particle(preplace=True)
 
     def _draw_menu_particles(self, surf):
         t = self.anim_t
         for p in self._menu_particles:
             fade = p.get('_fade', 1.0)
-            twinkle = 0.6 + 0.4 * math.sin(t * p['twinkle_speed'] + p['twinkle_phase'])
+            twinkle = 0.7 + 0.3 * math.sin(t * p['twinkle_speed'] + p['twinkle_phase'])
             a = int(p['alpha'] * fade * twinkle)
             if a <= 0:
                 continue
             a = min(255, a)
             col = p['col']
-            ix, iy = int(p['x']), int(p['y'])
+            # Лёгкое покачивание X при рендере
+            sway_offset = p['sway_amp'] * math.sin(t * p['sway_freq'] + p['sway_phase'])
+            ix = int(p['x'] + sway_offset)
+            iy = int(p['y'])
             sz = p['size']
 
             if p['glow']:
-                # Мягкое свечение: рисуем несколько концентрических кругов
-                for gi, (gr, ga_mul) in enumerate([(sz*4, 0.10), (sz*2.5, 0.22), (sz*1.5, 0.50), (sz, 1.0)]):
+                # Мягкое многослойное свечение
+                layers = [(sz * 5, 0.06), (sz * 3, 0.14), (sz * 1.8, 0.35), (sz, 1.0)]
+                for gr, ga_mul in layers:
                     ga = int(a * ga_mul)
                     if ga <= 0:
                         continue
-                    gs2 = pygame.Surface((int(gr*2)+2, int(gr*2)+2), pygame.SRCALPHA)
-                    pygame.draw.circle(gs2, (*col, ga), (int(gr)+1, int(gr)+1), max(1, int(gr)))
-                    surf.blit(gs2, (ix - int(gr) - 1, iy - int(gr) - 1), special_flags=pygame.BLEND_RGBA_ADD)
+                    side = int(gr * 2) + 2
+                    gs2 = pygame.Surface((side, side), pygame.SRCALPHA)
+                    pygame.draw.circle(gs2, (*col, ga), (int(gr) + 1, int(gr) + 1), max(1, int(gr)))
+                    surf.blit(gs2, (ix - int(gr) - 1, iy - int(gr) - 1),
+                              special_flags=pygame.BLEND_RGBA_ADD)
             else:
-                # Обычная частица: маленький светлый кружок
-                ps2 = pygame.Surface((int(sz*2)+2, int(sz*2)+2), pygame.SRCALPHA)
-                pygame.draw.circle(ps2, (*col, a), (int(sz)+1, int(sz)+1), max(1, int(sz)))
-                surf.blit(ps2, (ix - int(sz) - 1, iy - int(sz) - 1), special_flags=pygame.BLEND_RGBA_ADD)
+                # Обычная маленькая пылинка / угольком
+                side = int(sz * 2) + 2
+                ps2 = pygame.Surface((side, side), pygame.SRCALPHA)
+                pygame.draw.circle(ps2, (*col, a), (int(sz) + 1, int(sz) + 1), max(1, int(sz)))
+                surf.blit(ps2, (ix - int(sz) - 1, iy - int(sz) - 1),
+                          special_flags=pygame.BLEND_RGBA_ADD)
     # --
 
     def _build_rects(self):
@@ -7882,17 +7980,62 @@ class Lobby:
             pygame.draw.circle(surf, (255, 200, 80), p(16, -46), max(1, r(4)))
 
         elif TType is Gunner:
-            # base platform
-            pygame.draw.ellipse(surf, (60, 40, 15),
-                                (cx - r(22), cy + r(12), r(44), r(14)))
-            pygame.draw.circle(surf, (110, 80, 30), (cx, cy), r(28))
-            pygame.draw.circle(surf, (160, 120, 50), (cx, cy), r(20))
-            pygame.draw.circle(surf, (200, 160, 70), p(-4, -4), r(8))
-            # barrel pointing right
-            bpts = [p(-4, -5), p(-4, 5), p(24, 3), p(24, -3)]
-            pygame.draw.polygon(surf, (80, 55, 18), bpts)
-            pygame.draw.polygon(surf, (150, 110, 45), bpts, max(1, r(2)))
-            pygame.draw.circle(surf, (160, 120, 50), p(10, 0), r(6))
+            # -- shadow --
+            pygame.draw.ellipse(surf, (5, 8, 18),
+                                (cx - r(22), cy + r(14), r(44), r(13)))
+            # -- armoured base platform --
+            pygame.draw.ellipse(surf, (18, 24, 38),
+                                (cx - r(24), cy + r(6), r(48), r(16)))
+            pygame.draw.ellipse(surf, (35, 50, 75),
+                                (cx - r(21), cy + r(7), r(42), r(13)))
+            # -- outer ring steel blue --
+            pygame.draw.circle(surf, (20, 28, 44), (cx, cy), r(28))
+            pygame.draw.circle(surf, (38, 58, 90), (cx, cy), r(25))
+            # -- 6 armour panels --
+            for i in range(6):
+                a0 = math.radians(i * 60)
+                a1 = math.radians(i * 60 + 38)
+                pts_panel = [(cx, cy)]
+                for step in range(5):
+                    aa = a0 + (a1 - a0) * step / 4
+                    pts_panel.append((cx + int(math.cos(aa) * r(23)),
+                                      cy + int(math.sin(aa) * r(23))))
+                col = (48, 70, 105) if i % 2 == 0 else (30, 45, 72)
+                pygame.draw.polygon(surf, col, pts_panel)
+            # -- inner ring border --
+            pygame.draw.circle(surf, (60, 100, 160), (cx, cy), r(23), max(1, r(2)))
+            # -- 6 energy nodes --
+            for i in range(6):
+                a = math.radians(i * 60)
+                nx = cx + int(math.cos(a) * r(20))
+                ny = cy + int(math.sin(a) * r(20))
+                pygame.draw.circle(surf, (20, 60, 110), (nx, ny), max(2, r(4)))
+                pygame.draw.circle(surf, (80, 180, 255), (nx, ny), max(1, r(2)))
+            # -- double barrels pointing right --
+            ang_r = 0.0  # pointing right
+            perp_x = 0.0; perp_y = 1.0
+            barrel_len = r(30)
+            for offset in (-r(3), r(3)):
+                bx0 = cx + int(perp_x * offset)
+                by0 = cy + int(perp_y * offset)
+                bx1 = bx0 + barrel_len
+                by1 = by0
+                w = max(2, r(4))
+                bpts = [
+                    (bx0, by0 + w), (bx0, by0 - w),
+                    (bx1, by1 - max(1, w-1)), (bx1, by1 + max(1, w-1))
+                ]
+                pygame.draw.polygon(surf, (22, 32, 52), bpts)
+                pygame.draw.polygon(surf, (70, 120, 190), bpts, max(1, r(2)))
+                pygame.draw.circle(surf, (40, 80, 140), (bx1, by1), w)
+                pygame.draw.circle(surf, (100, 180, 255), (bx1, by1), max(1, w-2))
+            # -- barrel bridge ring --
+            pygame.draw.circle(surf, (30, 55, 90),  (cx + r(14), cy), max(3, r(6)))
+            pygame.draw.circle(surf, (80, 150, 230), (cx + r(14), cy), max(2, r(4)))
+            # -- turret dome --
+            pygame.draw.circle(surf, (25, 38, 62),  (cx, cy), r(15))
+            pygame.draw.circle(surf, (50, 90, 150),  (cx, cy), r(12))
+            pygame.draw.circle(surf, (80, 140, 210), (cx, cy), r(9))
 
         else:
             # fallback generic
@@ -8019,24 +8162,25 @@ class Lobby:
         # -- Shop coin counter (top-right corner) --
         coins = get_shop_coins()
         coin_badge_w = 160
-        coin_badge_h = 40
+        coin_badge_h = 48
         coin_badge_x = SCREEN_W - coin_badge_w - 18
         coin_badge_y = 18
         # panel
         draw_rect_alpha(surf, (30,24,8), (coin_badge_x, coin_badge_y, coin_badge_w, coin_badge_h), 210, brad=10)
         pygame.draw.rect(surf, C_GOLD, (coin_badge_x, coin_badge_y, coin_badge_w, coin_badge_h), 2, border_radius=10)
-        # animated coin icon
+        # "shop coins" label at top of badge
+        coin_lbl_f = pygame.font.SysFont("consolas", 10)
+        txt(surf, "shop coins", (coin_badge_x + coin_badge_w//2, coin_badge_y + 8), (180,150,60), coin_lbl_f, center=True)
+        # animated coin icon + number below the label
         pulse_c = abs(math.sin(t * 2.0))
         cr = int(13 + pulse_c*2)
         coin_cx3 = coin_badge_x + 22
-        coin_cy3 = coin_badge_y + coin_badge_h//2
+        coin_cy3 = coin_badge_y + coin_badge_h - 16
         pygame.draw.circle(surf, (180,140,0), (coin_cx3, coin_cy3), cr)
         pygame.draw.circle(surf, (255,215,0), (coin_cx3, coin_cy3), cr, 2)
         pygame.draw.circle(surf, (255,240,120), (coin_cx3-3, coin_cy3-3), cr//3)
         coin_num_f = pygame.font.SysFont("consolas", 18, bold=True)
         txt(surf, f"{coins}", (coin_cx3+cr+8, coin_cy3), C_GOLD, coin_num_f)
-        coin_lbl_f = pygame.font.SysFont("consolas", 10)
-        txt(surf, "shop coins", (coin_badge_x + coin_badge_w//2 + 10, coin_cy3+11), (180,150,60), coin_lbl_f, center=True)
 
     # -- CHANGELOG SCREEN --
     def _draw_changelog(self):
@@ -8292,7 +8436,7 @@ class Lobby:
             Archer:      ["Lv2: Ice Arrow", "Lv3: Flame Arrow"],
             Zigres:      ["Lv3: Resonance AoE", "Lv4: Sentinel Thorns",
                           "Lv6: COLOSSUS Form"],
-            Gunner:      ["Rotating turret barrel", "Lv3: Extended range",
+            Gunner:      ["Rotating turret barrel",
                           "Shop exclusive — buy with coins"],
         }
 
@@ -9261,15 +9405,15 @@ class Game:
         Early waves are much easier; difficulty ramps up toward the end."""
         wave = self.wave_mgr.wave if hasattr(self, 'wave_mgr') else 1
         if wave <= 3:
-            return 0.55   # Волны 1-3:  очень лёгкие
+            return 0.27   # Волны 1-3
         elif wave <= 6:
-            return 0.70   # Волны 4-6:  лёгкие
+            return 0.33   # Волны 4-6
         elif wave <= 10:
-            return 0.85   # Волны 7-10: средние
+            return 0.42   # Волны 7-10
         elif wave <= 14:
-            return 1.0    # Волны 11-14: полная сложность
+            return 0.51   # Волны 11-14
         else:
-            return 1.1    # Волны 15-20: оригинальный Hell
+            return 0.60   # Волны 15-20
 
     def _patch_enemies(self):
         """Apply difficulty multipliers to all enemy classes."""
@@ -9804,6 +9948,12 @@ class Game:
                 baby = HellHound(self.wave_mgr.wave)
                 baby.x = e.x + random.uniform(-20,20); baby.free_kill = True
                 new_enemies.append(baby)
+        # -- Kill reward: grant KILL_REWARD coins for each enemy killed by towers --
+        for e in self.enemies:
+            if not e.alive and not getattr(e, 'free_kill', False):
+                kr = getattr(e.__class__, 'KILL_REWARD', 0)
+                if kr > 0:
+                    self.money += kr
         self.enemies=[e for e in self.enemies if e.alive]+new_enemies
 
         # boss ref
@@ -10054,6 +10204,10 @@ class SandboxGame(Game):
         for ecls, count in self._sb_spawn_counts.items():
             for j in range(count):
                 e = ecls() if ecls is GraveDigger else ecls(1)
+                # In sandbox, enemies always use their BASE_HP (no wave scaling)
+                base = getattr(ecls, 'BASE_HP', None)
+                if base is not None:
+                    e.hp = base; e.maxhp = base
                 e.x = -80 - j * 55
                 self.enemies.append(e)
 
@@ -10263,6 +10417,10 @@ class SandboxGame(Game):
                 cnt = self._sb_panel_counts.get(ecls, 1)
                 for j in range(cnt):
                     e = ecls() if ecls is GraveDigger else ecls(1)
+                    # Sandbox always uses BASE_HP (no wave scaling)
+                    base = getattr(ecls, 'BASE_HP', None)
+                    if base is not None:
+                        e.hp = base; e.maxhp = base
                     e.x = -60 - j * 55
                     self.enemies.append(e)
                 self.ui.show_msg(f"Spawned {cnt}x {ecls.DISPLAY_NAME}!", 1.5)
