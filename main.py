@@ -38,9 +38,10 @@ class DevConsole:
             return  # player build — no console
 
         self._log("Dev console ready — F3 to toggle", self.OK_COL)
-        self._log("Commands: coins <n> | addcoins <n> | wave <n> | hp <n> | "
-                  "godmode | killall | clownkey | clownunlock | givecoin | "
-                  "boss | help", self.HINT_COL)
+        self._log("Lobby+Game: shopcoin | addshopcoin | kills | addkills | jason | clownunlock | status",
+                  self.HINT_COL)
+        self._log("Game only:  coins | addcoins | wave | hp | godmode | killall | boss | speed",
+                  self.HINT_COL)
 
     # -- Internal helpers --
     def _log(self, msg, col=None):
@@ -161,18 +162,29 @@ class DevConsole:
             return
         cmd, args = parts[0].lower(), parts[1:]
 
+        # Detect if we're in Lobby (no wave_mgr, no money attr in the normal sense)
+        _is_lobby = isinstance(game, Lobby) if 'Lobby' in dir() else not hasattr(game, 'wave_mgr')
+
         try:
             if cmd == "help":
                 cmds = [
+                    "── PERSISTENT (work in Lobby & Game) ──────────────",
+                    "shopcoin <n>    — set shop coins to n",
+                    "addshopcoin <n> — add n shop coins",
+                    "kills <n>       — set enemy kill counter to n",
+                    "addkills <n>    — add n to kill counter",
+                    "clownkey [src]  — add a clown key fragment",
+                    "clownunlock     — unlock Clown tower",
+                    "jason           — unlock Jason tower",
+                    "unjason         — remove Jason unlock",
+                    "status          — show current save data",
+                    "── IN-GAME ONLY ────────────────────────────────────",
                     "coins <n>       — set in-game money to n",
-                    "addcoins <n>    — add n to in-game money",
-                    "shopcoin <n>    — set shop coins (persistent)",
+                    "addcoins <n>    — add n in-game money",
                     "wave <n>        — jump to wave n",
                     "hp <n>          — set player HP to n",
                     "godmode         — toggle infinite HP",
                     "killall         — kill all enemies on screen",
-                    "clownkey        — collect one clown key fragment",
-                    "clownunlock     — unlock clown tower immediately",
                     "boss            — force launch clown boss fight",
                     "speed <1|2>     — set game speed multiplier",
                     "help            — show this list",
@@ -180,22 +192,88 @@ class DevConsole:
                 for c in cmds:
                     self._log(c, self.HINT_COL)
 
-            elif cmd == "coins":
-                n = int(args[0])
-                game.money = n
-                self._log(f"Money set to {n}", self.OK_COL)
-
-            elif cmd == "addcoins":
-                n = int(args[0])
-                game.money += n
-                self._log(f"Added {n} coins. Total: {game.money}", self.OK_COL)
-
+            # ── PERSISTENT commands (work anywhere) ──────────────────
             elif cmd == "shopcoin":
                 n = int(args[0])
                 data = load_save()
                 data["shop_coins"] = n
                 save_data(data)
                 self._log(f"Shop coins set to {n}", self.OK_COL)
+
+            elif cmd == "addshopcoin":
+                n = int(args[0])
+                total = add_shop_coins(n)
+                self._log(f"Added {n} shop coins. Total: {total}", self.OK_COL)
+
+            elif cmd == "kills":
+                n = int(args[0])
+                data = load_save()
+                data["enemy_kills"] = max(0, n)
+                save_data(data)
+                self._log(f"Enemy kills set to {n}", self.OK_COL)
+
+            elif cmd == "addkills":
+                n = int(args[0])
+                total = add_enemy_kills(n)
+                self._log(f"Added {n} kills. Total: {total}", self.OK_COL)
+
+            elif cmd == "clownkey":
+                source = args[0] if args else "Easy"
+                ok = collect_clown_key(source)
+                if ok:
+                    total = total_clown_keys()
+                    self._log(f"Clown key from '{source}'. Total: {total}/{CLOWN_KEYS_TOTAL}", self.OK_COL)
+                else:
+                    self._log(f"Already at cap for source '{source}'", self.HINT_COL)
+
+            elif cmd == "clownunlock":
+                unlock_clown()
+                self._log("Clown tower unlocked!", self.OK_COL)
+
+            elif cmd == "jason":
+                data = load_save()
+                if "Jason" not in data.get("purchased_towers", []):
+                    data.setdefault("purchased_towers", []).append("Jason")
+                    save_data(data)
+                    self._log("Jason unlocked!", self.OK_COL)
+                else:
+                    self._log("Jason already unlocked.", self.HINT_COL)
+
+            elif cmd == "unjason":
+                data = load_save()
+                pt = data.get("purchased_towers", [])
+                if "Jason" in pt:
+                    pt.remove("Jason")
+                    data["purchased_towers"] = pt
+                    save_data(data)
+                    self._log("Jason removed.", self.OK_COL)
+                else:
+                    self._log("Jason was not unlocked.", self.HINT_COL)
+
+            elif cmd == "status":
+                data = load_save()
+                self._log(f"Shop coins:  {data['shop_coins']}", self.OK_COL)
+                self._log(f"Enemy kills: {data.get('enemy_kills', 0)}", self.OK_COL)
+                self._log(f"Purchased:   {', '.join(data.get('purchased_towers', [])) or 'none'}", self.OK_COL)
+                _, ck_total = get_clown_keys()
+                self._log(f"Clown keys:  {ck_total}/{CLOWN_KEYS_TOTAL}", self.OK_COL)
+
+            # ── IN-GAME ONLY commands ─────────────────────────────────
+            elif cmd == "coins":
+                if not hasattr(game, 'money'):
+                    self._log("'coins' only works in-game. Use 'shopcoin' in Lobby.", self.ERR_COL)
+                else:
+                    n = int(args[0])
+                    game.money = n
+                    self._log(f"Money set to {n}", self.OK_COL)
+
+            elif cmd == "addcoins":
+                if not hasattr(game, 'money'):
+                    self._log("'addcoins' only works in-game. Use 'addshopcoin' in Lobby.", self.ERR_COL)
+                else:
+                    n = int(args[0])
+                    game.money += n
+                    self._log(f"Added {n} coins. Total: {game.money}", self.OK_COL)
 
             elif cmd == "wave":
                 n = int(args[0])
@@ -205,7 +283,7 @@ class DevConsole:
                     game.wave_mgr.prep_timer = 0.1
                     self._log(f"Jumped to wave {n}", self.OK_COL)
                 else:
-                    self._log("No wave_mgr on this game object", self.ERR_COL)
+                    self._log("No wave_mgr here. 'wave' only works in-game.", self.ERR_COL)
 
             elif cmd == "hp":
                 n = int(args[0])
@@ -218,12 +296,11 @@ class DevConsole:
                     game.hp = n
                     self._log(f"HP set to {n}", self.OK_COL)
                 else:
-                    self._log("This game mode has no HP attribute", self.ERR_COL)
+                    self._log("'hp' only works in-game.", self.ERR_COL)
 
             elif cmd == "godmode":
                 current = getattr(game, "_godmode", False)
                 game._godmode = not current
-                # Patch HP loss: wrap update if not already patched
                 if game._godmode:
                     self._log("God mode ON — HP won't drop below 1", self.OK_COL)
                     orig_update = game.__class__.update
@@ -236,7 +313,6 @@ class DevConsole:
                 else:
                     self._log("God mode OFF", self.OK_COL)
                     if hasattr(game.__class__, "_god_update_patched"):
-                        # Can't easily un-patch, just warn
                         self._log("Restart game to fully disable godmode", self.HINT_COL)
 
             elif cmd == "killall":
@@ -246,19 +322,6 @@ class DevConsole:
                         e.alive = False
                         count += 1
                 self._log(f"Killed {count} enemies", self.OK_COL)
-
-            elif cmd == "clownkey":
-                source = args[0] if args else "Easy"
-                ok = collect_clown_key(source)
-                if ok:
-                    total = total_clown_keys()
-                    self._log(f"Clown key collected from {source}. Total: {total}/{CLOWN_KEYS_TOTAL}", self.OK_COL)
-                else:
-                    self._log(f"Already at cap for source '{source}'", self.HINT_COL)
-
-            elif cmd == "clownunlock":
-                unlock_clown()
-                self._log("Clown tower unlocked!", self.OK_COL)
 
             elif cmd == "boss":
                 self._log("Launching clown boss fight...", self.OK_COL)
@@ -320,9 +383,10 @@ def load_save():
             "purchased_towers": data.get("purchased_towers", []),
             "clown_keys":       data.get("clown_keys", {}),
             "loadout":          data.get("loadout", None),
+            "enemy_kills":      int(data.get("enemy_kills", 0)),
         }
     except Exception:
-        return {"shop_coins": 0, "purchased_towers": [], "clown_keys": {}, "loadout": None}
+        return {"shop_coins": 0, "purchased_towers": [], "clown_keys": {}, "loadout": None, "enemy_kills": 0}
 
 def save_data(data):
     try:
@@ -337,7 +401,7 @@ def _tower_name_map():
     """Returns {class_name: class} mapping for loadout serialization."""
     global _TOWER_NAME_MAP
     if _TOWER_NAME_MAP is None:
-        _TOWER_NAME_MAP = {c.__name__: c for c in [Assassin, Accelerator, Clown, Archer, Zigres, Gunner]}
+        _TOWER_NAME_MAP = {c.__name__: c for c in [Assassin, Accelerator, Clown, Archer, Zigres, Gunner, Jason]}
     return _TOWER_NAME_MAP
 
 def save_loadout(loadout):
@@ -363,6 +427,16 @@ def add_shop_coins(amount):
 
 def get_shop_coins():
     return load_save()["shop_coins"]
+
+def add_enemy_kills(amount):
+    """Add enemy kills (earned in normal game, NOT sandbox)."""
+    data = load_save()
+    data["enemy_kills"] = data.get("enemy_kills", 0) + amount
+    save_data(data)
+    return data["enemy_kills"]
+
+def get_enemy_kills():
+    return load_save().get("enemy_kills", 0)
 
 # -- Clown Key Fragment System --
 CLOWN_KEY_SOURCES = {"Easy": 2, "Hard": 3, "Hell": 4, "Sandbox": 3}
@@ -432,11 +506,88 @@ C_ACCEL    = (130, 60,  255)
 PATH_Y      = 510
 PATH_H      = 32
 SLOT_AREA_Y = SCREEN_H - 124
+
+# -- Multi-waypoint map system --
+# Each map is a list of (x, y) waypoints. Enemies follow them in order.
+# "Forest" = original straight road (backward compatible)
+_MAP_WAYPOINTS = {
+    "Forest": [
+        (-60, 510),
+        (SCREEN_W + 60, 510),
+    ],
+    "City": [
+        # Z-shaped zigzag through urban grid
+        (-60,  300),
+        (400,  300),
+        (400,  720),
+        (900,  720),
+        (900,  280),
+        (1450, 280),
+        (1450, 720),
+        (1980, 720),
+    ],
+    "Volcano": [
+        # S-curve through volcanic terrain
+        (-60,  680),
+        (350,  680),
+        (550,  380),
+        (900,  380),
+        (1100, 700),
+        (1500, 700),
+        (1700, 350),
+        (1980, 350),
+    ],
+}
+
+# Active map waypoints used by enemy movement (set when game starts)
+ACTIVE_MAP_WAYPOINTS = _MAP_WAYPOINTS["Forest"]
+
+# Path segment width (used for road rendering and tower placement blocking)
+PATH_SEG_W = 36   # half-width of path segments on non-Forest maps
+
+def _point_near_path(px, py, waypoints, half_w):
+    """Return True if (px,py) is within half_w pixels of any path segment."""
+    for i in range(len(waypoints) - 1):
+        ax, ay = waypoints[i]
+        bx, by = waypoints[i+1]
+        dx, dy = bx - ax, by - ay
+        seg_len = math.hypot(dx, dy)
+        if seg_len == 0:
+            continue
+        t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (seg_len * seg_len)))
+        cx2, cy2 = ax + t * dx, ay + t * dy
+        if math.hypot(px - cx2, py - cy2) <= half_w:
+            return True
+    return False
 SLOT_W, SLOT_H = 112, 101
 MAX_WAVES   = 20
 
 # -- Changelog --
 CHANGELOG = [
+    {
+        "version": "v2.9",
+        "date": "02 May 2026",
+        "title": "Inter-Dimensional Wardrobe Tower",
+        "entries": [
+            ("NEW",    C_GREEN, "[v2.9] Wardrobe — support tower, no attacks, 5 upgrade levels"),
+            ("NEW",    C_GREEN, "[v2.9] Aura: Time Acceleration — speeds up game time +20% to +100% by level"),
+            ("NEW",    C_GREEN, "[v2.9] Aura: HD Field — all towers inside radius get hidden detection instantly"),
+            ("NEW",    C_GREEN, "[v2.9] Placement: can be placed ON the road (limit: 4 total)"),
+            ("NEW",    C_GREEN, "[v2.9] Enemy crossing radius: random funny visual + random debuff"),
+            ("NEW",    C_GREEN, "[v2.9] Debuffs: slow, speed boost, stun, confetti-slow, reverse walk"),
+        ],
+    },
+    {
+        "version": "v2.8",
+        "date": "02 May 2026",
+        "title": "Jason Voorhees Tower",
+        "entries": [
+            ("NEW",    C_GREEN, "[v2.8] Jason Voorhees — 11-level horror melee tower (Shop: 3000 kills)"),
+            ("NEW",    C_GREEN, "[v2.8] Aura: Ki-Ki-Ki Ma-Ma-Ma — -13% armour to all nearby enemies"),
+            ("NEW",    C_GREEN, "[v2.8] Passive: Relentless Stalker, Water Fear"),
+            ("NEW",    C_GREEN, "[v2.8] Ultimate: Friday the 13th  [H key] — strikes 13 enemies (Lv9)"),
+        ],
+    },
     {
         "version": "v2.7",
         "date": "01 May 2026",
@@ -976,7 +1127,10 @@ class Enemy:
     _DEATH_COLOR=(200,80,80)
 
     def __init__(self, wave=1):
-        self.x=-60.0; self.y=float(PATH_Y)
+        wpts = ACTIVE_MAP_WAYPOINTS
+        self.x = float(wpts[0][0])
+        self.y = float(wpts[0][1])
+        self._wp_index = 1   # next waypoint to head toward
         self.hp=max(1,self.BASE_HP+(wave-1)*2)
         self.maxhp=self.hp
         self.speed=self.BASE_SPEED+(wave-1)*6
@@ -984,12 +1138,12 @@ class Enemy:
         self._bob=random.uniform(0,math.pi*2)
         self.free_kill=False
         # -- Clown debuffs --
-        self._stun_timer        = 0.0   # seconds remaining frozen
-        self._stun_immune_timer = 0.0   # stun immunity CD after being stunned (Zigres CD)
-        self._slow_factor  = 1.0   # multiplier (< 1 = slower), reset each frame by aura
-        self._laugh_debuff   = False  # takes 20% more damage from all towers
-        self._shadow_marked  = 0.0     # Shadow Step: takes double dmg while > 0
-        self._clown_pushback = False  # flag: Clown Lv3 pushback chance pending
+        self._stun_timer        = 0.0
+        self._stun_immune_timer = 0.0
+        self._slow_factor  = 1.0
+        self._laugh_debuff   = False
+        self._shadow_marked  = 0.0
+        self._clown_pushback = False
 
     def update(self, dt):
         # Tick stun immunity cooldown
@@ -999,14 +1153,33 @@ class Enemy:
         if self._stun_timer > 0:
             self._stun_timer -= dt
             if self._stun_timer <= 0:
-                self._stun_immune_timer = 5.0  # 5s immunity after stun wears off
+                self._stun_immune_timer = 5.0
             self._bob += dt * 4
             return False
         eff_speed = self.speed * self._slow_factor
-        self.x += eff_speed * dt; self._bob += dt * 4
-        # Reset slow each frame (aura re-applies it every tick)
+        self._bob += dt * 4
+        # Reset slow each frame
         self._slow_factor = 1.0
-        if self.x > SCREEN_W + 40: self.alive = False; return True
+
+        # Waypoint movement
+        wpts = ACTIVE_MAP_WAYPOINTS
+        if self._wp_index >= len(wpts):
+            # Reached end
+            self.alive = False
+            return True
+        tx, ty = wpts[self._wp_index]
+        dx, dy = tx - self.x, ty - self.y
+        dist_to_wp = math.hypot(dx, dy)
+        move = eff_speed * dt
+        if dist_to_wp <= move:
+            self.x, self.y = float(tx), float(ty)
+            self._wp_index += 1
+            if self._wp_index >= len(wpts):
+                self.alive = False
+                return True
+        else:
+            self.x += (dx / dist_to_wp) * move
+            self.y += (dy / dist_to_wp) * move
         return False
 
     def take_damage(self, dmg):
@@ -1059,6 +1232,210 @@ class Enemy:
 
         on_fire = getattr(self, '_fire_timer', 0.0) > 0
         on_ice  = getattr(self, '_ice_timer',  0.0) > 0
+
+        # -- Wardrobe funny visuals --
+        visual = getattr(self, '_wardrobe_visual', None)
+        label_t = getattr(self, '_wardrobe_label_t', 0.0)
+
+        if visual:
+            r = self.radius
+            if visual == "party_hat":
+                # Big party hat on top
+                hat_pts = [(cx, cy - r - 36), (cx - 16, cy - r - 4), (cx + 16, cy - r - 4)]
+                pygame.draw.polygon(surf, (255, 60, 220), hat_pts)
+                pygame.draw.polygon(surf, (255, 255, 50), hat_pts, 3)
+                pygame.draw.circle(surf, (255, 255, 50), (cx, cy - r - 36), 6)
+                # bright dots
+                for i in range(5):
+                    a = math.radians(t * 150 + i * 72)
+                    pygame.draw.circle(surf, (80, 255, 200),
+                                       (cx + int(math.cos(a) * 8), cy - r - 20 + int(math.sin(a) * 6)), 3)
+
+            elif visual == "rainbow":
+                # Big rainbow arc above
+                for ri, rc in enumerate([(255,0,0),(255,160,0),(255,255,0),(0,255,0),(0,100,255),(160,0,255)]):
+                    pygame.draw.arc(surf, rc,
+                                    pygame.Rect(cx - r - 22, cy - r - 44, (r + 22) * 2, 44),
+                                    0, math.pi, 5)
+
+            elif visual == "big_nose":
+                # Giant red ball nose
+                nose_r = 13 + int(abs(math.sin(t * 4)) * 5)
+                ns = pygame.Surface((nose_r * 2 + 8, nose_r * 2 + 8), pygame.SRCALPHA)
+                pygame.draw.circle(ns, (255, 30, 30, 240), (nose_r + 4, nose_r + 4), nose_r)
+                pygame.draw.circle(ns, (255, 180, 180, 200), (nose_r, nose_r), nose_r // 2)
+                surf.blit(ns, (cx - nose_r - 4, cy - nose_r - 4))
+
+            elif visual == "googly":
+                # Big googly eyes
+                for ex2, ey2 in [(cx - 12, cy - 10), (cx + 12, cy - 10)]:
+                    pygame.draw.circle(surf, (255, 255, 255), (ex2, ey2), 9)
+                    pygame.draw.circle(surf, (0, 0, 0), (ex2, ey2), 9, 1)
+                    # spinning pupil
+                    pa = math.radians(t * 300)
+                    px2 = ex2 + int(math.cos(pa) * 4)
+                    py2 = ey2 + int(math.sin(pa) * 4)
+                    pygame.draw.circle(surf, (20, 10, 10), (px2, py2), 4)
+
+            elif visual == "mustache":
+                # Big curly mustache
+                for sign in (-1, 1):
+                    mpts = [(cx + sign * i * 5, cy + 10 + int(math.sin(i * 0.9) * 6)) for i in range(6)]
+                    if len(mpts) >= 2:
+                        pygame.draw.lines(surf, (40, 20, 5), False, mpts, 5)
+
+            elif visual == "tiny_hat":
+                # Top hat (bigger)
+                pygame.draw.rect(surf, (15, 5, 25), (cx - 14, cy - r - 28, 28, 22), border_radius=2)
+                pygame.draw.rect(surf, (100, 60, 140), (cx - 14, cy - r - 28, 28, 22), 2, border_radius=2)
+                pygame.draw.rect(surf, (100, 60, 140), (cx - 18, cy - r - 7, 36, 6), border_radius=2)
+
+            elif visual == "propeller":
+                # Spinning propeller hat (bigger)
+                pygame.draw.circle(surf, (200, 170, 230), (cx, cy - r - 16), 7)
+                for i in range(4):
+                    a = math.radians(t * 480 + i * 90)
+                    bx2 = cx + int(math.cos(a) * 18)
+                    by2 = cy - r - 16 + int(math.sin(a) * 6)
+                    pygame.draw.line(surf, (220, 200, 255), (cx, cy - r - 16), (bx2, by2), 4)
+
+            elif visual == "poop":
+                # 💩 Giant steaming poop on head
+                ps = pygame.Surface((40, 48), pygame.SRCALPHA)
+                # base pile
+                pygame.draw.ellipse(ps, (101, 55, 0), (2, 28, 36, 16))
+                pygame.draw.ellipse(ps, (130, 75, 10), (6, 18, 28, 18))
+                pygame.draw.ellipse(ps, (120, 65, 5),  (10, 10, 20, 16))
+                pygame.draw.ellipse(ps, (110, 60, 0),  (14, 4, 12, 14))
+                # shine
+                pygame.draw.ellipse(ps, (180, 130, 60, 160), (16, 6, 5, 4))
+                # eyes on poop
+                pygame.draw.circle(ps, (255, 255, 255), (12, 22), 4)
+                pygame.draw.circle(ps, (255, 255, 255), (28, 22), 4)
+                pygame.draw.circle(ps, (20, 10, 0),    (13, 22), 2)
+                pygame.draw.circle(ps, (20, 10, 0),    (29, 22), 2)
+                # smile
+                pygame.draw.arc(ps, (20, 10, 0), pygame.Rect(13, 26, 14, 6), math.pi, 2*math.pi, 2)
+                surf.blit(ps, (cx - 20, cy - r - 46))
+                # steam lines wiggling
+                for si in range(3):
+                    sx0 = cx - 8 + si * 8
+                    for sj in range(3):
+                        swy = cy - r - 48 - sj * 8
+                        swx = sx0 + int(math.sin(t * 5 + si + sj) * 3)
+                        pygame.draw.line(surf, (200, 200, 200, 120), (swx, swy), (swx, swy - 5), 2)
+
+            elif visual == "pizza":
+                # 🍕 Pizza slice orbiting the enemy
+                angle = math.radians(t * 90)
+                px2 = cx + int(math.cos(angle) * (r + 18))
+                py2 = cy + int(math.sin(angle) * (r + 18))
+                pts = [
+                    (px2, py2 - 14),
+                    (px2 - 12, py2 + 8),
+                    (px2 + 12, py2 + 8),
+                ]
+                pygame.draw.polygon(surf, (255, 200, 50), pts)   # crust
+                pygame.draw.polygon(surf, (220, 80, 30), [       # sauce
+                    (px2, py2 - 9), (px2 - 8, py2 + 6), (px2 + 8, py2 + 6)], 0)
+                # cheese dots
+                for di, (ddx, ddy) in enumerate([(0,-2),(-4,4),(4,4)]):
+                    pygame.draw.circle(surf, (255, 240, 180), (px2 + ddx, py2 + ddy), 3)
+                pygame.draw.polygon(surf, (140, 80, 20), pts, 2)
+
+            elif visual == "dizzy_stars":
+                # ⭐ Stars spinning around head indicating dizziness
+                for i in range(5):
+                    a = math.radians(t * 200 + i * 72)
+                    sx2 = cx + int(math.cos(a) * (r + 14))
+                    sy2 = cy - 4 + int(math.sin(a) * 8)
+                    col = [(255,255,0),(255,150,0),(255,80,200),(80,200,255),(200,255,80)][i]
+                    # 4-point star
+                    ss2 = pygame.Surface((16, 16), pygame.SRCALPHA)
+                    for sp in range(4):
+                        sa = math.radians(sp * 90 + t * 400)
+                        pygame.draw.line(ss2, (*col, 230), (8, 8),
+                                         (8 + int(math.cos(sa) * 7), 8 + int(math.sin(sa) * 7)), 2)
+                    pygame.draw.circle(ss2, (*col, 230), (8, 8), 3)
+                    surf.blit(ss2, (sx2 - 8, sy2 - 8))
+
+            elif visual == "chicken_hat":
+                # 🐔 Chicken comb + beak on head
+                # comb (red lumps)
+                for ci2, cxo in enumerate([-6, 0, 6]):
+                    pygame.draw.circle(surf, (220, 40, 40), (cx + cxo, cy - r - 18 - ci2 % 2 * 4), 6)
+                # head
+                pygame.draw.ellipse(surf, (255, 230, 150), (cx - 10, cy - r - 22, 20, 16))
+                pygame.draw.ellipse(surf, (255, 230, 150), (cx - 10, cy - r - 22, 20, 16))
+                # beak
+                beak_pts = [(cx - 10, cy - r - 16), (cx - 18, cy - r - 13), (cx - 10, cy - r - 10)]
+                pygame.draw.polygon(surf, (255, 180, 30), beak_pts)
+                # eye
+                pygame.draw.circle(surf, (20, 20, 20), (cx + 4, cy - r - 17), 3)
+                pygame.draw.circle(surf, (255, 255, 255), (cx + 5, cy - r - 18), 1)
+                # wattle
+                pygame.draw.ellipse(surf, (200, 30, 30), (cx - 14, cy - r - 14, 7, 9))
+
+            elif visual == "sunglasses":
+                # 😎 Cool sunglasses
+                lens_y = cy - 6
+                for lx in [cx - 11, cx + 5]:
+                    pygame.draw.rect(surf, (20, 20, 20), (lx, lens_y - 6, 14, 10), border_radius=3)
+                    pygame.draw.rect(surf, (50, 200, 255, 120), (lx + 1, lens_y - 5, 12, 8), border_radius=2)
+                    pygame.draw.rect(surf, (80, 80, 80), (lx, lens_y - 6, 14, 10), 2, border_radius=3)
+                # bridge
+                pygame.draw.line(surf, (80, 80, 80), (cx - 11 + 14, lens_y - 1), (cx + 5, lens_y - 1), 2)
+                # arms
+                pygame.draw.line(surf, (60, 60, 60), (cx - 11, lens_y - 1), (cx - 20, lens_y + 3), 2)
+                pygame.draw.line(surf, (60, 60, 60), (cx + 19, lens_y - 1), (cx + 28, lens_y + 3), 2)
+
+            elif visual == "crying":
+                # 😭 Big anime tears streaming down
+                for side, tx in [(-1, cx - 8), (1, cx + 8)]:
+                    for drop_i in range(3):
+                        drop_y = cy + 4 + drop_i * 12 + int((t * 60 + drop_i * 20) % 36)
+                        drop_size = 5 - drop_i
+                        if drop_size > 0:
+                            ts = pygame.Surface((drop_size*2+4, drop_size*2+8), pygame.SRCALPHA)
+                            pygame.draw.ellipse(ts, (100, 180, 255, 220),
+                                                (2, 2, drop_size*2, drop_size*2 + 4))
+                            surf.blit(ts, (tx - drop_size - 2, drop_y - drop_size - 2))
+                # big white eyes
+                for ex2, ey2 in [(cx - 9, cy - 6), (cx + 9, cy - 6)]:
+                    pygame.draw.ellipse(surf, (255, 255, 255), (ex2 - 7, ey2 - 5, 14, 10))
+                    pygame.draw.ellipse(surf, (40, 40, 180), (ex2 - 4, ey2 - 4, 8, 8))
+                    pygame.draw.circle(surf, (0, 0, 0), (ex2, ey2), 3)
+
+            elif visual == "antennas":
+                # 👽 Alien antennas with glowing tips
+                for side, ax in [(-1, cx - 8), (1, cx + 8)]:
+                    tip_x = cx + side * 18 + int(math.sin(t * 3 + side) * 4)
+                    tip_y = cy - r - 30
+                    pygame.draw.line(surf, (180, 230, 180), (ax, cy - r - 4), (tip_x, tip_y), 2)
+                    # glowing orb tip
+                    glow_r2 = 5 + int(abs(math.sin(t * 4 + side)) * 4)
+                    gs2 = pygame.Surface((glow_r2*2+4, glow_r2*2+4), pygame.SRCALPHA)
+                    gcol = (80, 255, 120) if int(t * 3 + side) % 2 == 0 else (200, 80, 255)
+                    pygame.draw.circle(gs2, (*gcol, 180), (glow_r2+2, glow_r2+2), glow_r2)
+                    pygame.draw.circle(gs2, (255, 255, 255, 200), (glow_r2+2, glow_r2+2), 2)
+                    surf.blit(gs2, (tip_x - glow_r2 - 2, tip_y - glow_r2 - 2))
+
+        # -- Wardrobe debuff floating label --
+        if label_t > 0:
+            lbl = getattr(self, '_wardrobe_label', '')
+            lcol = getattr(self, '_wardrobe_label_col', (255, 255, 255))
+            # Fade in during first 0.5s, stay bright, fade out last 1s
+            if label_t > 5.5:
+                alpha = int(255 * (6.0 - label_t) * 2)
+            elif label_t < 1.0:
+                alpha = int(255 * label_t)
+            else:
+                alpha = 255
+            lf = pygame.font.SysFont("consolas", 16, bold=True)
+            ls = lf.render(lbl, True, lcol)
+            ls.set_alpha(alpha)
+            rise = int((6.0 - label_t) * 10)   # floats upward slowly
+            surf.blit(ls, (cx - ls.get_width() // 2, cy - self.radius - 38 - rise))
 
         if on_fire:
             s = pygame.Surface((self.radius*4, self.radius*4), pygame.SRCALPHA)
@@ -1404,8 +1781,9 @@ class PaperEnemy(Enemy):
         self._drift   += dt * 2.2
         self._crinkle += dt * 8.0
         # vertical drift — zigzag off the path slightly
-        self.y = PATH_Y + math.sin(self._drift) * 18
-        return super().update(dt)
+        result = super().update(dt)
+        self.y += math.sin(self._drift) * 18
+        return result
     def draw(self, surf, hovered=False, detected=False):
         cx, cy = int(self.x), int(self.y)
         angle = math.sin(self._crinkle) * 18   # tilt
@@ -2311,7 +2689,6 @@ class CursedWitch(Enemy):
     def update(self, dt):
         self._spin += dt*140; self.pulse_fired = False
         self._float_phase += dt*2.8
-        self.y = PATH_Y - 14 + math.sin(self._float_phase)*10
         self._pulse_cd -= dt
         if self._pulse_cd <= 0:
             self._pulse_cd = self.PULSE_INTERVAL; self.pulse_fired = True
@@ -2481,7 +2858,6 @@ class AshWraith(Enemy):
         self._drift = 0.0
     def update(self, dt):
         self._drift += dt*2.5
-        self.y = PATH_Y + math.sin(self._drift)*14
         self._phase_t = max(0.0, self._phase_t - dt)
         self._phase_cd -= dt
         if self._phased:
@@ -2903,14 +3279,15 @@ class Unit:
     def upgrade(self): pass
     def _get_rightmost(self, enemies, count=1):
         r=self.range_tiles*TILE; targets=[]
+        hd = self.hidden_detection or getattr(self, '_wardrobe_hd_active', False)
         for e in enemies:
             if not e.alive: continue
-            if e.IS_HIDDEN and not self.hidden_detection: continue
+            if e.IS_HIDDEN and not hd: continue
             if dist((e.x,e.y),(self.px,self.py))<=r: targets.append(e)
         targets.sort(key=lambda e:-e.x); return targets[:count]
 
 # -- Assassin --
-ASSASSIN_LEVELS=[(3,0.608,4,None),(5,0.508,4,450),(5,0.508,4,550),(15,0.358,4,1500),(27,0.358,5,2500)]
+ASSASSIN_LEVELS=[(5,0.48,4,None),(8,0.40,4,450),(10,0.40,4,550),(18,0.358,4,1500),(30,0.358,5,2500)]
 
 class Assassin(Unit):
     PLACE_COST=300; COLOR=C_ASSASSIN; NAME="Assassin"; _shadow_bonus=0
@@ -3169,20 +3546,175 @@ class Accelerator(Unit):
             self.cd_left=self.firerate
             for t in targets: t.take_damage(self.damage)
     def _draw_body(self, surf, cx, cy):
-        s=pygame.Surface((180,180),pygame.SRCALPHA)
-        pygame.draw.circle(s,(*C_ACCEL,35),(45,45),42); surf.blit(s,(cx-45,cy-45))
-        pygame.draw.ellipse(surf,(30,15,60),(cx-20,cy+11,40,13))
-        spin=self._laser_t*180
-        for i in range(4):
-            a=math.radians(spin+i*90)
-            pygame.draw.circle(surf,(160,100,255),(int(cx+math.cos(a)*18),int(cy+math.sin(a)*18)),4)
-        pygame.draw.circle(surf,(40,20,80),(cx,cy),36)
-        pygame.draw.circle(surf,C_ACCEL,(cx,cy),26)
-        pygame.draw.circle(surf,(200,170,255),(cx-8,cy-8),10)
-        pulse=int(abs(math.sin(self._laser_t*8))*4)+3
-        pygame.draw.circle(surf,(230,210,255),(cx,cy),pulse)
-        for i in range(self.level):
-            pygame.draw.circle(surf,C_GOLD,(cx-14+i*7,cy+24),3)
+        t = self._laser_t
+        lv = self.level  # 0..5
+
+        # -- Per-level visual parameters --
+        # spin speeds increase with level
+        spin_speed  = 120 + lv * 20
+        spin_speed2 = -(200 + lv * 25)
+        spin  = t * spin_speed
+        spin2 = t * spin_speed2
+        pulse_freq = 7 + lv * 0.8
+        pulse = abs(math.sin(t * pulse_freq))  # 0..1 energy pulse
+
+        # Colour tints evolve: lv0-1 = pure purple, lv2-3 = blue-violet, lv4-5 = electric cyan-white
+        if lv <= 1:
+            border_col  = (100, 50,  200)
+            inner_col   = (160, 90,  255)
+            dot1_col    = (180, 120, 255)
+            dot2_col    = (100, 200, 255)
+            dot1_bright = (230, 200, 255)
+            dot2_bright = (180, 240, 255)
+            aura_col    = (130, 60,  255)
+            core_col    = (160, 80,  255)
+            core_mid    = (220, 180, 255)
+            accent_col  = lambda bright: (bright, bright // 2, 255)
+        elif lv <= 3:
+            border_col  = (70,  80,  230)
+            inner_col   = (120, 130, 255)
+            dot1_col    = (140, 170, 255)
+            dot2_col    = (80,  220, 255)
+            dot1_bright = (200, 220, 255)
+            dot2_bright = (140, 255, 255)
+            aura_col    = (90,  100, 255)
+            core_col    = (120, 120, 255)
+            core_mid    = (200, 210, 255)
+            accent_col  = lambda bright: (bright // 2, bright // 2, 255)
+        else:  # lv 4-5 — electric cyan/white
+            border_col  = (40,  200, 255)
+            inner_col   = (100, 240, 255)
+            dot1_col    = (80,  255, 240)
+            dot2_col    = (200, 255, 255)
+            dot1_bright = (180, 255, 255)
+            dot2_bright = (255, 255, 255)
+            aura_col    = (60,  200, 255)
+            core_col    = (80,  230, 255)
+            core_mid    = (200, 255, 255)
+            accent_col  = lambda bright: (bright // 3, bright, 255)
+
+        # Hex size grows slightly with level
+        hex_r  = 28 + lv * 1
+        hex_r2 = 18 + lv * 1
+
+        # -- Ground shadow --
+        pygame.draw.ellipse(surf, (15, 5, 40), (cx - 24, cy + 20, 48 + lv, 13))
+
+        # -- Outer glow aura (larger & brighter at high levels) --
+        aura_base = 44 + lv * 3
+        aura_r = int(aura_base + pulse * (7 + lv * 2))
+        aura_s = pygame.Surface((aura_r * 2 + 4, aura_r * 2 + 4), pygame.SRCALPHA)
+        aura_a = int(25 + lv * 8 + pulse * 45)
+        pygame.draw.circle(aura_s, (*aura_col, aura_a), (aura_r + 2, aura_r + 2), aura_r)
+        surf.blit(aura_s, (cx - aura_r - 2, cy - aura_r - 2))
+
+        # -- Extra outer ring at lv3+ (spinning arc) --
+        if lv >= 3:
+            arc_r = hex_r + 10 + lv * 2
+            arc_col = (*inner_col, int(60 + pulse * 80))
+            arc_s = pygame.Surface((arc_r * 2 + 4, arc_r * 2 + 4), pygame.SRCALPHA)
+            arc_thickness = 2 + (lv - 3)
+            pygame.draw.circle(arc_s, arc_col, (arc_r + 2, arc_r + 2), arc_r, arc_thickness)
+            surf.blit(arc_s, (cx - arc_r - 2, cy - arc_r - 2))
+
+        # -- Hexagonal chassis --
+        hex_pts = [
+            (cx + int(math.cos(math.radians(60 * i + 30)) * hex_r),
+             cy + int(math.sin(math.radians(60 * i + 30)) * hex_r))
+            for i in range(6)
+        ]
+        # Fill darkness gets slightly lighter at high levels
+        fill_dark = (25 + lv * 3, 10 + lv * 2, 55 + lv * 5)
+        pygame.draw.polygon(surf, fill_dark, hex_pts)
+        border_w = 3 + (1 if lv >= 4 else 0)
+        pygame.draw.polygon(surf, border_col, hex_pts, border_w)
+
+        # inner hex
+        hex_pts2 = [
+            (cx + int(math.cos(math.radians(60 * i)) * hex_r2),
+             cy + int(math.sin(math.radians(60 * i)) * hex_r2))
+            for i in range(6)
+        ]
+        inner_fill = (40 + lv * 4, 15 + lv * 3, 80 + lv * 5)
+        pygame.draw.polygon(surf, inner_fill, hex_pts2)
+        pygame.draw.polygon(surf, inner_col, hex_pts2, 2)
+
+        # -- Extra inner hex ring at lv5 (double hex) --
+        if lv >= 5:
+            hex_r3 = hex_r2 - 6
+            hex_pts3 = [
+                (cx + int(math.cos(math.radians(60 * i + 30)) * hex_r3),
+                 cy + int(math.sin(math.radians(60 * i + 30)) * hex_r3))
+                for i in range(6)
+            ]
+            bright5 = int(150 + pulse * 105)
+            pygame.draw.polygon(surf, accent_col(bright5), hex_pts3, 1)
+
+        # -- Orbiting energy dots (outer ring) --
+        # Number of dots: lv0=3, lv1=3, lv2=4, lv3=4, lv4=5, lv5=6
+        n_outer = 3 + (lv // 2)
+        orbit_r_outer = 20 + lv * 1
+        for i in range(n_outer):
+            a = math.radians(spin + i * (360 / n_outer))
+            rx = cx + int(math.cos(a) * orbit_r_outer)
+            ry = cy + int(math.sin(a) * orbit_r_outer)
+            dot_sz = 7 + (1 if lv >= 3 else 0)
+            dot_s = pygame.Surface((dot_sz * 2, dot_sz * 2), pygame.SRCALPHA)
+            pygame.draw.circle(dot_s, (*dot1_col, 120 + lv * 10), (dot_sz, dot_sz), dot_sz)
+            surf.blit(dot_s, (rx - dot_sz, ry - dot_sz))
+            dot_r = 3 + (1 if lv >= 4 else 0)
+            pygame.draw.circle(surf, dot1_bright, (rx, ry), dot_r)
+
+        # -- Orbiting energy dots (inner ring) --
+        n_inner = 3 + (lv // 3)
+        orbit_r_inner = 13 + lv * 1
+        for i in range(n_inner):
+            a = math.radians(spin2 + i * (360 / n_inner) + 60)
+            rx = cx + int(math.cos(a) * orbit_r_inner)
+            ry = cy + int(math.sin(a) * orbit_r_inner)
+            dot_sz2 = 5 + (1 if lv >= 3 else 0)
+            dot_s = pygame.Surface((dot_sz2 * 2, dot_sz2 * 2), pygame.SRCALPHA)
+            pygame.draw.circle(dot_s, (*dot2_col, 140 + lv * 8), (dot_sz2, dot_sz2), dot_sz2)
+            surf.blit(dot_s, (rx - dot_sz2, ry - dot_sz2))
+            pygame.draw.circle(surf, dot2_bright, (rx, ry), 2 + (1 if lv >= 4 else 0))
+
+        # -- Core reactor --
+        core_r = int(8 + pulse * 3 + lv * 0.8)
+        core_glow = pygame.Surface((core_r * 2 + 8, core_r * 2 + 8), pygame.SRCALPHA)
+        pygame.draw.circle(core_glow, (*core_mid, int(80 + pulse * 100)),
+                           (core_r + 4, core_r + 4), core_r + 4)
+        surf.blit(core_glow, (cx - core_r - 4, cy - core_r - 4))
+        pygame.draw.circle(surf, (60, 20, 120), (cx, cy), core_r + 2)
+        pygame.draw.circle(surf, core_col,  (cx, cy), core_r)
+        pygame.draw.circle(surf, core_mid,  (cx, cy), max(1, core_r - 3))
+        pygame.draw.circle(surf, (255, 245, 255), (cx, cy), max(1, core_r - 6))
+
+        # -- Lv5: extra burst spikes from core --
+        if lv >= 5:
+            spike_len = int(6 + pulse * 5)
+            for i in range(6):
+                sa = math.radians(spin * 0.5 + i * 60)
+                sx1 = cx + int(math.cos(sa) * (core_r + 2))
+                sy1 = cy + int(math.sin(sa) * (core_r + 2))
+                sx2 = cx + int(math.cos(sa) * (core_r + 2 + spike_len))
+                sy2 = cy + int(math.sin(sa) * (core_r + 2 + spike_len))
+                sc = int(180 + pulse * 75)
+                pygame.draw.line(surf, (sc, sc, 255), (sx1, sy1), (sx2, sy2), 2)
+
+        # -- Corner accent dots on hex edges --
+        for i in range(6):
+            a1 = math.radians(60 * i + 30)
+            a2 = math.radians(60 * (i + 1) + 30)
+            mx_a = (cx + int(math.cos(a1) * hex_r) + cx + int(math.cos(a2) * hex_r)) // 2
+            my_a = (cy + int(math.sin(a1) * hex_r) + cy + int(math.sin(a2) * hex_r)) // 2
+            bright = int(150 + pulse * 105)
+            pygame.draw.circle(surf, accent_col(bright), (mx_a, my_a), 2 + (1 if lv >= 4 else 0))
+
+        # -- Level pip dots (gold at current, dim at future) --
+        max_lv = len(ACCEL_LEVELS) - 1
+        for i in range(max_lv):
+            pip_col = C_GOLD if i < lv else (50, 40, 80)
+            pygame.draw.circle(surf, pip_col, (cx - (max_lv - 1) * 3 + i * 7, cy + 33), 3)
     def draw(self, surf):
         # Draw scaled body
         super().draw(surf)
@@ -3224,13 +3756,61 @@ class Accelerator(Unit):
 C_CLOWN = (220, 60, 60)   # C_RED alias with explicit name for clarity
 
 # level: (damage, firerate, range_tiles, upgrade_cost)
+class ConfettiBlastAbility:
+    """Active ability for Clown (unlocked at Lv2, activate with G key).
+    Launches a confetti blast that deals AoE damage to ALL enemies in range
+    and applies a heavy 60% slow for 3 seconds.
+    Cooldown: 15 seconds."""
+    name = "Confetti Blast"
+    cooldown = 15.0
+
+    def __init__(self, owner):
+        self.owner   = owner
+        self.cd_left = 0.0
+
+    def update(self, dt):
+        if self.cd_left > 0:
+            self.cd_left = max(0.0, self.cd_left - dt)
+
+    def ready(self):
+        return self.cd_left <= 0
+
+    def activate(self, enemies, effects):
+        if not self.ready():
+            return
+        self.cd_left = self.cooldown
+        ox, oy = self.owner.px, self.owner.py
+        r = self.owner.range_tiles * TILE
+        hd = getattr(self.owner, 'hidden_detection', False)
+        blast_dmg = self.owner.damage * 3   # 3x normal hit as AoE
+
+        hit_any = False
+        for e in enemies:
+            if not e.alive: continue
+            if e.IS_HIDDEN and not hd: continue
+            if dist((e.x, e.y), (ox, oy)) <= r:
+                e.take_damage(blast_dmg)
+                e._slow_factor = min(e._slow_factor, 0.4)   # 60% slow
+                e._confetti_slow_timer = 3.0                 # held for 3 s
+                hit_any = True
+
+        # Always spawn confetti visual at clown position
+        effects.append(ConfettiExplosionEffect(ox, oy))
+        # Extra confetti bursts across the aura
+        for _ in range(5):
+            angle = random.uniform(0, math.pi * 2)
+            dist2 = random.uniform(r * 0.2, r * 0.8)
+            ex = ox + math.cos(angle) * dist2
+            ey = oy + math.sin(angle) * dist2
+            effects.append(ConfettiExplosionEffect(ex, ey))
+
 CLOWN_LEVELS = [
-    {"dmg": 8,  "fr": 1.6, "rng": 3.5, "cost": None},   # 0 base  (dmg 5->8, fr 1.8->1.6, rng 2.5->3.5)
-    {"dmg": 14, "fr": 1.4, "rng": 4.0, "cost": 400},    # 1        (dmg 8->14, rng 2.8->4.0)
-    {"dmg": 22, "fr": 1.2, "rng": 4.5, "cost": 850},    # 2        (dmg 12->22, rng 3.0->4.5)
-    {"dmg": 38, "fr": 1.0, "rng": 5.0, "cost": 1800},   # 3        (dmg 20->38, rng 3.5->5.0)
-    {"dmg": 65, "fr": 0.75,"rng": 5.8, "cost": 4500},   # 4        (dmg 35->65, rng 4.0->5.8)
-    {"dmg": 110,"fr": 0.45,"rng": 7.0, "cost": 12000},  # 5 max    (dmg 65->110, fr 0.6->0.45, rng 5.0->7.0)
+    {"dmg": 13, "fr": 1.2, "rng": 4.0, "cost": None},   # 0 base  (buffed: dmg 8->13, fr 1.6->1.2, rng 3.5->4.0)
+    {"dmg": 20, "fr": 1.0, "rng": 4.5, "cost": 400},    # 1        (buffed: dmg 14->20, fr 1.4->1.0)
+    {"dmg": 22, "fr": 1.2, "rng": 4.5, "cost": 850},    # 2
+    {"dmg": 38, "fr": 1.0, "rng": 5.0, "cost": 1800},   # 3
+    {"dmg": 65, "fr": 0.75,"rng": 5.8, "cost": 4500},   # 4
+    {"dmg": 110,"fr": 0.45,"rng": 7.0, "cost": 12000},  # 5 max
 ]
 
 CLOWN_MAX_PLACED = 5   # placement limit
@@ -3271,6 +3851,8 @@ class Clown(Unit):
         self.firerate    = cfg["fr"]
         self.range_tiles = cfg["rng"]   # already in tiles, same unit as Assassin/Accel
         self.hidden_detection = (lv >= 3)
+        if lv >= 2 and self.ability is None:
+            self.ability = ConfettiBlastAbility(self)
 
     # -- upgrade --
     def upgrade_cost(self):
@@ -3301,8 +3883,17 @@ class Clown(Unit):
     def update(self, dt, enemies, effects, money):
         self._anim_t += dt
         if self.cd_left > 0: self.cd_left -= dt
+        if self.ability: self.ability.update(dt)
 
         in_range = self._enemies_in_range(enemies)
+
+        # -- Tick confetti blast slow timers on ALL enemies --
+        for e in enemies:
+            timer = getattr(e, '_confetti_slow_timer', 0.0)
+            if timer > 0:
+                e._confetti_slow_timer = max(0.0, timer - dt)
+                # enforce the heavy slow while timer active
+                e._slow_factor = min(e._slow_factor, 0.4)
 
         # -- Slow aura — apply each frame (all levels, 15% base) --
         slow_amount = self._SLOW_CFG[self.level]
@@ -3430,6 +4021,8 @@ class Clown(Unit):
             "Firerate": f"{self.firerate:.2f}",
             "Slow":     f"{slow_pct}%",
         }
+        if self.level >= 2 and self.ability:
+            info["Blast[G]"] = f"CD {self.ability.cd_left:.1f}s" if self.ability.cd_left > 0 else "READY"
         if self.level >= 4:
             info["Confuse"] = f"CD {Clown._CONFUSE_CD:.1f}s" if Clown._CONFUSE_CD > 0 else "READY"
         return info
@@ -4977,7 +5570,9 @@ GUNNER_LEVELS = [
     {"dmg": 62, "fr": 0.46,  "rng": 7.5, "cost": 5000},   # 4  max  (нерф: 80->62)
 ]
 
-GUNNER_SHOP_PRICE = 1200   # цена покупки в Shop за shop_coins
+GUNNER_SHOP_PRICE = 1200       # цена покупки в Shop за shop_coins
+ARCHER_SHOP_PRICE = 800        # средняя цена — башня дешёвая но уникальная (on-road)
+ACCELERATOR_SHOP_PRICE = 2000  # дорогая башня — высокая цена в Shop
 
 class Gunner(Unit):
     PLACE_COST = 900
@@ -5325,6 +5920,930 @@ class GunnerBulletEffect:
         surf.blit(s, (0, 0))
 
 
+# ═══════════════════════════════════════════════════════
+# JASON VOORHEES  —  Friday the 13th Tower
+# 11 upgrade levels (0–10), shop-exclusive
+# ═══════════════════════════════════════════════════════
+
+JASON_SHOP_PRICE = 3000   # enemy kills to unlock (special currency!)
+
+# level: dmg, firerate (cd), range_tiles, upgrade_cost, name_suffix
+JASON_LEVELS = [
+    # Lv0  The Boy (Pt. 1)
+    {"dmg":  8,  "fr": 0.95, "rng": 3.2, "cost": None,  "label": "The Boy"},
+    # Lv1  The Avenger (Pt. 2)
+    {"dmg": 12,  "fr": 0.9, "rng": 3.2, "cost":  1500, "label": "The Avenger"},
+    # Lv2  The Icon (Pt. 3)
+    {"dmg": 25,  "fr": 0.8, "rng": 3.4, "cost":  3000, "label": "The Icon"},
+    # Lv3  Final Chapter (Pt. 4)
+    {"dmg": 45,  "fr": 0.8, "rng": 3.6, "cost":  5500, "label": "Final Chapter"},
+    # Lv4  The Copycat (Pt. 5)
+    {"dmg": 60,  "fr": 0.7, "rng": 3.8, "cost":  7500, "label": "The Copycat"},
+    # Lv5  Zombie (Pt. 6)
+    {"dmg": 90,  "fr": 1.2, "rng": 4.0, "cost":  8000, "label": "Zombie Jason"},
+    # Lv6  Telekinesis Victim (Pt. 7)
+    {"dmg":130,  "fr": 1.1, "rng": 4.2, "cost": 13000, "label": "Telekinesis Victim"},
+    # Lv7  Manhattan Stalker (Pt. 8)
+    {"dmg":200,  "fr": 1.0, "rng": 4.6, "cost": 20000, "label": "Manhattan Stalker"},
+    # Lv8  Hell Spawn (Pt. 9)
+    {"dmg":280,  "fr": 1.0, "rng": 5.0, "cost": 30000, "label": "Hell Spawn"},
+    # Lv9  Uber Jason (Jason X)
+    {"dmg":500,  "fr": 0.75, "rng": 5.5, "cost": 52000, "label": "Uber Jason"},
+    # Lv10 The Remake (2009)
+    {"dmg":720,  "fr": 0.65, "rng": 6.0, "cost": 95000, "label": "The Remake"},
+]
+
+C_JASON = (30, 30, 30)   # dark near-black — Jason's colour theme
+
+def _is_jason_unlocked():
+    return "Jason" in load_save().get("purchased_towers", [])
+
+def _unlock_jason():
+    data = load_save()
+    if "Jason" not in data.get("purchased_towers", []):
+        data.setdefault("purchased_towers", []).append("Jason")
+        save_data(data)
+
+
+class FridayThe13thAbility:
+    """Ultimate: instantly strikes 13 random enemies for DMG × 5.
+    Each kill during the ability reduces cooldown by 2 s.
+    Cooldown: 65 s.  Available from Lv9."""
+    name     = "Friday the 13th"
+    cooldown = 65.0
+
+    def __init__(self, owner):
+        self.owner   = owner
+        self.cd_left = 0.0
+
+    def update(self, dt):
+        if self.cd_left > 0:
+            self.cd_left = max(0.0, self.cd_left - dt)
+
+    def ready(self):
+        return self.cd_left <= 0
+
+    def activate(self, enemies, effects):
+        if not self.ready():
+            return
+        self.cd_left = self.cooldown
+        hd = getattr(self.owner, 'hidden_detection', False)
+        candidates = [e for e in enemies if e.alive and not (e.IS_HIDDEN and not hd)]
+        random.shuffle(candidates)
+        targets = candidates[:13]
+        dmg = self.owner.damage * 5
+        for e in targets:
+            was_alive = e.alive
+            e.take_damage(dmg)
+            if was_alive and not e.alive:
+                self.cd_left = max(0.0, self.cd_left - 2.0)
+            # red flash visual
+            effects.append(_JasonSlashEffect(
+                int(self.owner.px), int(self.owner.py), int(e.x), int(e.y),
+                color=(220, 20, 20)))
+        # CRT TV static effect
+        effects.append(_TVNoiseEffect())
+
+
+class _JasonSlashEffect:
+    """Short red tracer from Jason toward struck enemy."""
+    def __init__(self, ox, oy, tx, ty, color=(180, 0, 0)):
+        self.ox = ox; self.oy = oy; self.tx = tx; self.ty = ty
+        self.color = color; self.life = 0.14; self.t = 0.0
+
+    def update(self, dt):
+        self.t += dt
+        return self.t < self.life
+
+    def draw(self, surf):
+        frac = 1.0 - self.t / self.life
+        a = int(220 * frac)
+        s = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        pygame.draw.line(s, (*self.color, a),
+                         (int(self.ox), int(self.oy)),
+                         (int(self.tx),  int(self.ty)), 4)
+        surf.blit(s, (0, 0))
+
+
+class _TVNoiseEffect:
+    """Old CRT TV static triggered by Friday the 13th ability (~1.4s)."""
+    def __init__(self):
+        self.life  = 1.4
+        self.t     = 0.0
+        self._ns   = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        self._roll = random.randint(0, SCREEN_H)
+        self._roll_speed = random.choice([-1, 1]) * random.randint(180, 340)
+
+    def update(self, dt):
+        self.t += dt
+        self._roll = (self._roll + self._roll_speed * dt) % SCREEN_H
+        return self.t < self.life
+
+    def draw(self, surf):
+        progress  = self.t / self.life
+        intensity = max(0.0, 1.0 - progress)
+        ns = self._ns
+        ns.fill((0, 0, 0, 0))
+        # grain / static dots
+        for _ in range(int(2400 * intensity * intensity)):
+            gx = random.randint(0, SCREEN_W - 1)
+            gy = random.randint(0, SCREEN_H - 1)
+            bright = random.randint(60, 255)
+            col = (bright, 0, 0, random.randint(80, 180)) if random.random() < 0.25 \
+                  else (bright, bright, bright, random.randint(60, 160))
+            ns.set_at((gx, gy), col)
+        # horizontal scan-line tears
+        for _ in range(int(8 * intensity)):
+            ty2   = random.randint(0, SCREEN_H - 1)
+            tw2   = random.randint(80, SCREEN_W)
+            tx2   = random.randint(0, SCREEN_W - tw2)
+            alpha = random.randint(100, 200)
+            brt   = random.randint(30, 160)
+            col   = (brt, 0, 0, alpha) if random.random() < 0.5 else (brt, brt, brt, alpha)
+            pygame.draw.rect(ns, col, (tx2, ty2, tw2, random.randint(1, 4)))
+        surf.blit(ns, (0, 0))
+        # vertical roll seam
+        if intensity > 0.3:
+            roll_y = int(self._roll) % SCREEN_H
+            band   = pygame.Surface((SCREEN_W, 60), pygame.SRCALPHA)
+            band.fill((0, 0, 0, int(140 * intensity)))
+            surf.blit(band, (0, roll_y - 30))
+        # red flash at very start
+        if self.t < 0.12:
+            flash_a = int(110 * (1.0 - self.t / 0.12))
+            flash   = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            flash.fill((180, 0, 0, flash_a))
+            surf.blit(flash, (0, 0))
+
+
+class Jason(Unit):
+    """Jason Voorhees — 11-level melee horror tower.
+
+    Passive mechanics
+    -----------------
+    Ki-Ki-Ki Ma-Ma-Ma : enemies within 4 tiles get -13% DEF (armour ignored up to 13%).
+    Relentless Stalker: if last target left range, next attack fires instantly (+50% speed).
+    Water Fear        : -20% dmg vs. water-tagged enemies, own DEF doubled.
+
+    Level effects (selected highlights)
+    ------------------------------------
+    Lv0  Fists — 10% chance to Fear (0.6 s slow) on hit.
+    Lv1  Pickaxe — +15% dmg vs. bleeding (fire) enemies.
+    Lv2  Mask — gains Hidden Detection.
+    Lv3  Brutality — every 4th hit deals triple damage.
+    Lv4  False Jason — +5% attack speed to nearby allied towers (1-tile radius).
+    Lv5  Spear — pierces through up to 3 enemies in range (AOE strike).
+    Lv6  Chain — pulls the furthest enemy 80 px closer on hit.
+    Lv7  Steam — small AOE ring (80 px) on hit + 0.5 s stun.
+    Lv8  Possession — on kill, each enemy adjacent (80 px) takes 30% of kill dmg.
+    Lv9  Cyber-Machete — ignores all armour; unlocks Friday the 13th ultimate.
+    Lv10 Predator — bonus +15% attack speed, random 1-tile trap every 8 s.
+
+    Ultimate: Friday the 13th (Lv9+, H key) — see FridayThe13thAbility.
+    """
+
+    PLACE_COST   = 1500
+    COLOR        = C_JASON
+    NAME         = "Jason"
+    _PLACE_LIMIT = 3
+
+    # Aura radius for Ki-Ki-Ki debuff and Copycat buff
+    _AURA_TILES  = 4.0
+    _COPYCAT_TILES = 1.0
+
+    def __init__(self, px, py):
+        super().__init__(px, py)
+        self._anim_t       = 0.0
+        self._atk_t        = 0.0   # attack swing timer (counts down)
+        self._atk_dur      = 0.30
+        self._atk_angle    = 0.0
+        self._hit_counter  = 0     # for Brutality (every 4th)
+        self._last_target  = None  # for Relentless Stalker
+        self._stalk_bonus  = False # True when bonus active
+        self._trap_cd      = 0.0   # Lv10 trap cooldown
+        self._trap_particles = []  # list of active trap visuals [(x,y,life)]
+        self._fear_flash   = 0.0   # visual flash on fear proc
+        self._aoe_flash    = 0.0   # visual flash on steam aoe
+        self._apply_level()
+
+    def _apply_level(self):
+        cfg = JASON_LEVELS[self.level]
+        self.damage        = cfg["dmg"]
+        self.firerate      = cfg["fr"]
+        self.range_tiles   = cfg["rng"]
+        self.hidden_detection = (self.level >= 2)
+        # Unlock ultimate at Lv9
+        if self.level >= 9 and self.ability is None:
+            self.ability = FridayThe13thAbility(self)
+
+    def upgrade_cost(self):
+        if self.level >= len(JASON_LEVELS) - 1:
+            return None
+        return JASON_LEVELS[self.level + 1]["cost"]
+
+    def upgrade(self):
+        nl = self.level + 1
+        if nl < len(JASON_LEVELS):
+            cost = JASON_LEVELS[nl]["cost"] or 0
+            self.level = nl
+            self._apply_level()
+            self._total_spent += cost
+
+    # ── update ─────────────────────────────────────────────────────────────
+    def update(self, dt, enemies, effects, money):
+        self._anim_t += dt
+        if self._atk_t > 0:
+            self._atk_t = max(0.0, self._atk_t - dt)
+        if self._fear_flash > 0:
+            self._fear_flash = max(0.0, self._fear_flash - dt)
+        if self._aoe_flash > 0:
+            self._aoe_flash = max(0.0, self._aoe_flash - dt)
+        # Trap cooldown (Lv10)
+        if self.level >= 10 and self._trap_cd > 0:
+            self._trap_cd -= dt
+        self._trap_particles = [(x,y,l-dt) for x,y,l in self._trap_particles if l-dt > 0]
+
+        if self.cd_left > 0:
+            self.cd_left -= dt
+        if self.ability:
+            self.ability.update(dt)
+
+        # Ki-Ki-Ki aura — mark enemies in range for armour debuff
+        aura_r = self._AURA_TILES * TILE
+        for e in enemies:
+            if e.alive and dist((e.x, e.y), (self.px, self.py)) <= aura_r:
+                e._jason_debuff_t = 0.3   # refreshed each frame; used in take_damage patch
+
+        # Relentless Stalker — check if last target left range
+        if self._last_target is not None:
+            if not self._last_target.alive or \
+               dist((self._last_target.x, self._last_target.y), (self.px, self.py)) > self.range_tiles * TILE * 1.2:
+                self._stalk_bonus = True
+                self._last_target = None
+
+        self._try_attack(enemies, effects)
+
+        # Lv10 trap spawn
+        if self.level >= 10 and self._trap_cd <= 0:
+            self._trap_cd = 8.0
+            # spawn trap near path, 1 tile away
+            tx = self.px + random.uniform(-TILE, TILE)
+            ty = self.py + random.uniform(-TILE * 0.5, TILE * 0.5)
+            self._trap_particles.append((tx, ty, 3.0))
+            # deal small dmg to any enemy near trap
+            for e in enemies:
+                if e.alive and dist((e.x, e.y), (tx, ty)) <= TILE * 0.7:
+                    e.take_damage(int(self.damage * 0.5))
+                    if not getattr(e, 'SLOW_RESISTANCE', False):
+                        e._slow_factor = min(e._slow_factor, 0.55)
+                        e._ice_timer = 1.0
+
+    def _try_attack(self, enemies, effects):
+        if self.cd_left > 0:
+            return
+        # Get targets in range
+        in_range = [e for e in enemies if e.alive
+                    and not (e.IS_HIDDEN and not self.hidden_detection)
+                    and dist((e.x, e.y), (self.px, self.py)) <= self.range_tiles * TILE]
+        if not in_range:
+            return
+
+        # Sort by furthest-traveled (rightmost x)
+        in_range.sort(key=lambda e: -e.x)
+
+        # Fire rate bonus from Relentless Stalker
+        fr = self.firerate
+        if self._stalk_bonus:
+            fr *= 0.5   # 50% faster
+            self._stalk_bonus = False
+
+        self.cd_left = fr
+        self._atk_angle = math.degrees(math.atan2(
+            in_range[0].y - self.py, in_range[0].x - self.px))
+        self._atk_t = self._atk_dur
+        self._last_target = in_range[0]
+
+        # Determine hit targets
+        if self.level >= 5:
+            # Spear: pierce up to 3 enemies
+            hit_targets = in_range[:3]
+        else:
+            hit_targets = in_range[:1]
+
+        self._hit_counter += 1
+
+        for target in hit_targets:
+            dmg = self.damage
+
+            # Lv1: +15% vs bleeding (fire) enemies
+            if self.level >= 1 and getattr(target, '_fire_timer', 0.0) > 0:
+                dmg = int(dmg * 1.15)
+
+            # Lv3 Brutality: every 4th hit = triple
+            if self.level >= 3 and self._hit_counter % 4 == 0:
+                dmg *= 3
+
+            # Ki-Ki-Ki debuff: treat armour as 13% lower
+            if getattr(target, '_jason_debuff_t', 0.0) > 0:
+                orig = getattr(target, 'ARMOR', 0.0)
+                tmp_armor = max(0.0, orig - 0.13)
+                old_armor = target.__class__.ARMOR if hasattr(target.__class__, 'ARMOR') else None
+                target.ARMOR = tmp_armor
+                target.take_damage(dmg)
+                if old_armor is not None:
+                    target.ARMOR = old_armor
+                else:
+                    del target.ARMOR
+            else:
+                target.take_damage(dmg)
+
+            # Lv0: 10% fear (0.6 s slow)
+            if self.level == 0 and random.random() < 0.10:
+                if not getattr(target, 'SLOW_RESISTANCE', False):
+                    target._slow_factor = min(target._slow_factor, 0.45)
+                    target._ice_timer = 0.6
+                self._fear_flash = 0.25
+
+            # Lv6 Chain: pull enemy closer — only every 3rd hit
+            if self.level >= 6 and self._hit_counter % 3 == 0:
+                dx = self.px - target.x
+                dy = self.py - target.y
+                d = math.hypot(dx, dy)
+                if d > 0:
+                    pull = min(80.0, d * 0.5)
+                    target.x += (dx / d) * pull
+
+            # Lv7 Steam AOE + 0.5 s stun
+            if self.level >= 7:
+                aoe_r = 80
+                for e2 in enemies:
+                    if e2.alive and e2 is not target and \
+                       dist((e2.x, e2.y), (target.x, target.y)) <= aoe_r:
+                        e2.take_damage(int(dmg * 0.4))
+                        e2._stun_timer = max(getattr(e2, '_stun_timer', 0.0), 0.5)
+                self._aoe_flash = 0.20
+
+            # Lv8 Possession: on kill, adjacent enemies take 30% of kill dmg
+            if self.level >= 8 and not target.alive:
+                for e3 in enemies:
+                    if e3.alive and dist((e3.x, e3.y), (target.x, target.y)) <= 80:
+                        e3.take_damage(int(dmg * 0.30))
+
+            # Slash visual
+            effects.append(_JasonSlashEffect(
+                int(self.px), int(self.py), int(target.x), int(target.y),
+                color=(200, 10, 10)))
+
+    # ── draw ───────────────────────────────────────────────────────────────
+    def draw(self, surf):
+        # Draw trap visuals (Lv10) before body
+        for tx, ty, tl in self._trap_particles:
+            alpha = max(0, min(255, int(tl / 3.0 * 160)))
+            ts = pygame.Surface((28, 28), pygame.SRCALPHA)
+            pygame.draw.circle(ts, (180, 0, 0, alpha), (14, 14), 10)
+            pygame.draw.circle(ts, (255, 80, 0, alpha), (14, 14), 5)
+            surf.blit(ts, (int(tx) - 14, int(ty) - 14))
+        super().draw(surf)
+
+    def _draw_body(self, surf, cx, cy):
+        t   = self._anim_t
+        lv  = self.level
+        atk = self._atk_t / self._atk_dur if self._atk_dur > 0 else 0.0
+
+        # Weapon / attack angle
+        rad = math.radians(self._atk_angle)
+        bx = cx
+        # Idle breathing bob — body root is at the feet area
+        bob = int(math.sin(t * 2.0) * 1.2)
+        # bx/by = CENTER of the full figure (mid-torso area)
+        by = cy + bob
+
+        # ── colour palette (normal vs Cyber / Uber Jason Lv9+) ──────────────
+        is_cyber = lv >= 9
+        coverall_dark  = (12, 12, 16)  if not is_cyber else (8,  8,  55)
+        coverall_mid   = (28, 25, 30)  if not is_cyber else (20, 20, 90)
+        coverall_edge  = (45, 40, 45)  if not is_cyber else (40, 40, 130)
+        skin_col       = (60, 42, 35)
+        mask_base      = (228, 222, 215) if not is_cyber else (175, 200, 255)
+        tri_col        = (175, 18, 18)   if not is_cyber else (0,  80, 220)
+        eye_glow       = (190, 0,   0)   if not is_cyber else (0, 130, 255)
+        boot_col       = (18, 14, 14)
+
+        # ── layout constants ─────────────────────────────────────────────────
+        # All offsets relative to bx/by (mid-torso)
+        HEAD_OY  = -32   # top of head above torso center
+        TORSO_H  = 22    # half-height of torso rect
+        LEG_OY   = TORSO_H + 2   # legs start below torso
+        LEG_H    = 20
+        FOOT_OY  = LEG_OY + LEG_H
+
+        # ── aura (drawn first, behind everything) ────────────────────────────
+        aura_r = int(50 + atk * 16)
+        aura_a = int(18 + atk * 55)
+        aura_s = pygame.Surface((aura_r * 2 + 4, aura_r * 2 + 4), pygame.SRCALPHA)
+        aura_col = (160, 0, 0, aura_a) if not is_cyber else (0, 30, 160, aura_a)
+        pygame.draw.circle(aura_s, aura_col, (aura_r + 2, aura_r + 2), aura_r)
+        surf.blit(aura_s, (bx - aura_r - 2, by - aura_r - 2))
+
+        # ── ground shadow ────────────────────────────────────────────────────
+        pygame.draw.ellipse(surf, (8, 4, 4), (bx - 16, by + FOOT_OY + 4, 32, 8))
+
+        # ── walk animation — legs sway ───────────────────────────────────────
+        walk_phase = math.sin(t * 4.0)
+        left_leg_x  = bx - 7
+        right_leg_x = bx + 7
+        left_foot_y  = by + FOOT_OY + int(walk_phase *  4)
+        right_foot_y = by + FOOT_OY + int(walk_phase * -4)
+        left_knee_y  = by + LEG_OY + int(walk_phase *  2)
+        right_knee_y = by + LEG_OY + int(walk_phase * -2)
+
+        # Legs (thighs + shins)
+        pygame.draw.line(surf, coverall_dark, (bx - 6, by + LEG_OY - 4), (left_leg_x,  left_foot_y),  8)
+        pygame.draw.line(surf, coverall_dark, (bx + 6, by + LEG_OY - 4), (right_leg_x, right_foot_y), 8)
+        # Leg highlight seam
+        pygame.draw.line(surf, coverall_mid, (bx - 6, by + LEG_OY - 4), (left_leg_x,  left_foot_y),  3)
+        pygame.draw.line(surf, coverall_mid, (bx + 6, by + LEG_OY - 4), (right_leg_x, right_foot_y), 3)
+        # Boots
+        pygame.draw.ellipse(surf, boot_col, (left_leg_x  - 7, left_foot_y  - 4, 14, 8))
+        pygame.draw.ellipse(surf, boot_col, (right_leg_x - 7, right_foot_y - 4, 14, 8))
+
+        # ── torso — rectangular coverall ─────────────────────────────────────
+        # Main torso block
+        torso_rect = (bx - 14, by - TORSO_H, 28, TORSO_H * 2)
+        pygame.draw.rect(surf, coverall_dark, torso_rect, border_radius=5)
+        # Centre seam / zipper line
+        pygame.draw.line(surf, coverall_edge, (bx, by - TORSO_H + 3), (bx, by + TORSO_H - 3), 2)
+        # Shoulder highlights
+        pygame.draw.line(surf, coverall_mid, (bx - 14, by - TORSO_H + 2), (bx - 14, by + TORSO_H - 4), 3)
+        pygame.draw.line(surf, coverall_mid, (bx + 14, by - TORSO_H + 2), (bx + 14, by + TORSO_H - 4), 3)
+
+        # ── arms ─────────────────────────────────────────────────────────────
+        # Left arm (passive / idle)
+        idle_arm_swing = int(math.sin(t * 2.0) * 3)
+        left_elbow  = (bx - 20, by - 4 + idle_arm_swing)
+        left_hand   = (bx - 22, by + 12 + idle_arm_swing)
+        pygame.draw.line(surf, coverall_dark, (bx - 13, by - TORSO_H + 6), left_elbow, 7)
+        pygame.draw.line(surf, coverall_dark, left_elbow, left_hand, 6)
+        pygame.draw.circle(surf, skin_col, left_hand, 4)   # left fist/hand
+
+        # Right arm — weapon arm, swings toward target on attack
+        arm_ext   = int(atk * 14)
+        r_shoulder = (bx + 13, by - TORSO_H + 6)
+        r_elbow    = (bx + 20 + int(math.cos(rad) * 6), by - 4 + int(math.sin(rad) * 6))
+        r_hand     = (bx + 13 + int(math.cos(rad) * (20 + arm_ext)),
+                      by + 4  + int(math.sin(rad) * (20 + arm_ext)))
+        pygame.draw.line(surf, coverall_dark, r_shoulder, r_elbow, 7)
+        pygame.draw.line(surf, coverall_dark, r_elbow,    r_hand,  6)
+        # Arm highlight
+        pygame.draw.line(surf, coverall_mid, r_shoulder, r_elbow, 3)
+
+        # ── neck ─────────────────────────────────────────────────────────────
+        pygame.draw.rect(surf, coverall_dark, (bx - 5, by - TORSO_H - 6, 10, 8))
+
+        # ── HEAD ─────────────────────────────────────────────────────────────
+        head_cx = bx
+        head_cy = by + HEAD_OY
+        head_w, head_h = 22, 24
+
+        # Back of head / hair (dark, slightly wider)
+        pygame.draw.ellipse(surf, (15, 10, 10), (head_cx - 13, head_cy - 14, 26, 26))
+
+        # ── Hockey mask ───────────────────────────────────────────────────────
+        # Base oval
+        pygame.draw.ellipse(surf, mask_base, (head_cx - 12, head_cy - 13, 24, 24))
+
+        # Slight 3-D bevel: darker lower half
+        bevel_s = pygame.Surface((24, 12), pygame.SRCALPHA)
+        bevel_s.fill((0, 0, 0, 30))
+        surf.blit(bevel_s, (head_cx - 12, head_cy - 1))
+
+        # ── Classic red triangle markings ────────────────────────────────────
+        # Top-left chevron
+        pygame.draw.polygon(surf, tri_col, [
+            (head_cx - 11, head_cy - 12),
+            (head_cx - 4,  head_cy - 12),
+            (head_cx - 8,  head_cy - 4)])
+        # Top-right chevron
+        pygame.draw.polygon(surf, tri_col, [
+            (head_cx + 4,  head_cy - 12),
+            (head_cx + 11, head_cy - 12),
+            (head_cx + 8,  head_cy - 4)])
+        # Vertical centre stripe
+        pygame.draw.line(surf, tri_col, (head_cx, head_cy - 13), (head_cx, head_cy + 10), 2)
+        # Left horizontal cheek bar
+        pygame.draw.line(surf, tri_col, (head_cx - 12, head_cy + 1), (head_cx - 5, head_cy + 1), 2)
+        # Right horizontal cheek bar
+        pygame.draw.line(surf, tri_col, (head_cx + 5,  head_cy + 1), (head_cx + 12, head_cy + 1), 2)
+        # Lower chin stripe
+        pygame.draw.line(surf, tri_col, (head_cx - 4, head_cy + 6), (head_cx + 4, head_cy + 6), 2)
+
+        # ── Eye holes ────────────────────────────────────────────────────────
+        pygame.draw.ellipse(surf, (15, 5, 5), (head_cx - 11, head_cy - 8,  9, 5))
+        pygame.draw.ellipse(surf, (15, 5, 5), (head_cx + 3,  head_cy - 8,  9, 5))
+        # Glowing pupils inside eye holes
+        pygame.draw.circle(surf, eye_glow, (head_cx - 7,  head_cy - 6), 2)
+        pygame.draw.circle(surf, eye_glow, (head_cx + 7,  head_cy - 6), 2)
+
+        # Nostrils (two small slits)
+        pygame.draw.line(surf, (80, 60, 60), (head_cx - 3, head_cy + 1), (head_cx - 1, head_cy + 1), 1)
+        pygame.draw.line(surf, (80, 60, 60), (head_cx + 1, head_cy + 1), (head_cx + 3, head_cy + 1), 1)
+
+        # Mask outline
+        mask_outline_col = (170, 165, 155) if not is_cyber else (120, 150, 220)
+        pygame.draw.ellipse(surf, mask_outline_col, (head_cx - 12, head_cy - 13, 24, 24), 1)
+
+        # Lv2+: yellow glow outline = Hidden Detection
+        if lv >= 2:
+            pygame.draw.ellipse(surf, (255, 255, 100), (head_cx - 13, head_cy - 14, 26, 26), 1)
+
+        # ── Weapon in right hand ──────────────────────────────────────────────
+        wx = int(r_hand[0] + math.cos(rad) * 4)
+        wy = int(r_hand[1] + math.sin(rad) * 4)
+        wx_tip = int(r_hand[0] + math.cos(rad) * (26 + arm_ext))
+        wy_tip = int(r_hand[1] + math.sin(rad) * (26 + arm_ext))
+
+        if lv == 0:
+            # Bare fists — knuckle bump
+            pygame.draw.circle(surf, skin_col, (wx, wy), 5)
+            pygame.draw.circle(surf, (80, 55, 45), (wx, wy), 3)
+        elif lv == 1:
+            # Pickaxe — handle + hooked head
+            pygame.draw.line(surf, (90, 70, 50),  (wx, wy), (wx_tip, wy_tip), 4)
+            hook_end = (wx_tip + int(math.sin(rad) * 10), wy_tip - int(math.cos(rad) * 10))
+            pygame.draw.line(surf, (180, 165, 150), (wx_tip, wy_tip), hook_end, 3)
+            pygame.draw.circle(surf, (200, 185, 170), hook_end, 3)
+        elif lv == 5:
+            # Spear — long pole + diamond tip
+            pygame.draw.line(surf, (130, 110, 90), (wx, wy), (wx_tip, wy_tip), 3)
+            tip_l = (wx_tip - int(math.sin(rad) * 5), wy_tip + int(math.cos(rad) * 5))
+            tip_r = (wx_tip + int(math.sin(rad) * 5), wy_tip - int(math.cos(rad) * 5))
+            pygame.draw.polygon(surf, (200, 205, 220),
+                [(wx_tip + int(math.cos(rad) * 8), wy_tip + int(math.sin(rad) * 8)),
+                 tip_l, (wx_tip, wy_tip), tip_r])
+        elif lv == 6:
+            # Chain — segmented links
+            segs = 5
+            for i in range(segs):
+                f = i / (segs - 1)
+                lx = int(wx + (wx_tip - wx) * f)
+                ly = int(wy + (wy_tip - wy) * f + int(math.sin(t * 8 + i) * 3))
+                pygame.draw.circle(surf, (130, 115, 100), (lx, ly), 3 if i % 2 == 0 else 2)
+            pygame.draw.circle(surf, (180, 160, 140), (wx_tip, wy_tip), 4)
+        elif lv >= 9:
+            # Cyber-Machete — glowing blue blade
+            pygame.draw.line(surf, (50, 90, 190),  (wx, wy), (wx_tip, wy_tip), 5)
+            pygame.draw.line(surf, (120, 210, 255), (wx, wy), (wx_tip, wy_tip), 2)
+            # Blade edge glint
+            perp_x = int(-math.sin(rad) * 3)
+            perp_y = int( math.cos(rad) * 3)
+            pygame.draw.line(surf, (200, 240, 255),
+                (wx_tip + perp_x, wy_tip + perp_y),
+                (wx_tip - perp_x, wy_tip - perp_y), 2)
+        else:
+            # Machete — classic wide blade
+            pygame.draw.line(surf, (120, 115, 115), (wx, wy), (wx_tip, wy_tip), 5)
+            # Blade bevel
+            perp_x = int(-math.sin(rad) * 3)
+            perp_y = int( math.cos(rad) * 3)
+            pygame.draw.line(surf, (190, 185, 180),
+                (wx + perp_x, wy + perp_y), (wx_tip + perp_x, wy_tip + perp_y), 2)
+            # Tip circle
+            pygame.draw.circle(surf, (200, 195, 185), (wx_tip, wy_tip), 3)
+
+        # ── Fear flash ────────────────────────────────────────────────────────
+        if self._fear_flash > 0:
+            ff = pygame.Surface((100, 100), pygame.SRCALPHA)
+            pygame.draw.circle(ff, (255, 220, 0, int(self._fear_flash / 0.25 * 140)), (50, 50), 48)
+            surf.blit(ff, (bx - 50, by - 50))
+
+        # ── Steam AOE flash ───────────────────────────────────────────────────
+        if self._aoe_flash > 0:
+            af = pygame.Surface((180, 180), pygame.SRCALPHA)
+            pygame.draw.circle(af, (180, 220, 255, int(self._aoe_flash / 0.20 * 80)), (90, 90), 80)
+            surf.blit(af, (bx - 90, by - 90))
+
+        # ── Level pips (blood-red diamonds below feet) ────────────────────────
+        for i in range(min(lv, 10)):
+            px2 = bx - (min(lv, 10) - 1) * 4 + i * 8
+            py2 = by + FOOT_OY + 10
+            pip_col = (180, 20, 20)
+            pygame.draw.polygon(surf, pip_col,
+                [(px2, py2 - 4), (px2 + 3, py2), (px2, py2 + 4), (px2 - 3, py2)])
+
+    def get_info(self):
+        cfg = JASON_LEVELS[self.level]
+        return {"DMG": self.damage,
+                "Range": self.range_tiles,
+                "Firerate": f"{self.firerate:.2f}",
+                "Level Name": cfg["label"]}
+
+    def get_next_info(self):
+        nl = self.level + 1
+        if nl >= len(JASON_LEVELS):
+            return None
+        cfg = JASON_LEVELS[nl]
+        return {"DMG": cfg["dmg"],
+                "Range": cfg["rng"],
+                "Firerate": f"{cfg['fr']:.2f}",
+                "Level Name": cfg["label"]}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# -- Межпространственный шкаф (Inter-Dimensional Wardrobe) --
+# A support tower that:
+#  • Speeds up time globally (game dt multiplier) while active — scales with level
+#  • Grants hidden detection to all towers within its radius
+#  • Can be placed ON the road (limit 4)
+#  • Enemies that pass through its radius get hilarious visual effects + random debuffs
+# ══════════════════════════════════════════════════════════════════════════════
+
+WARDROBE_LEVELS = [
+    # (time_mult, hd_radius_tiles, upgrade_cost)
+    (1.20, 5.0, None),    # 0 — +20% speed, 5-tile HD radius
+    (1.35, 5.5, 900),     # 1
+    (1.55, 6.0, 2000),    # 2
+    (1.75, 6.5, 3500),    # 3
+    (2.00, 7.0, 6000),    # 4 max — double speed
+]
+
+# Funny debuff names shown above affected enemies
+_WARDROBE_DEBUFFS = [
+    ("🤡 CLOWNED",  (255, 80,  80)),
+    ("🐟 FISHY",    (80,  200, 255)),
+    ("🌀 DIZZY",    (220, 80,  255)),
+    ("🍌 SLIPPY",   (255, 230, 50)),
+    ("🎈 FLOATY",   (255, 150, 200)),
+    ("🦆 QUACKED",  (255, 220, 0)),
+    ("👻 SPOOKED",  (180, 255, 200)),
+    ("🐸 RIBBIT",   (80,  255, 100)),
+    ("💩 POOPED",   (160, 100, 40)),
+    ("🍕 PIZZAD",   (255, 180, 60)),
+    ("🥴 WOOZY",    (200, 255, 80)),
+    ("🐔 CHICKEN",  (255, 240, 100)),
+    ("🤢 CURSED",   (100, 255, 120)),
+    ("👁 WATCHED",  (255, 60,  200)),
+    ("🧅 ONIONED",  (220, 255, 180)),
+]
+
+# Visual transformation tags applied to enemies
+_WARDROBE_VISUAL_TAGS = [
+    "party_hat", "rainbow", "big_nose", "googly", "mustache", "tiny_hat", "propeller",
+    "poop", "pizza", "dizzy_stars", "chicken_hat", "sunglasses", "crying", "antennas",
+]
+
+
+class WardrobeEffect:
+    """Brief sparkly portal flash when the wardrobe is active."""
+    def __init__(self, x, y):
+        self.x = x; self.y = y
+        self.t = 0.0; self.life = 1.5
+
+    def update(self, dt):
+        self.t += dt
+        return self.t < self.life
+
+    def draw(self, surf):
+        p = self.t / self.life
+        alpha = int(240 * (1 - p))
+        r = int(20 + p * 60)
+        s = pygame.Surface((r * 2 + 16, r * 2 + 16), pygame.SRCALPHA)
+        # Filled center burst
+        pygame.draw.circle(s, (200, 100, 255, int(alpha * 0.35)), (r + 8, r + 8), r)
+        for width, col in [(6, (140, 80, 255)), (4, (200, 140, 255)), (2, (255, 200, 255))]:
+            pygame.draw.circle(s, (*col, alpha), (r + 8, r + 8), r, width)
+        # Sparkle rays
+        for i in range(8):
+            a = math.radians(self.t * 300 + i * 45)
+            x1 = r + 8 + int(math.cos(a) * (r - 5))
+            y1 = r + 8 + int(math.sin(a) * (r - 5))
+            x2 = r + 8 + int(math.cos(a) * (r + 10))
+            y2 = r + 8 + int(math.sin(a) * (r + 10))
+            pygame.draw.line(s, (255, 220, 255, alpha), (x1, y1), (x2, y2), 2)
+        surf.blit(s, (int(self.x) - r - 8, int(self.y) - r - 8))
+
+
+class InterDimensionalWardrobe(Unit):
+    PLACE_COST   = 1200
+    COLOR        = (140, 80, 255)
+    NAME         = "Wardrobe"
+    ON_ROAD      = True          # can be placed on road
+    _PLACE_LIMIT = 4             # max 4 on the map at once
+
+    # Class-level time speed multiplier (read by Game/SandboxGame update loop)
+    _GLOBAL_TIME_MULT = 1.0      # reset to 1.0 each frame, then set by active wardrobes
+
+    def __init__(self, px, py):
+        super().__init__(px, py)
+        self._anim_t    = 0.0
+        self._pulse_t   = 0.0    # portal shimmer timer
+        self._rot       = 0.0    # door-creak rotation
+        self._apply_level()
+
+    def _apply_level(self):
+        mult, rng, _ = WARDROBE_LEVELS[self.level]
+        self.time_mult       = mult
+        self.range_tiles     = rng
+        self.hidden_detection = True   # the wardrobe itself also has HD so it shows the range
+        self.firerate        = 9999.0  # not an attacker
+        self.damage          = 0
+
+    def upgrade_cost(self):
+        if self.level >= len(WARDROBE_LEVELS) - 1: return None
+        return WARDROBE_LEVELS[self.level + 1][2]
+
+    def upgrade(self):
+        if self.level < len(WARDROBE_LEVELS) - 1:
+            cost = WARDROBE_LEVELS[self.level + 1][2] or 0
+            self.level += 1
+            self._apply_level()
+            self._total_spent += cost
+
+    def update(self, dt, enemies, effects, money):
+        """Support tower — no attacks. Applies time boost + HD aura + debuffs."""
+        self._anim_t += dt
+        self._rot    += dt * 15
+        self._pulse_t = max(0.0, self._pulse_t - dt)
+
+        r = self.range_tiles * TILE
+
+        # Grant hidden_detection to all towers in radius (read by game draw)
+        # (handled externally by the game loop patch below)
+
+        # Apply funny debuffs to enemies passing through radius
+        for e in enemies:
+            if not e.alive: continue
+            if dist((e.x, e.y), (self.px, self.py)) <= r:
+                if not getattr(e, '_wardrobe_tagged', False):
+                    e._wardrobe_tagged = True
+                    # Random visual tag
+                    e._wardrobe_visual = random.choice(_WARDROBE_VISUAL_TAGS)
+                    # Random debuff label
+                    label, col = random.choice(_WARDROBE_DEBUFFS)
+                    e._wardrobe_label     = label
+                    e._wardrobe_label_col = col
+                    e._wardrobe_label_t   = 6.0   # show for 6 seconds
+
+                    # Random gameplay debuff
+                    debuff = random.randint(0, 4)
+                    if debuff == 0:   # heavy slow
+                        if not getattr(e, 'SLOW_RESISTANCE', False):
+                            e._slow_factor = min(getattr(e, '_slow_factor', 1.0), 0.30)
+                            e._ice_timer   = max(getattr(e, '_ice_timer', 0.0), 6.0)
+                    elif debuff == 1:  # speed boost (goes faster — funny / dangerous)
+                        e._wardrobe_speed_mult = 1.6
+                        e._wardrobe_speed_t    = 6.0
+                    elif debuff == 2:  # tiny stun
+                        e._stun_timer = max(getattr(e, '_stun_timer', 0.0), 1.5)
+                    elif debuff == 3:  # confetti slow (same as clown)
+                        e._slow_factor = min(getattr(e, '_slow_factor', 1.0), 0.50)
+                        e._confetti_slow_timer = 6.0
+                    else:             # reverse — walk backwards briefly
+                        e._wardrobe_reverse    = True
+                        e._wardrobe_reverse_t  = 6.0
+
+                    # Spawn a fun sparkle effect
+                    effects.append(WardrobeEffect(e.x, e.y))
+                    self._pulse_t = 0.35
+
+            else:
+                # Reset tag so enemy gets debuffed again if it re-enters
+                e._wardrobe_tagged = False
+
+    def get_info(self):
+        return {"Time boost": f"+{int((self.time_mult - 1) * 100)}%",
+                "HD radius": f"{self.range_tiles:.1f} tiles",
+                "Attack": "None (support)"}
+
+    def get_next_info(self):
+        nl = self.level + 1
+        if nl >= len(WARDROBE_LEVELS): return None
+        mult, rng, _ = WARDROBE_LEVELS[nl]
+        return {"Time boost": f"+{int((mult - 1) * 100)}%",
+                "HD radius": f"{rng:.1f} tiles",
+                "Attack": "None (support)"}
+
+    def draw_range(self, surf):
+        """Custom range ring — purple portal swirl."""
+        r = int(self.range_tiles * TILE)
+        s = pygame.Surface((r * 2 + 8, r * 2 + 8), pygame.SRCALPHA)
+        t = self._anim_t
+        pulse = abs(math.sin(t * 2.5))
+        for width, col, alpha in [(r, (80, 30, 160), 12), (3, (200, 140, 255), 130), (1, (255, 200, 255), 80)]:
+            pygame.draw.circle(s, (*col, alpha), (r + 4, r + 4), r, width)
+        # rotating dashes
+        for i in range(8):
+            a = math.radians(t * 60 + i * 45)
+            dx2 = int(math.cos(a) * r)
+            dy2 = int(math.sin(a) * r)
+            pygame.draw.circle(s, (200, 140, 255, int(120 + pulse * 80)),
+                               (r + 4 + dx2, r + 4 + dy2), 3)
+        surf.blit(s, (int(self.px) - r - 4, int(self.py) - r - 4))
+
+    def _draw_body(self, surf, cx, cy):
+        t  = self._anim_t
+        lv = self.level
+        rot = self._rot
+
+        # ── shadow ──────────────────────────────────────────────────────────
+        pygame.draw.ellipse(surf, (15, 5, 30), (cx - 24, cy + 24, 48, 14))
+
+        # ── portal glow behind wardrobe ──────────────────────────────────────
+        pulse = abs(math.sin(t * 2.2))
+        pg = int(40 + pulse * 60)
+        glow_r = int(28 + lv * 3 + pulse * 6)
+        gs = pygame.Surface((glow_r * 2 + 8, glow_r * 2 + 8), pygame.SRCALPHA)
+        pygame.draw.circle(gs, (120, 50, 220, pg), (glow_r + 4, glow_r + 4), glow_r)
+        surf.blit(gs, (cx - glow_r - 4, cy - glow_r - 4))
+
+        # ── wardrobe body (tall cabinet) ──────────────────────────────────────
+        # Main cabinet
+        cab_w = 30; cab_h = 44
+        pygame.draw.rect(surf, (60, 30, 80),
+                         (cx - cab_w // 2, cy - cab_h // 2, cab_w, cab_h),
+                         border_radius=4)
+        pygame.draw.rect(surf, (100, 55, 140),
+                         (cx - cab_w // 2, cy - cab_h // 2, cab_w, cab_h),
+                         2, border_radius=4)
+
+        # Door crack with glowing portal inside
+        portal_alpha = int(120 + pulse * 100)
+        door_crack_x = cx - 2
+        pygame.draw.line(surf, (180, 80, 255), (door_crack_x, cy - cab_h // 2 + 4),
+                         (door_crack_x, cy + cab_h // 2 - 4), 2)
+        # Inner portal glow leaking through crack
+        crack_s = pygame.Surface((20, cab_h - 8), pygame.SRCALPHA)
+        for xi in range(4, 0, -1):
+            crack_s.fill((0, 0, 0, 0))
+            pygame.draw.line(crack_s, (180 - xi * 20, 80, 255, portal_alpha // xi),
+                             (10, 0), (10, cab_h - 8), xi * 2)
+        surf.blit(crack_s, (door_crack_x - 10, cy - cab_h // 2 + 4))
+
+        # Door knobs
+        for dy2 in (-6, 6):
+            pygame.draw.circle(surf, (200, 180, 255), (door_crack_x - 5, cy + dy2), 3)
+            pygame.draw.circle(surf, (250, 240, 255), (door_crack_x - 5, cy + dy2), 1)
+            pygame.draw.circle(surf, (200, 180, 255), (door_crack_x + 5, cy + dy2), 3)
+            pygame.draw.circle(surf, (250, 240, 255), (door_crack_x + 5, cy + dy2), 1)
+
+        # Decorative carved frame lines on each door panel
+        frame_col = (130, 80, 180)
+        # left door frame
+        pygame.draw.rect(surf, frame_col,
+                         (cx - cab_w // 2 + 3, cy - cab_h // 2 + 3,
+                          cab_w // 2 - 5, cab_h - 6), 1, border_radius=2)
+        # right door frame
+        pygame.draw.rect(surf, frame_col,
+                         (cx + 2, cy - cab_h // 2 + 3,
+                          cab_w // 2 - 5, cab_h - 6), 1, border_radius=2)
+
+        # ── orbiting stars (level count) ──────────────────────────────────────
+        n_stars = lv + 2
+        for i in range(n_stars):
+            a = math.radians(rot * 1.5 + i * (360 / n_stars))
+            sr = 22 + lv * 2
+            sx = cx + int(math.cos(a) * sr)
+            sy = cy + int(math.sin(a) * sr)
+            star_alpha = int(180 + pulse * 75)
+            ss = pygame.Surface((12, 12), pygame.SRCALPHA)
+            # 4-point star
+            for sp in range(4):
+                sa = math.radians(sp * 90 + rot * 3)
+                pygame.draw.line(ss, (200, 140, 255, star_alpha),
+                                 (6, 6),
+                                 (6 + int(math.cos(sa) * 5), 6 + int(math.sin(sa) * 5)), 2)
+            surf.blit(ss, (sx - 6, sy - 6))
+            pygame.draw.circle(surf, (240, 200, 255), (sx, sy), 2)
+
+        # ── time clock face on top ────────────────────────────────────────────
+        clock_y = cy - cab_h // 2 - 10
+        clock_r = 8
+        pygame.draw.circle(surf, (50, 20, 80),  (cx, clock_y), clock_r + 2)
+        pygame.draw.circle(surf, (100, 60, 180), (cx, clock_y), clock_r)
+        pygame.draw.circle(surf, (160, 120, 255),(cx, clock_y), clock_r, 2)
+        # clock hands (spinning)
+        for hand_speed, hand_len, hand_col in [(t * 360, clock_r - 3, (220, 200, 255)),
+                                                (t * 30,  clock_r - 1, (255, 240, 255))]:
+            ha = math.radians(hand_speed - 90)
+            pygame.draw.line(surf, hand_col,
+                             (cx, clock_y),
+                             (cx + int(math.cos(ha) * hand_len),
+                              clock_y + int(math.sin(ha) * hand_len)), 2)
+
+        # ── pulse glow when enemy hit ─────────────────────────────────────────
+        if self._pulse_t > 0:
+            pp = self._pulse_t / 0.35
+            ps = pygame.Surface((100, 100), pygame.SRCALPHA)
+            pygame.draw.circle(ps, (180, 80, 255, int(140 * pp)), (50, 50), int(12 + pp * 30))
+            surf.blit(ps, (cx - 50, cy - 50))
+
+        # ── level pips ────────────────────────────────────────────────────────
+        max_lv = len(WARDROBE_LEVELS) - 1
+        for i in range(max_lv):
+            pip_col = (200, 140, 255) if i < lv else (50, 30, 80)
+            pygame.draw.circle(surf, pip_col,
+                               (cx - (max_lv - 1) * 4 + i * 8, cy + cab_h // 2 + 8), 3)
+
+
 # -- UI --
 class UI:
     SLOT_TYPES=[Assassin,Accelerator,Clown,Archer,Zigres]
@@ -5385,7 +6904,7 @@ class UI:
             # Place the tower
             UType_check=self.SLOT_TYPES[self.selected_slot]
             on_road_ok = getattr(UType_check, 'ON_ROAD', False)
-            road_blocked = (abs(my-PATH_Y)<PATH_H+5) and not on_road_ok
+            road_blocked = _point_near_path(mx, my, ACTIVE_MAP_WAYPOINTS, PATH_H + PATH_SEG_W) and not on_road_ok
             if road_blocked or my>SLOT_AREA_Y-10 or any(dist((u.px,u.py),pos)<36 for u in units):
                 self.show_msg("Can't place here!"); self.drag_unit=None; self.selected_slot=None; return 0
             UType=self.SLOT_TYPES[self.selected_slot]
@@ -5638,12 +7157,11 @@ class UI:
 
             # -- Tower icon badge --
             icon_cx=mx0+40; icon_cy=my0+header_h//2
-            draw_rect_alpha(surf,(0,0,0),(icon_cx-20,icon_cy-20,40,40),80,brad=20)
-            pygame.draw.circle(surf,(30,20,60),(icon_cx,icon_cy),20)
-            for ring_r,ring_a in [(23,60),(26,30),(29,12)]:
+            draw_rect_alpha(surf,(0,0,0),(icon_cx-24,icon_cy-24,48,48),100,brad=24)
+            pygame.draw.circle(surf,(20,12,45),(icon_cx,icon_cy),24)
+            for ring_r,ring_a in [(26,50),(29,25),(32,10)]:
                 draw_rect_alpha(surf,u.COLOR,(icon_cx-ring_r,icon_cy-ring_r,ring_r*2,ring_r*2),ring_a,brad=ring_r)
-            pygame.draw.circle(surf,u.COLOR,(icon_cx,icon_cy),16)
-            pygame.draw.circle(surf,(255,255,255),(icon_cx,icon_cy),16,2)
+            _lo._draw_tower_icon(surf, type(u), icon_cx, icon_cy, size=30)
 
             # -- Tower name --
             name_f=pygame.font.SysFont("consolas",24,bold=True)
@@ -5772,12 +7290,19 @@ class UI:
             if u.ability and u.level>=2:
                 ab=u.ability; ready=ab.ready()
                 ab_rect=btns["ability"]
+                # Determine correct keybind label per tower
+                if isinstance(u, Clown):
+                    key_label = "G"
+                elif isinstance(u, Jason):
+                    key_label = "H"
+                else:
+                    key_label = "F"
                 if ready:
                     draw_rect_alpha(surf,(0,90,110),(*ab_rect.topleft,ab_rect.w,ab_rect.h),230,brad=10)
                     pygame.draw.rect(surf,C_CYAN,ab_rect,2,border_radius=10)
                     # shimmer line
                     draw_rect_alpha(surf,(255,255,255),(*ab_rect.topleft,ab_rect.w,2),40,brad=10)
-                    alabel=f"* {ab.name}  [F]"
+                    alabel=f"* {ab.name}  [{key_label}]"
                     txt(surf,alabel,ab_rect.center,C_CYAN,font_md,center=True)
                 else:
                     draw_rect_alpha(surf,(20,24,40),(*ab_rect.topleft,ab_rect.w,ab_rect.h),210,brad=10)
@@ -5787,7 +7312,7 @@ class UI:
                     bar_w=ab_rect.w-20
                     pygame.draw.rect(surf,(30,35,55),(ab_rect.x+10,ab_rect.centery+6,bar_w,4),border_radius=2)
                     pygame.draw.rect(surf,(60,180,200),(ab_rect.x+10,ab_rect.centery+6,int(bar_w*r3),4),border_radius=2)
-                    txt(surf,f"CD {ab.cd_left:.1f}s",ab_rect.center,(70,80,105),font_sm,center=True)
+                    txt(surf,f"[{key_label}]  CD {ab.cd_left:.1f}s",ab_rect.center,(70,80,105),font_sm,center=True)
 
             # -- Sell button --
             sell_rect=btns["sell"]
@@ -5867,7 +7392,7 @@ class UI:
             self.drag_unit.draw(surf)
             # hint text
             _on_road_ok = getattr(self.drag_unit, 'ON_ROAD', False)
-            _road_bad = (abs(my2-PATH_Y)<PATH_H+5) and not _on_road_ok
+            _road_bad = _point_near_path(mx2, my2, ACTIVE_MAP_WAYPOINTS, PATH_H + PATH_SEG_W) and not _on_road_ok
             hint_col=(200,80,80) if (_road_bad or my2>SLOT_AREA_Y-10) else C_CYAN
             txt(surf,"Click to place  |  Click slot to cancel",(SCREEN_W//2,SLOT_AREA_Y-70),hint_col,font_sm,center=True)
 
@@ -5908,7 +7433,7 @@ DIFFICULTIES = {
         "enemy_speed_mult": 0.85,
         "start_money": 800,
         "color": (60, 200, 80),
-        "desc": ["Enemies are weaker", "More starting money", "Extra HP"],
+        "desc": ["Enemies are weaker", "More starting money", "Extra HP", "Map: Forest"],
         "img_label": "Tower Battles",
     },
     "Hard": {
@@ -5918,7 +7443,7 @@ DIFFICULTIES = {
         "enemy_speed_mult": 0.9,
         "start_money": 650,
         "color": (255, 200, 50),
-        "desc": ["Enemies slightly weaker", "More money & HP", "Balanced challenge"],
+        "desc": ["Enemies slightly weaker", "More money & HP", "Balanced challenge", "Map: City (zigzag)"],
         "img_label": "TDS Classic",
     },
     "Hell": {
@@ -5928,7 +7453,7 @@ DIFFICULTIES = {
         "enemy_speed_mult": 1.1,
         "start_money": 600,
         "color": (220, 60, 60),
-        "desc": ["HP scales with waves", "Scarce resources", "Survive if you can"],
+        "desc": ["HP scales with waves", "Scarce resources", "Survive if you can", "Map: Volcano (S-curve)"],
         "img_label": "Zombie Attack",
     },
 }
@@ -7512,7 +9037,7 @@ class Lobby:
 
         # Loadout: which towers are in each of the 5 slots
         # All available tower types
-        self.all_towers = [Assassin, Accelerator, Clown, Archer, Zigres, Gunner]
+        self.all_towers = [Assassin, Accelerator, Clown, Archer, Zigres, Gunner, Jason, InterDimensionalWardrobe]
         _saved_ld = load_loadout()
         self.loadout = _saved_ld if _saved_ld is not None else list(UI.SLOT_TYPES)
 
@@ -7529,6 +9054,9 @@ class Lobby:
         # --
 
         self._build_rects()
+
+        # -- Developer console (F3 to toggle, only active in dev mode) --
+        self.dev_console = DevConsole()
 
     # -- Частицы главного меню --
     def _spawn_menu_particle(self, preplace=False):
@@ -7713,6 +9241,20 @@ class Lobby:
         self.btn_diff_back = pygame.Rect(29, 29, 158, 52)
         self.btn_diff_start = pygame.Rect(SCREEN_W//2-202, SCREEN_H-108, 403, 75)
 
+        # Map selection cards (shown after difficulty is chosen)
+        MAP_NAMES = ["Forest", "City", "Volcano"]
+        mcard_w, mcard_h = 380, 420
+        mgap = 60
+        mtotal = len(MAP_NAMES) * (mcard_w + mgap) - mgap
+        mstart_x = (SCREEN_W - mtotal) // 2
+        self.map_cards = {}
+        for i, mname in enumerate(MAP_NAMES):
+            rx = mstart_x + i * (mcard_w + mgap)
+            ry = (SCREEN_H - mcard_h) // 2 - 20
+            self.map_cards[mname] = pygame.Rect(rx, ry, mcard_w, mcard_h)
+        self.btn_map_back = pygame.Rect(29, 29, 158, 52)
+        self.btn_map_start = pygame.Rect(SCREEN_W//2-220, SCREEN_H-108, 440, 75)
+
         # Loadout screen
         self._build_loadout_rects()
 
@@ -7866,17 +9408,61 @@ class Lobby:
             pygame.draw.circle(surf, (240,200,255), p(0, -2), r(2))
 
         elif TType is Accelerator:
-            pygame.draw.ellipse(surf, (30, 15, 60),
-                                (cx - r(20), cy + r(11), r(40), r(13)))
-            pygame.draw.circle(surf, (40, 20, 80),  (cx, cy), r(36))
-            pygame.draw.circle(surf, C_ACCEL,        (cx, cy), r(26))
-            pygame.draw.circle(surf, (200, 170, 255), p(-8, -8), r(10))
-            pygame.draw.circle(surf, (230, 210, 255), (cx, cy), r(5))
-            for i in range(4):
-                a = math.radians(i * 90)
-                pygame.draw.circle(surf, (160, 100, 255),
-                                   (cx + int(math.cos(a) * r(18)),
-                                    cy + int(math.sin(a) * r(18))), r(4))
+            # Determine level from object if passed, otherwise use 0 (static icon)
+            lv = getattr(TType, '_icon_level', 0)  # fallback for class-level calls
+            # -- Ground shadow --
+            pygame.draw.ellipse(surf, (15, 5, 40),
+                                (cx - r(20), cy + r(16), r(40), r(11)))
+            # -- Outer glow aura --
+            aura_r2 = r(36)
+            aura_s2 = pygame.Surface((aura_r2 * 2 + 4, aura_r2 * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(aura_s2, (130, 60, 255, 35), (aura_r2 + 2, aura_r2 + 2), aura_r2)
+            surf.blit(aura_s2, (cx - aura_r2 - 2, cy - aura_r2 - 2))
+            # -- Hexagonal chassis --
+            hex_ri = r(26)
+            hex_pts_i = [
+                (cx + int(math.cos(math.radians(60 * i + 30)) * hex_ri),
+                 cy + int(math.sin(math.radians(60 * i + 30)) * hex_ri))
+                for i in range(6)
+            ]
+            pygame.draw.polygon(surf, (25, 10, 55), hex_pts_i)
+            pygame.draw.polygon(surf, (100, 50, 200), hex_pts_i, max(1, r(3)))
+            # inner hex
+            hex_ri2 = r(16)
+            hex_pts_i2 = [
+                (cx + int(math.cos(math.radians(60 * i)) * hex_ri2),
+                 cy + int(math.sin(math.radians(60 * i)) * hex_ri2))
+                for i in range(6)
+            ]
+            pygame.draw.polygon(surf, (40, 15, 80), hex_pts_i2)
+            pygame.draw.polygon(surf, (160, 90, 255), hex_pts_i2, max(1, r(2)))
+            # -- Orbiting dots (outer ring, 3 dots) --
+            for i in range(3):
+                a = math.radians(i * 120 + 30)
+                ox2 = cx + int(math.cos(a) * r(18))
+                oy2 = cy + int(math.sin(a) * r(18))
+                dg = pygame.Surface((r(12), r(12)), pygame.SRCALPHA)
+                pygame.draw.circle(dg, (180, 120, 255, 110), (r(6), r(6)), r(6))
+                surf.blit(dg, (ox2 - r(6), oy2 - r(6)))
+                pygame.draw.circle(surf, (230, 200, 255), (ox2, oy2), max(1, r(3)))
+            # -- Orbiting dots (inner ring, 3 dots) --
+            for i in range(3):
+                a = math.radians(i * 120 + 90)
+                ox2 = cx + int(math.cos(a) * r(11))
+                oy2 = cy + int(math.sin(a) * r(11))
+                pygame.draw.circle(surf, (100, 200, 255), (ox2, oy2), max(1, r(2)))
+            # -- Core --
+            pygame.draw.circle(surf, (60, 20, 120), (cx, cy), r(9))
+            pygame.draw.circle(surf, (160, 80, 255), (cx, cy), r(8))
+            pygame.draw.circle(surf, (220, 180, 255), (cx, cy), max(1, r(5)))
+            pygame.draw.circle(surf, (255, 245, 255), (cx, cy), max(1, r(3)))
+            # -- Hex edge accent dots --
+            for i in range(6):
+                a1 = math.radians(60 * i + 30)
+                a2 = math.radians(60 * (i + 1) + 30)
+                mx3 = (cx + int(math.cos(a1) * hex_ri) + cx + int(math.cos(a2) * hex_ri)) // 2
+                my3 = (cy + int(math.sin(a1) * hex_ri) + cy + int(math.sin(a2) * hex_ri)) // 2
+                pygame.draw.circle(surf, (200, 120, 255), (mx3, my3), max(1, r(2)))
 
         elif TType is Clown:
             pygame.draw.ellipse(surf, (20, 10, 10),
@@ -8057,6 +9643,154 @@ class Lobby:
             pygame.draw.circle(surf, (25, 38, 62),  (cx, cy), r(15))
             pygame.draw.circle(surf, (50, 90, 150),  (cx, cy), r(12))
             pygame.draw.circle(surf, (80, 140, 210), (cx, cy), r(9))
+
+        elif TType is Jason:
+            # -- Jason Voorhees icon — full figure matching in-game _draw_body --
+            is_cyber = False  # icons always show base look
+            coverall_dark  = (12, 12, 16)
+            coverall_mid   = (28, 25, 30)
+            coverall_edge  = (45, 40, 45)
+            skin_col       = (60, 42, 35)
+            mask_base      = (228, 222, 215)
+            tri_col        = (175, 18, 18)
+            eye_glow_col   = (190, 0,   0)
+            boot_col       = (18, 14, 14)
+
+            # layout (offsets from cx/cy = mid-torso)
+            HEAD_OY  = -r(32)
+            TORSO_H  = r(22)
+            LEG_OY   = TORSO_H + r(2)
+            LEG_H    = r(20)
+            FOOT_OY  = LEG_OY + LEG_H
+
+            # ground shadow
+            pygame.draw.ellipse(surf, (8, 4, 4),
+                                (cx - r(16), cy + FOOT_OY + r(4), r(32), r(8)))
+
+            # legs
+            pygame.draw.line(surf, coverall_dark, (cx - r(6), cy + LEG_OY - r(4)),
+                             (cx - r(7), cy + FOOT_OY), max(1, r(8)))
+            pygame.draw.line(surf, coverall_dark, (cx + r(6), cy + LEG_OY - r(4)),
+                             (cx + r(7), cy + FOOT_OY), max(1, r(8)))
+            pygame.draw.line(surf, coverall_mid,  (cx - r(6), cy + LEG_OY - r(4)),
+                             (cx - r(7), cy + FOOT_OY), max(1, r(3)))
+            pygame.draw.line(surf, coverall_mid,  (cx + r(6), cy + LEG_OY - r(4)),
+                             (cx + r(7), cy + FOOT_OY), max(1, r(3)))
+            # boots
+            pygame.draw.ellipse(surf, boot_col,
+                                (cx - r(7) - r(7), cy + FOOT_OY - r(4), r(14), r(8)))
+            pygame.draw.ellipse(surf, boot_col,
+                                (cx + r(7) - r(7), cy + FOOT_OY - r(4), r(14), r(8)))
+
+            # torso
+            pygame.draw.rect(surf, coverall_dark,
+                             (cx - r(14), cy - TORSO_H, r(28), TORSO_H * 2),
+                             border_radius=max(1, r(5)))
+            pygame.draw.line(surf, coverall_edge,
+                             (cx, cy - TORSO_H + r(3)), (cx, cy + TORSO_H - r(3)),
+                             max(1, r(2)))
+            pygame.draw.line(surf, coverall_mid,
+                             (cx - r(14), cy - TORSO_H + r(2)),
+                             (cx - r(14), cy + TORSO_H - r(4)), max(1, r(3)))
+            pygame.draw.line(surf, coverall_mid,
+                             (cx + r(14), cy - TORSO_H + r(2)),
+                             (cx + r(14), cy + TORSO_H - r(4)), max(1, r(3)))
+
+            # left arm (idle)
+            pygame.draw.line(surf, coverall_dark,
+                             (cx - r(13), cy - TORSO_H + r(6)),
+                             (cx - r(20), cy - r(4)), max(1, r(7)))
+            pygame.draw.line(surf, coverall_dark,
+                             (cx - r(20), cy - r(4)),
+                             (cx - r(22), cy + r(12)), max(1, r(6)))
+            pygame.draw.circle(surf, skin_col, (cx - r(22), cy + r(12)), max(1, r(4)))
+
+            # right arm + machete
+            pygame.draw.line(surf, coverall_dark,
+                             (cx + r(13), cy - TORSO_H + r(6)),
+                             (cx + r(20), cy - r(4)), max(1, r(7)))
+            pygame.draw.line(surf, coverall_dark,
+                             (cx + r(20), cy - r(4)),
+                             (cx + r(22), cy + r(8)), max(1, r(6)))
+            # machete blade
+            pygame.draw.line(surf, (120, 115, 115),
+                             (cx + r(22), cy + r(8)),
+                             (cx + r(34), cy - r(4)), max(1, r(4)))
+            pygame.draw.line(surf, (190, 185, 180),
+                             (cx + r(22), cy + r(6)),
+                             (cx + r(34), cy - r(6)), max(1, r(2)))
+            pygame.draw.circle(surf, (200, 195, 185),
+                               (cx + r(34), cy - r(4)), max(1, r(3)))
+
+            # neck
+            pygame.draw.rect(surf, coverall_dark,
+                             (cx - r(5), cy - TORSO_H - r(6), r(10), r(8)))
+
+            # aura
+            gs_j = pygame.Surface((r(96), r(96)), pygame.SRCALPHA)
+            pygame.draw.circle(gs_j, (180, 0, 0, 28), (r(48), r(48)), r(46))
+            surf.blit(gs_j, (cx - r(48), cy - r(48)))
+
+            # HEAD ─────────────────────────────────────────────────────────
+            hx, hy = cx, cy + HEAD_OY
+            # back of head
+            pygame.draw.ellipse(surf, (15, 10, 10),
+                                (hx - r(13), hy - r(14), r(26), r(26)))
+            # mask base oval
+            pygame.draw.ellipse(surf, mask_base,
+                                (hx - r(12), hy - r(13), r(24), r(24)))
+            # bevel
+            bev = pygame.Surface((r(24), r(12)), pygame.SRCALPHA)
+            bev.fill((0, 0, 0, 30))
+            surf.blit(bev, (hx - r(12), hy - r(1)))
+            # top-left chevron
+            pygame.draw.polygon(surf, tri_col, [
+                p(-11, -12 + HEAD_OY // r(1)), p(-4, -12 + HEAD_OY // r(1)),
+                p(-8,  -4  + HEAD_OY // r(1))])
+            # top-right chevron
+            pygame.draw.polygon(surf, tri_col, [
+                p(4,  -12 + HEAD_OY // r(1)), p(11, -12 + HEAD_OY // r(1)),
+                p(8,  -4  + HEAD_OY // r(1))])
+            # centre stripe
+            pygame.draw.line(surf, tri_col,
+                             (hx, hy - r(13)), (hx, hy + r(10)), max(1, r(2)))
+            # cheek bars
+            pygame.draw.line(surf, tri_col,
+                             (hx - r(12), hy + r(1)), (hx - r(5), hy + r(1)), max(1, r(2)))
+            pygame.draw.line(surf, tri_col,
+                             (hx + r(5),  hy + r(1)), (hx + r(12), hy + r(1)), max(1, r(2)))
+            # eye holes
+            pygame.draw.ellipse(surf, (15, 5, 5),
+                                (hx - r(11), hy - r(8), r(9), r(5)))
+            pygame.draw.ellipse(surf, (15, 5, 5),
+                                (hx + r(3),  hy - r(8), r(9), r(5)))
+            pygame.draw.circle(surf, eye_glow_col, (hx - r(7),  hy - r(6)), max(1, r(2)))
+            pygame.draw.circle(surf, eye_glow_col, (hx + r(7),  hy - r(6)), max(1, r(2)))
+            # mask outline
+            pygame.draw.ellipse(surf, (170, 165, 155),
+                                (hx - r(12), hy - r(13), r(24), r(24)), max(1, r(1)))
+
+        elif TType is InterDimensionalWardrobe:
+            # -- Mini wardrobe icon --
+            # glow
+            gs_w = pygame.Surface((r(100), r(100)), pygame.SRCALPHA)
+            pygame.draw.circle(gs_w, (120, 50, 220, 35), (r(50), r(50)), r(44))
+            surf.blit(gs_w, (cx - r(50), cy - r(50)))
+            # cabinet body
+            cw = r(28); ch = r(40)
+            pygame.draw.rect(surf, (60, 30, 80),
+                             (cx - cw // 2, cy - ch // 2, cw, ch), border_radius=max(1, r(3)))
+            pygame.draw.rect(surf, (140, 80, 220),
+                             (cx - cw // 2, cy - ch // 2, cw, ch), max(1, r(2)), border_radius=max(1, r(3)))
+            # door line + glow
+            pygame.draw.line(surf, (200, 120, 255), (cx, cy - ch // 2 + r(3)), (cx, cy + ch // 2 - r(3)), max(1, r(2)))
+            # knobs
+            for dy3 in (-r(5), r(5)):
+                pygame.draw.circle(surf, (200, 180, 255), (cx - r(4), cy + dy3), max(1, r(2)))
+                pygame.draw.circle(surf, (200, 180, 255), (cx + r(4), cy + dy3), max(1, r(2)))
+            # clock on top
+            pygame.draw.circle(surf, (100, 60, 180), (cx, cy - ch // 2 - r(8)), max(2, r(7)))
+            pygame.draw.circle(surf, (160, 120, 255), (cx, cy - ch // 2 - r(8)), max(2, r(7)), max(1, r(1)))
 
         else:
             # fallback generic
@@ -8395,7 +10129,7 @@ class Lobby:
             txt(surf, f"Enemy HP: x{info['enemy_hp_mult']:.1f}", (rect.x+16, iy2+7), (140,150,180), font_sm)
             txt(surf, f"Start $: {info['start_money']}", (rect.x+16, iy2+25), (140,150,180), font_sm)
 
-        # Back / Start
+        # Back / Next
         self._draw_button(self.btn_diff_back, "<- BACK", (40,40,70), C_WHITE, font_md)
         if self.selected_difficulty:
             dc = DIFFICULTIES[self.selected_difficulty]["color"]
@@ -8405,6 +10139,194 @@ class Lobby:
             draw_rect_alpha(surf, (30,35,50), self.btn_diff_start, 140, brad=10)
             pygame.draw.rect(surf, (50,55,70), self.btn_diff_start, 2, border_radius=10)
             txt(surf, "<- Select a difficulty", self.btn_diff_start.center, (80,90,110), font_lg, center=True)
+
+    # -- MAP SELECTION --
+    # Map metadata: name -> (color, desc_lines, bonus_text, draw_func)
+    MAP_INFO = {
+        "Forest": {
+            "color": (60, 200, 80),
+            "desc": ["Winding path through", "dense woodland", "Classic layout"],
+            "bonus": "No modifier",
+            "bonus_col": (140, 160, 140),
+        },
+        "City": {
+            "color": (80, 160, 255),
+            "desc": ["Urban zigzag streets", "Short corners & alleys", "+10% start money"],
+            "bonus": "+10% Start $",
+            "bonus_col": (120, 200, 120),
+        },
+        "Volcano": {
+            "color": (220, 80, 40),
+            "desc": ["Volcanic hellscape", "Enemies slightly faster", "High risk, high reward"],
+            "bonus": "Enemies +5% speed",
+            "bonus_col": (220, 100, 80),
+        },
+    }
+
+    @staticmethod
+    def _draw_map_cover_forest(surf, rect):
+        x, y, w, h = rect
+        pygame.draw.rect(surf, (28, 75, 28), rect, border_radius=10)
+        rng = random.Random(42)
+        for _ in range(50):
+            gx = x + rng.randint(4, w-4); gy = y + rng.randint(4, h-4)
+            pygame.draw.circle(surf, (35, 90, 35), (gx, gy), rng.randint(2, 6))
+        path_pts = []
+        for i in range(13):
+            px = x + int(i * w / 12)
+            py = y + h//2 + int(math.sin(i / 12 * math.pi * 2.5) * h // 5)
+            path_pts.append((px, py))
+        for i in range(len(path_pts)-1):
+            pygame.draw.line(surf, (100, 85, 55), path_pts[i], path_pts[i+1], 20)
+        for i in range(len(path_pts)-1):
+            pygame.draw.line(surf, (125, 105, 70), path_pts[i], path_pts[i+1], 16)
+        for tx, ty, tr in [(x+20, y+20, 10), (x+w-25, y+15, 9), (x+25, y+h-25, 10),
+                            (x+w-20, y+h-20, 9), (x+w//2-45, y+10, 8), (x+w//2+45, y+h-14, 8)]:
+            pygame.draw.circle(surf, (18, 45, 18), (tx, ty+3), tr)
+            pygame.draw.circle(surf, (32, 95, 32), (tx, ty), tr)
+            pygame.draw.circle(surf, (55, 130, 55), (tx-2, ty-2), tr//2)
+        for ep in path_pts[2:9:2]:
+            pygame.draw.circle(surf, (180, 45, 45), ep, 7)
+            pygame.draw.circle(surf, (240, 100, 100), (ep[0]-2, ep[1]-2), 3)
+        pygame.draw.rect(surf, (60, 200, 80), rect, 2, border_radius=10)
+
+    @staticmethod
+    def _draw_map_cover_city(surf, rect):
+        x, y, w, h = rect
+        pygame.draw.rect(surf, (14, 18, 30), rect, border_radius=10)
+        rng = random.Random(77)
+        for _ in range(25):
+            sx = x + rng.randint(5, w-5); sy = y + rng.randint(5, h//2)
+            pygame.draw.circle(surf, (200, 200, 255), (sx, sy), 1)
+        path_pts = [
+            (x, y+h//2), (x+w//4, y+h//2), (x+w//4, y+h//4),
+            (x+w//2, y+h//4), (x+w//2, y+3*h//4),
+            (x+3*w//4, y+3*h//4), (x+3*w//4, y+h//2), (x+w, y+h//2),
+        ]
+        for i in range(len(path_pts)-1):
+            pygame.draw.line(surf, (42, 48, 62), path_pts[i], path_pts[i+1], 20)
+        for i in range(len(path_pts)-1):
+            pygame.draw.line(surf, (54, 60, 76), path_pts[i], path_pts[i+1], 16)
+        for bx, by, bw, bh in [(x+5, y+h-42, 20, 38), (x+w-30, y+h-52, 22, 48),
+                                 (x+w//2+28, y+h-46, 18, 42), (x+w//3-10, y+h-35, 15, 32)]:
+            pygame.draw.rect(surf, (20, 26, 44), (bx, by, bw, bh))
+            pygame.draw.rect(surf, (28, 36, 58), (bx, by, bw, bh), 1)
+            for wrow in range(by+4, by+bh-4, 8):
+                for wcol in range(bx+3, bx+bw-3, 6):
+                    col3 = (220, 200, 100) if rng.random() > 0.38 else (40, 40, 60)
+                    pygame.draw.rect(surf, col3, (wcol, wrow, 4, 4))
+        for ep2 in [path_pts[2], path_pts[4], path_pts[6]]:
+            pygame.draw.circle(surf, (80, 160, 255), ep2, 8)
+            pygame.draw.circle(surf, (150, 210, 255), (ep2[0]-2, ep2[1]-3), 3)
+        pygame.draw.rect(surf, (80, 160, 255), rect, 2, border_radius=10)
+
+    @staticmethod
+    def _draw_map_cover_volcano(surf, rect):
+        x, y, w, h = rect
+        pygame.draw.rect(surf, (20, 6, 6), rect, border_radius=10)
+        rng = random.Random(13)
+        for _ in range(16):
+            cx4 = x + rng.randint(10, w-10); cy4 = y + rng.randint(10, h-10)
+            for _ in range(5):
+                nx = cx4 + rng.randint(-18, 18); ny = cy4 + rng.randint(-10, 10)
+                pygame.draw.line(surf, (90, 25, 0), (cx4, cy4), (nx, ny), 1)
+                cx4, cy4 = nx, ny
+        for lx, ly, lr in [(x+28, y+h-22, 20), (x+w-32, y+18, 16), (x+w//2+8, y+h-28, 14)]:
+            s4 = pygame.Surface((lr*2+12, lr*2+12), pygame.SRCALPHA)
+            pygame.draw.circle(s4, (200, 80, 0, 55), (lr+6, lr+6), lr+5)
+            surf.blit(s4, (lx-lr-6, ly-lr-6))
+            pygame.draw.circle(surf, (155, 45, 0), (lx, ly), lr)
+            pygame.draw.circle(surf, (215, 95, 18), (lx, ly), lr//2)
+        path_pts = []
+        for i in range(11):
+            px = x + int(i * w / 10)
+            py = y + h//2 + int(math.sin(i / 10 * math.pi * 1.6) * h // 4)
+            path_pts.append((px, py))
+        for i in range(len(path_pts)-1):
+            pygame.draw.line(surf, (65, 18, 8), path_pts[i], path_pts[i+1], 22)
+        for i in range(len(path_pts)-1):
+            pygame.draw.line(surf, (88, 28, 14), path_pts[i], path_pts[i+1], 18)
+        for ep in path_pts[1::2]:
+            pygame.draw.circle(surf, (255, 80, 0), ep, 5)
+            pygame.draw.circle(surf, (255, 180, 0), ep, 2)
+        # volcano cone in bg
+        vx, vy = x+w//2, y+14
+        pygame.draw.polygon(surf, (60, 18, 8), [(vx-28, vy+40), (vx+28, vy+40), (vx, vy)])
+        pygame.draw.circle(surf, (220, 60, 0), (vx, vy), 6)
+        pygame.draw.circle(surf, (255, 140, 0), (vx, vy-6), 4)
+        pygame.draw.rect(surf, (220, 80, 40), rect, 2, border_radius=10)
+
+    def _draw_map_select(self):
+        self._draw_bg()
+        surf = self.screen
+        diff_col = DIFFICULTIES.get(self.selected_difficulty, {}).get("color", C_WHITE)
+        txt(surf, "SELECT MAP", (SCREEN_W//2, 55), C_WHITE,
+            pygame.font.SysFont("consolas", 43, bold=True), center=True)
+        txt(surf, f"Difficulty: {self.selected_difficulty}  —  Choose your battleground",
+            (SCREEN_W//2, 106), diff_col, font_sm, center=True)
+
+        mx, my = pygame.mouse.get_pos()
+        cover_funcs = {
+            "Forest":  Lobby._draw_map_cover_forest,
+            "City":    Lobby._draw_map_cover_city,
+            "Volcano": Lobby._draw_map_cover_volcano,
+        }
+        for mname, rect in self.map_cards.items():
+            info = Lobby.MAP_INFO[mname]
+            col = info["color"]
+            is_hov = rect.collidepoint(mx, my)
+            is_sel = (self.selected_map == mname)
+
+            # shadow
+            draw_rect_alpha(surf, (0,0,0), (rect.x+7, rect.y+9, rect.w, rect.h), 70, brad=16)
+
+            # card bg
+            if is_sel:
+                bg1 = tuple(min(255, c//2+20) for c in col)
+                bg2 = tuple(min(255, c//4+10) for c in col)
+            elif is_hov:
+                bg1, bg2 = (36, 44, 68), (24, 30, 48)
+            else:
+                bg1, bg2 = (26, 32, 50), (16, 20, 36)
+            draw_rect_gradient(surf, bg1, bg2, rect, alpha=242, brad=14)
+            draw_rect_alpha(surf, (255,255,255), (rect.x+4, rect.y+2, rect.w-8, 8), 14, brad=12)
+
+            border_col = col if (is_hov or is_sel) else C_BORDER
+            bw = 3 if is_sel else (2 if is_hov else 1)
+            pygame.draw.rect(surf, border_col, rect, bw, border_radius=14)
+            if is_sel:
+                draw_glow_circle(surf, col, rect.center, rect.h//2, 20)
+
+            # cover art
+            cover_rect = (rect.x+12, rect.y+12, rect.w-24, 170)
+            cover_funcs[mname](surf, cover_rect)
+
+            # name
+            name_font = pygame.font.SysFont("consolas", 17, bold=True)
+            txt(surf, mname.upper(), (rect.centerx, rect.y+195), col, name_font, center=True)
+
+            # desc lines
+            for di, line in enumerate(info["desc"]):
+                txt(surf, "- "+line, (rect.x+14, rect.y+225+di*22), (160, 170, 200), font_sm)
+
+            # bonus tag
+            bonus_y = rect.y+rect.h-52
+            pygame.draw.line(surf, (50,60,80), (rect.x+10, bonus_y), (rect.right-10, bonus_y))
+            bonus_col = info["bonus_col"]
+            txt(surf, "Modifier: "+info["bonus"], (rect.centerx, bonus_y+20),
+                bonus_col, font_sm, center=True)
+
+        # Back / Start
+        self._draw_button(self.btn_map_back, "<- BACK", (40,40,70), C_WHITE, font_md)
+        if self.selected_map:
+            sc = Lobby.MAP_INFO[self.selected_map]["color"]
+            self._draw_button(self.btn_map_start,
+                f"START  [{self.selected_difficulty.upper()}]  —  {self.selected_map.upper()}",
+                sc, C_BLACK, font_xl)
+        else:
+            draw_rect_alpha(surf, (30,35,50), self.btn_map_start, 140, brad=10)
+            pygame.draw.rect(surf, (50,55,70), self.btn_map_start, 2, border_radius=10)
+            txt(surf, "<- Pick a map to start", self.btn_map_start.center, (80,90,110), font_lg, center=True)
 
     # -- LOADOUT SCREEN --
     def _draw_loadout(self):
@@ -8441,6 +10363,7 @@ class Lobby:
             Archer:      ["ON-ROAD", "PIERCE", "ELEMENTS"],
             Zigres:      ["SUMMONS", "AoE", "COLOSSUS"],
             Gunner:      ["RANGED", "SHOP", "TURRET"],
+            Jason:       ["MELEE", "HORROR", "SHOP"],
         }
         tower_stats = {
             Assassin:    [("DMG", "HIGH"), ("SPD", "FAST"), ("RNG", "MELEE")],
@@ -8449,6 +10372,7 @@ class Lobby:
             Archer:      [("DMG", "MED"),  ("SPD", "FAST"), ("RNG", "LONG")],
             Zigres:      [("DMG", "HIGH"), ("SPD", "SLOW"), ("RNG", "MED")],
             Gunner:      [("DMG", "HIGH"), ("SPD", "MED"),  ("RNG", "LONG")],
+            Jason:       [("DMG", "MAX"),  ("SPD", "MED"),  ("RNG", "MELEE")],
         }
         tower_abilities = {
             Assassin:    ["Lv2: Shadow Step  (F key)"],
@@ -8459,6 +10383,9 @@ class Lobby:
                           "Lv6: COLOSSUS Form"],
             Gunner:      ["Rotating turret barrel",
                           "Shop exclusive — buy with coins"],
+            Jason:       ["Lv0: Fear proc (10%)", "Lv3: Brutality every 4th hit",
+                          "Lv5: Spear pierce x3", "Lv7: Steam AOE stun",
+                          "Lv9: Friday the 13th  (H key)"],
         }
 
         # -- BACKGROUND PANELS --
@@ -8577,6 +10504,38 @@ class Lobby:
                     txt(surf, f"[S] {GUNNER_SHOP_PRICE}c", (sh_r.centerx, sh_r.centery),
                         C_GOLD, sf2, center=True)
 
+            if TType is Archer:
+                purchased_towers = load_save().get("purchased_towers", [])
+                is_bought = Archer.__name__ in purchased_towers
+                sh_r = pygame.Rect(r.right - 76, r.y + 36, 68, 20)
+                if is_bought:
+                    draw_rect_alpha(surf, (30, 70, 20), sh_r, 200, brad=4)
+                    sf2 = pygame.font.SysFont("consolas", 9, bold=True)
+                    txt(surf, "UNLOCKED", (sh_r.centerx, sh_r.centery),
+                        (80, 230, 80), sf2, center=True)
+                else:
+                    draw_rect_alpha(surf, (70, 55, 10), sh_r, 200, brad=4)
+                    pygame.draw.rect(surf, C_GOLD, sh_r, 1, border_radius=4)
+                    sf2 = pygame.font.SysFont("consolas", 9, bold=True)
+                    txt(surf, f"[S] {ARCHER_SHOP_PRICE}c", (sh_r.centerx, sh_r.centery),
+                        C_GOLD, sf2, center=True)
+
+            if TType is Accelerator:
+                purchased_towers = load_save().get("purchased_towers", [])
+                is_bought = Accelerator.__name__ in purchased_towers
+                sh_r = pygame.Rect(r.right - 76, r.y + 36, 68, 20)
+                if is_bought:
+                    draw_rect_alpha(surf, (30, 70, 20), sh_r, 200, brad=4)
+                    sf2 = pygame.font.SysFont("consolas", 9, bold=True)
+                    txt(surf, "UNLOCKED", (sh_r.centerx, sh_r.centery),
+                        (80, 230, 80), sf2, center=True)
+                else:
+                    draw_rect_alpha(surf, (70, 55, 10), sh_r, 200, brad=4)
+                    pygame.draw.rect(surf, C_GOLD, sh_r, 1, border_radius=4)
+                    sf2 = pygame.font.SysFont("consolas", 9, bold=True)
+                    txt(surf, f"[S] {ACCELERATOR_SHOP_PRICE}c", (sh_r.centerx, sh_r.centery),
+                        C_GOLD, sf2, center=True)
+
             # MINI-GAME lock badge for Clown
             if TType is Clown:
                 clown_owned = is_clown_unlocked()
@@ -8592,6 +10551,22 @@ class Lobby:
                     sf3 = pygame.font.SysFont("consolas", 9, bold=True)
                     txt(surf, "[L] KEY HUNT", (cl_r.centerx, cl_r.centery),
                         (180, 80, 255), sf3, center=True)
+
+            # SHOP badge for Jason
+            if TType is Jason:
+                jason_owned = _is_jason_unlocked()
+                jsh_r = pygame.Rect(r.right - 76, r.y + 36, 68, 20)
+                if jason_owned:
+                    draw_rect_alpha(surf, (30, 70, 20), jsh_r, 200, brad=4)
+                    sfj = pygame.font.SysFont("consolas", 9, bold=True)
+                    txt(surf, "UNLOCKED", (jsh_r.centerx, jsh_r.centery),
+                        (80, 230, 80), sfj, center=True)
+                else:
+                    draw_rect_alpha(surf, (70, 10, 10), jsh_r, 200, brad=4)
+                    pygame.draw.rect(surf, (220, 40, 40), jsh_r, 1, border_radius=4)
+                    sfj = pygame.font.SysFont("consolas", 9, bold=True)
+                    txt(surf, f"[S] {JASON_SHOP_PRICE}c", (jsh_r.centerx, jsh_r.centery),
+                        (255, 100, 100), sfj, center=True)
 
             # selected indicator bar on left edge
             if is_sel:
@@ -8678,7 +10653,19 @@ class Lobby:
             ab_r = self._lo_btn_add
             in_deck_now = T in self.loadout
             deck_full = all(t is not None for t in self.loadout)
-            if in_deck_now:
+            _purchased = load_save().get("purchased_towers", [])
+            _shop_locked = (
+                (T is Gunner and Gunner.__name__ not in _purchased) or
+                (T is Archer and Archer.__name__ not in _purchased) or
+                (T is Accelerator and Accelerator.__name__ not in _purchased) or
+                (T is Jason and Jason.__name__ not in _purchased)
+            )
+            if _shop_locked:
+                btn_bg = (40, 32, 10)
+                btn_brd = (120, 95, 30)
+                btn_lbl = "BUY IN SHOP  [S]"
+                btn_col = (160, 130, 50)
+            elif in_deck_now:
                 btn_bg = (80, 22, 22)
                 btn_brd = (200, 50, 50)
                 btn_lbl = "REMOVE FROM LOADOUT"
@@ -9038,6 +11025,18 @@ class Lobby:
             (Gunner, GUNNER_SHOP_PRICE,
              "Gunner Tower",
              "Rotating turret. High damage, good range.\nSimple but effective against all enemies."),
+            (Archer, ARCHER_SHOP_PRICE,
+             "Archer Tower",
+             "Fires arrows, ice and flame shots. Can be placed on road.\nVersatile support tower with pierce."),
+            (Accelerator, ACCELERATOR_SHOP_PRICE,
+             "Accelerator Tower",
+             "Extreme fire rate with hidden detection.\nMost powerful DPS tower — worth every coin."),
+            (Jason, JASON_SHOP_PRICE,
+             "Jason Voorhees",
+             "11-level horror melee tower. Brutal damage, aura debuff.\nUltimate: Friday the 13th  (H key at Lv9)."),
+            (InterDimensionalWardrobe, 800,
+             "Inter-Dimensional Wardrobe",
+             "Support tower — speeds time, grants HD to nearby towers.\nPlaceable on road. Enemies get cursed with funny debuffs."),
         ]
 
     def _shop_handle_buy(self, idx):
@@ -9047,17 +11046,23 @@ class Lobby:
         data = load_save()
         purchased = data.get("purchased_towers", [])
         cls_name = tower_cls.__name__
-        # Block if already owned
         if cls_name in purchased:
             self._shop_msg = f"{label} already owned!"
             self._shop_msg_t = 2.0
             return
-        if data["shop_coins"] < price:
-            self._shop_msg = "Not enough coins!"
-            self._shop_msg_t = 2.0
-            return
-        # Deduct coins and save
-        data["shop_coins"] -= price
+        if tower_cls is Jason:
+            current_kills = data.get("enemy_kills", 0)
+            if current_kills < price:
+                self._shop_msg = f"Need {price - current_kills} more kills!"
+                self._shop_msg_t = 2.0
+                return
+            data["enemy_kills"] = current_kills - price
+        else:
+            if data["shop_coins"] < price:
+                self._shop_msg = "Not enough coins!"
+                self._shop_msg_t = 2.0
+                return
+            data["shop_coins"] -= price
         purchased.append(cls_name)
         data["purchased_towers"] = purchased
         save_data(data)
@@ -9076,6 +11081,7 @@ class Lobby:
             self._shop_msg_t -= 1/FPS
 
         coins = get_shop_coins()
+        enemy_kills = get_enemy_kills()
 
         # -- Header --
         hf = pygame.font.SysFont("consolas", 48, bold=True)
@@ -9084,11 +11090,10 @@ class Lobby:
 
         # -- Coin display bar --
         coin_bar_w = 280; coin_bar_h = 52
-        coin_bar_x = SCREEN_W//2 - coin_bar_w//2
+        coin_bar_x = SCREEN_W//2 - coin_bar_w - 10
         coin_bar_y = 102
         draw_rect_alpha(surf, (50, 38, 10), (coin_bar_x, coin_bar_y, coin_bar_w, coin_bar_h), 230, brad=14)
         pygame.draw.rect(surf, C_GOLD, (coin_bar_x, coin_bar_y, coin_bar_w, coin_bar_h), 2, border_radius=14)
-        # animated coin
         pulse_c = abs(math.sin(t * 2.5))
         cr2 = int(17 + pulse_c * 3)
         ccx = coin_bar_x + 30
@@ -9099,9 +11104,21 @@ class Lobby:
         cf_big = pygame.font.SysFont("consolas", 26, bold=True)
         txt(surf, f"{coins}  coins", (ccx + cr2 + 10, ccy), C_GOLD, cf_big)
 
+        # -- Kills display bar (for Jason) --
+        kill_bar_x = SCREEN_W//2 + 10
+        draw_rect_alpha(surf, (40, 10, 10), (kill_bar_x, coin_bar_y, coin_bar_w, coin_bar_h), 230, brad=14)
+        pygame.draw.rect(surf, (180, 50, 50), (kill_bar_x, coin_bar_y, coin_bar_w, coin_bar_h), 2, border_radius=14)
+        kcx = kill_bar_x + 30
+        kcy = coin_bar_y + coin_bar_h // 2
+        pygame.draw.circle(surf, (100, 20, 20), (kcx, kcy), 14)
+        pygame.draw.circle(surf, (200, 50, 50), (kcx, kcy), 14, 2)
+        skf2 = pygame.font.SysFont("consolas", 13, bold=True)
+        txt(surf, "☠", (kcx, kcy - 1), (255, 120, 120), skf2, center=True)
+        txt(surf, f"{enemy_kills}  kills", (kcx + 20, kcy), (220, 80, 80), cf_big)
+
         # -- Info text --
         info_f = pygame.font.SysFont("consolas", 14)
-        txt(surf, "Earn coins by completing waves. More coins on higher difficulties.",
+        txt(surf, "Earn coins by completing waves.  Kill enemies in-game to unlock Jason.",
             (SCREEN_W//2, 176), (130, 110, 60), info_f, center=True)
 
         # -- Shop items --
@@ -9119,7 +11136,10 @@ class Lobby:
             self._shop_item_rects.append(r)
 
             already_owned = tower_cls.__name__ in purchased_data
-            can_afford = (coins >= price) and not already_owned
+            if tower_cls is Jason:
+                can_afford = (enemy_kills >= price) and not already_owned
+            else:
+                can_afford = (coins >= price) and not already_owned
             hov = r.collidepoint(mx, my)
 
             # card bg
@@ -9156,14 +11176,27 @@ class Lobby:
                 txt(surf, "OWNED", (ix + 160, iy + 118), (80, 230, 120), badge_f)
             else:
                 pf = pygame.font.SysFont("consolas", 18, bold=True)
-                p_col = C_GOLD if can_afford else (100, 85, 50)
-                # coin mini icon
-                pygame.draw.circle(surf, (180,140,0), (ix+163, iy+125), 11)
-                pygame.draw.circle(surf, (255,215,0), (ix+163, iy+125), 11, 2)
-                txt(surf, f"{price}  coins", (ix + 180, iy + 117), p_col, pf)
-                if not can_afford:
+                if tower_cls is Jason:
+                    p_col = (220, 80, 80) if can_afford else (100, 85, 50)
+                    skull_x, skull_y = ix + 163, iy + 125
+                    pygame.draw.circle(surf, (120, 20, 20), (skull_x, skull_y), 11)
+                    pygame.draw.circle(surf, (220, 60, 60), (skull_x, skull_y), 11, 2)
+                    skf = pygame.font.SysFont("consolas", 11, bold=True)
+                    txt(surf, "☠", (skull_x, skull_y - 1), (255, 100, 100), skf, center=True)
+                    txt(surf, f"{price}  kills", (ix + 180, iy + 117), p_col, pf)
                     nef = pygame.font.SysFont("consolas", 11)
-                    txt(surf, f"Need {price - coins} more", (ix + 180, iy + 140), (160, 80, 60), nef)
+                    if not can_afford:
+                        txt(surf, f"Need {price - enemy_kills} more kills", (ix + 180, iy + 140), (160, 80, 60), nef)
+                    else:
+                        txt(surf, f"Your kills: {enemy_kills}", (ix + 180, iy + 140), (160, 80, 60), nef)
+                else:
+                    p_col = C_GOLD if can_afford else (100, 85, 50)
+                    pygame.draw.circle(surf, (180,140,0), (ix+163, iy+125), 11)
+                    pygame.draw.circle(surf, (255,215,0), (ix+163, iy+125), 11, 2)
+                    txt(surf, f"{price}  coins", (ix + 180, iy + 117), p_col, pf)
+                    if not can_afford:
+                        nef = pygame.font.SysFont("consolas", 11)
+                        txt(surf, f"Need {price - coins} more", (ix + 180, iy + 140), (160, 80, 60), nef)
 
             # hover buy button
             if hov and can_afford and not already_owned:
@@ -9248,6 +11281,12 @@ class Lobby:
                         if T is Clown and not is_clown_unlocked():
                             pass  # silently block — badge makes it obvious
                         elif T is Gunner and Gunner.__name__ not in load_save().get("purchased_towers", []):
+                            pass
+                        elif T is Archer and Archer.__name__ not in load_save().get("purchased_towers", []):
+                            pass
+                        elif T is Accelerator and Accelerator.__name__ not in load_save().get("purchased_towers", []):
+                            pass
+                        elif T is Jason and Jason.__name__ not in load_save().get("purchased_towers", []):
                             pass
                         elif T in self.loadout:
                             for si in range(5):
@@ -9335,12 +11374,16 @@ class Lobby:
 
     def run(self):
         while True:
-            dt = min(self.clock.tick(FPS)/1000.0, 0.05)
+            raw_dt = self.clock.tick(FPS) / 1000.0
+            dt = min(raw_dt, 0.05)
             self.anim_t += dt
 
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
+                # Dev console gets first crack at events
+                if self.dev_console.handle_event(ev, self):
+                    continue
                 # Mouse wheel scroll for changelog
                 if ev.type == pygame.MOUSEWHEEL and self.state == "changelog":
                     self._changelog_scroll -= ev.y * 28
@@ -9380,12 +11423,14 @@ class Lobby:
             elif self.state == "shop":
                 self._draw_shop()
 
+            self.dev_console.tick(self)
+            self.dev_console.draw(self.screen, raw_dt)
             pygame.display.flip()
 
 
 # -- Game with difficulty applied --
 class Game:
-    def __init__(self, difficulty="Hard", loadout=None, screen_override=None):
+    def __init__(self, difficulty="Hard", loadout=None, map_name="Forest", screen_override=None):
         if screen_override is not None:
             self.screen = screen_override
         else:
@@ -9398,6 +11443,23 @@ class Game:
         self._enemy_hp_mult=diff["enemy_hp_mult"]
         self._enemy_speed_mult=diff["enemy_speed_mult"]
         self._difficulty_name=difficulty
+        self._map_name = map_name
+
+        # Apply per-map modifiers
+        MAP_MODS = {
+            "Forest":  {},
+            "City":    {"money": 0.10},         # +10% start money
+            "Volcano": {"speed": 0.05},          # +5% enemy speed
+        }
+        mmod = MAP_MODS.get(map_name, {})
+        if "money" in mmod:
+            self.money = int(self.money * (1 + mmod["money"]))
+        if "speed" in mmod:
+            self._enemy_speed_mult *= (1 + mmod["speed"])
+
+        # Activate waypoints for this map
+        global ACTIVE_MAP_WAYPOINTS
+        ACTIVE_MAP_WAYPOINTS = _MAP_WAYPOINTS.get(map_name, _MAP_WAYPOINTS["Forest"])
 
         self.enemies=[]; self.units=[]; self.effects=[]
         _wdata = {"Easy": WAVE_DATA_EASY, "Hard": WAVE_DATA, "Hell": WAVE_DATA_HELL}.get(difficulty, WAVE_DATA)
@@ -9476,17 +11538,31 @@ class Game:
 
     def draw_map(self):
         surf=self.screen
-        if self._difficulty_name == "Easy":
-            self._draw_map_easy(surf)
-        elif self._difficulty_name == "Hard":
-            self._draw_map_hard(surf)
+        map_name = getattr(self, '_map_name', 'Forest')
+        if map_name == "City":
+            self._draw_map_city(surf)
+        elif map_name == "Volcano":
+            self._draw_map_volcano(surf)
         else:
-            self._draw_map_hell(surf)
+            # Forest — choose visual theme by difficulty
+            if self._difficulty_name == "Easy":
+                self._draw_map_easy(surf)
+            elif self._difficulty_name == "Hard":
+                self._draw_map_hard(surf)
+            else:
+                self._draw_map_hell(surf)
         # difficulty badge
         dcol = DIFFICULTIES[self._difficulty_name]["color"]
         pygame.draw.rect(surf, (20,24,36), (SCREEN_W-100,0,100,28))
         pygame.draw.rect(surf, dcol, (SCREEN_W-100,0,100,28), 2)
         txt(surf, self._difficulty_name.upper(), (SCREEN_W-50,14), dcol, font_md, center=True)
+        # map badge
+        if map_name:
+            MAP_BADGE_COLS = {"Forest": (60,200,80), "City": (80,160,255), "Volcano": (220,80,40)}
+            mcol = MAP_BADGE_COLS.get(map_name, (140,140,180))
+            pygame.draw.rect(surf, (20,24,36), (SCREEN_W-210,0,106,28))
+            pygame.draw.rect(surf, mcol, (SCREEN_W-210,0,106,28), 2)
+            txt(surf, map_name.upper(), (SCREEN_W-157,14), mcol, font_md, center=True)
 
     def _draw_path_line(self, surf, col_dark, col_mid, pw=PATH_H*2):
         """Draw the standard straight path"""
@@ -9723,6 +11799,196 @@ class Game:
         pygame.draw.rect(surf,(28,90,8),(SCREEN_W-14,PATH_Y-PATH_H,14,PATH_H*2),border_radius=3)
         txt(surf,"E",(SCREEN_W-7,PATH_Y),(80,255,40),font_sm,center=True)
 
+    def _draw_waypoint_path(self, surf, waypoints, road_col, edge_col, pw=72):
+        """Draw a multi-segment path connecting waypoints."""
+        for i in range(len(waypoints) - 1):
+            pygame.draw.line(surf, road_col, waypoints[i], waypoints[i+1], pw)
+        for i in range(len(waypoints) - 1):
+            pygame.draw.line(surf, edge_col, waypoints[i], waypoints[i+1], pw - 4)
+        # junction circles at turns
+        for i in range(1, len(waypoints) - 1):
+            pygame.draw.circle(surf, edge_col, waypoints[i], pw // 2 - 2)
+
+    def _draw_map_city(self, surf):
+        """Urban city map — Z-shaped zigzag through streets"""
+        wpts = _MAP_WAYPOINTS["City"]
+        surf.fill((10, 14, 26))
+        rng = random.Random(55)
+        # Stars / night sky
+        for _ in range(120):
+            sx = rng.randint(0, SCREEN_W); sy = rng.randint(72, SLOT_AREA_Y)
+            c = rng.randint(120, 220)
+            pygame.draw.circle(surf, (c, c, min(255, c+30)), (sx, sy), 1)
+        # Moon
+        pygame.draw.circle(surf, (240, 240, 255), (1820, 80), 22)
+        mg = pygame.Surface((100, 100), pygame.SRCALPHA)
+        pygame.draw.circle(mg, (200, 210, 255, 28), (50, 50), 50)
+        surf.blit(mg, (1770, 30))
+
+        # Draw city blocks in each zone between path segments
+        rng2 = random.Random(77)
+        block_zones = [
+            # (x1, y1, x2, y2) — safe areas for buildings
+            (0, 72, 380, 285),
+            (420, 72, SCREEN_W, 260),
+            (420, 735, SCREEN_W, SLOT_AREA_Y - 5),
+            (0, 735, 380, SLOT_AREA_Y - 5),
+            (430, 310, 870, 705),
+            (940, 310, 1420, 270 - 40),  # skip — too thin
+            (940, 730, 1420, SLOT_AREA_Y - 5),
+            (1470, 310, SCREEN_W, 700),
+        ]
+        for bz in block_zones:
+            zx1, zy1, zx2, zy2 = bz
+            if zy2 - zy1 < 60 or zx2 - zx1 < 60:
+                continue
+            for _ in range(6):
+                bx = rng2.randint(zx1 + 4, max(zx1+5, zx2 - 80))
+                bw2 = rng2.randint(35, min(80, zx2 - bx - 4))
+                bh2 = rng2.randint(40, min(130, zy2 - zy1 - 8))
+                by = zy1 + rng2.randint(4, max(5, zy2 - zy1 - bh2 - 4))
+                pygame.draw.rect(surf, (16, 22, 38), (bx, by, bw2, bh2))
+                pygame.draw.rect(surf, (26, 34, 56), (bx, by, bw2, bh2), 1)
+                for wr in range(by+5, by+bh2-5, 12):
+                    for wc in range(bx+4, bx+bw2-4, 9):
+                        wc2 = (210, 190, 80) if rng2.random() > 0.38 else (28, 32, 52)
+                        pygame.draw.rect(surf, wc2, (wc, wr, 6, 7))
+                if rng2.random() > 0.5:
+                    pygame.draw.line(surf, (55, 65, 100), (bx + bw2//2, by), (bx + bw2//2, by - 16), 1)
+                    pygame.draw.circle(surf, (255, 50, 50), (bx + bw2//2, by - 16), 2)
+
+        # Neon signs
+        neons = [(300, 290, (255, 30, 100)), (950, 275, (30, 200, 255)),
+                 (1430, 280, (180, 30, 255)), (700, 725, (255, 180, 30)),
+                 (1200, 728, (30, 255, 140))]
+        for nx2, ny2, nc in neons:
+            ngs = pygame.Surface((90, 18), pygame.SRCALPHA)
+            pygame.draw.rect(ngs, (*nc, 55), (0, 0, 90, 18), border_radius=5)
+            surf.blit(ngs, (nx2 - 45, ny2 - 9))
+            pygame.draw.rect(surf, nc, (nx2 - 43, ny2 - 7, 86, 14), 1, border_radius=4)
+
+        # Road
+        pw = 72
+        self._draw_waypoint_path(surf, wpts, (38, 44, 60), (50, 58, 76), pw)
+        # Dashed center lines along each segment
+        for i in range(len(wpts) - 1):
+            ax, ay = wpts[i]; bx2, by2 = wpts[i+1]
+            seg_len = math.hypot(bx2-ax, by2-ay)
+            if seg_len == 0: continue
+            dx2, dy2 = (bx2-ax)/seg_len, (by2-ay)/seg_len
+            d = 0
+            while d < seg_len:
+                x1d = ax + dx2*d; y1d = ay + dy2*d
+                x2d = ax + dx2*min(d+22, seg_len); y2d = ay + dy2*min(d+22, seg_len)
+                pygame.draw.line(surf, (72, 80, 100), (int(x1d), int(y1d)), (int(x2d), int(y2d)), 4)
+                d += 44
+        # Street lamps at corners
+        for wx, wy in wpts[1:-1]:
+            pygame.draw.line(surf, (60, 65, 90), (wx, wy - 36 - pw//2), (wx, wy - pw//2 - 72), 2)
+            gs2 = pygame.Surface((60, 60), pygame.SRCALPHA)
+            pygame.draw.circle(gs2, (255, 220, 100, 50), (30, 30), 30)
+            surf.blit(gs2, (wx - 30, wy - pw//2 - 90))
+            pygame.draw.circle(surf, (255, 230, 130), (wx, wy - pw//2 - 72), 5)
+        # Start/End markers
+        sx0, sy0 = wpts[0]; sxe, sye = wpts[-1]
+        pygame.draw.circle(surf, (60, 20, 20), (int(sx0), int(sy0)), 18)
+        txt(surf, "S", (int(sx0), int(sy0)), C_RED, font_sm, center=True)
+        pygame.draw.circle(surf, (20, 60, 20), (int(sxe), int(sye)), 18)
+        txt(surf, "E", (int(sxe), int(sye)), C_GREEN, font_sm, center=True)
+
+    def _draw_map_volcano(self, surf):
+        """Volcanic S-curve map through lava terrain"""
+        wpts = _MAP_WAYPOINTS["Volcano"]
+        surf.fill((18, 5, 5))
+        rng = random.Random(31)
+        # Lava glow underlayer
+        gl = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        for wx2, wy2 in wpts[1:-1]:
+            pygame.draw.circle(gl, (180, 50, 0, 30), (wx2, wy2), 140)
+        surf.blit(gl, (0, 0))
+        # Cracked ground texture
+        for _ in range(160):
+            cx2 = rng.randint(0, SCREEN_W); cy2 = rng.randint(72, SLOT_AREA_Y - 5)
+            cx3, cy3 = cx2, cy2
+            for _ in range(6):
+                nx2 = cx3 + rng.randint(-26, 26); ny2 = cy3 + rng.randint(-14, 14)
+                if not _point_near_path(cx3, cy3, wpts, 50):
+                    pygame.draw.line(surf, (75, 20, 4), (cx3, cy3), (nx2, ny2), 1)
+                cx3, cy3 = nx2, ny2
+        # Lava pools
+        for lx2, ly2, lr2 in [(160, 160, 28), (500, 200, 22), (780, 550, 26),
+                                (1100, 560, 20), (1400, 220, 24), (1700, 560, 22),
+                                (320, 820, 20), (700, 830, 18), (1300, 820, 25)]:
+            if _point_near_path(lx2, ly2, wpts, 80):
+                continue
+            sg2 = pygame.Surface((lr2*2+20, lr2*2+20), pygame.SRCALPHA)
+            pygame.draw.circle(sg2, (220, 80, 0, 50), (lr2+10, lr2+10), lr2+8)
+            surf.blit(sg2, (lx2-lr2-10, ly2-lr2-10))
+            pygame.draw.circle(surf, (130, 35, 0), (lx2, ly2), lr2)
+            pygame.draw.circle(surf, (200, 75, 8), (lx2, ly2), lr2*2//3)
+            pygame.draw.circle(surf, (240, 130, 15), (lx2, ly2), lr2//3)
+        # Volcanic rocks
+        for rx2, ry2, rr2 in [(220, 250, 16), (480, 400, 12), (800, 200, 18),
+                               (1050, 450, 14), (1350, 330, 16), (1650, 250, 14),
+                               (350, 650, 15), (650, 780, 13), (1000, 800, 17),
+                               (1500, 750, 12), (1800, 650, 15)]:
+            if not _point_near_path(rx2, ry2, wpts, 70):
+                pygame.draw.circle(surf, (42, 16, 6), (rx2, ry2), rr2)
+                pygame.draw.circle(surf, (58, 24, 10), (rx2-rr2//3, ry2-rr2//3), rr2//2)
+        # Magma vents
+        for vx2, vy2 in [(400, 300), (750, 580), (1200, 280), (1600, 580)]:
+            if not _point_near_path(vx2, vy2, wpts, 80):
+                vs = pygame.Surface((44, 64), pygame.SRCALPHA)
+                for vi in range(4):
+                    va = 60 - vi*14
+                    pygame.draw.ellipse(vs, (255, 120, 0, va), (10-vi*2, vi*15, 24+vi*4, 18))
+                surf.blit(vs, (vx2-22, vy2-54))
+                pygame.draw.circle(surf, (255, 80, 0), (vx2, vy2), 7)
+        # Volcano cone bg
+        vx3, vy3 = 1760, 100
+        pygame.draw.polygon(surf, (55, 16, 6), [(vx3-60, vy3+90), (vx3+60, vy3+90), (vx3, vy3)])
+        pygame.draw.circle(surf, (210, 55, 0), (vx3, vy3), 14)
+        pygame.draw.circle(surf, (255, 140, 0), (vx3, vy3-10), 8)
+
+        # Lava road
+        pw = 72
+        self._draw_waypoint_path(surf, wpts, (72, 20, 6), (95, 32, 12), pw)
+        # Shimmer on road
+        ls = pygame.Surface((20, pw), pygame.SRCALPHA)
+        for seg_i in range(len(wpts) - 1):
+            ax, ay = wpts[seg_i]; bx2, by2 = wpts[seg_i+1]
+            seg_len = math.hypot(bx2-ax, by2-ay)
+            if seg_len == 0: continue
+            dx2, dy2 = (bx2-ax)/seg_len, (by2-ay)/seg_len
+            nx3, ny3 = -dy2, dx2
+            for d in range(0, int(seg_len), 18):
+                x1d = ax + dx2*d; y1d = ay + dy2*d
+                la = rng.randint(4, 16)
+                pygame.draw.circle(surf, (255, rng.randint(80, 160), 0),
+                                   (int(x1d + nx3*rng.randint(-20, 20)),
+                                    int(y1d + ny3*rng.randint(-20, 20))), 2)
+        # Glowing edges on road
+        for i in range(len(wpts) - 1):
+            ax, ay = wpts[i]; bx2, by2 = wpts[i+1]
+            ge = pygame.Surface((4, 4), pygame.SRCALPHA)
+            seg_len2 = math.hypot(bx2-ax, by2-ay)
+            if seg_len2 == 0: continue
+            dx3, dy3 = (bx2-ax)/seg_len2, (by2-ay)/seg_len2
+            nx4, ny4 = -dy3, dx3
+            for d in range(0, int(seg_len2), 8):
+                x1e = int(ax + dx3*d + nx4*(pw//2))
+                y1e = int(ay + dy3*d + ny4*(pw//2))
+                x2e = int(ax + dx3*d - nx4*(pw//2))
+                y2e = int(ay + dy3*d - ny4*(pw//2))
+                pygame.draw.circle(surf, (200, 55, 0), (x1e, y1e), 1)
+                pygame.draw.circle(surf, (200, 55, 0), (x2e, y2e), 1)
+        # Start/End markers
+        sx0, sy0 = wpts[0]; sxe, sye = wpts[-1]
+        pygame.draw.circle(surf, (100, 25, 8), (int(sx0), int(sy0)), 20)
+        txt(surf, "S", (int(sx0), int(sy0)), (255, 80, 40), font_sm, center=True)
+        pygame.draw.circle(surf, (25, 80, 8), (int(sxe), int(sye)), 20)
+        txt(surf, "E", (int(sxe), int(sye)), (80, 255, 40), font_sm, center=True)
+
     def run(self):
         self.paused = False
         # Pause menu buttons
@@ -9738,7 +12004,8 @@ class Game:
 
         while self.running:
             raw_dt = min(self.clock.tick(FPS)/1000.0, 0.05)
-            dt = raw_dt * (2.0 if self.speed_x2 else 1.0)
+            _wardrobe_mult = getattr(self, '_wardrobe_time_mult', 1.0)
+            dt = raw_dt * (2.0 if self.speed_x2 else 1.0) * _wardrobe_mult
             self.anim_t += raw_dt
             if not getattr(self, 'paused', False) and not self.game_over and not self.win:
                 self._stat_time += raw_dt
@@ -9834,7 +12101,12 @@ class Game:
                                 if u.ability.ready():
                                     u.ability.activate(self.enemies, self.effects)
                                     break
-                    if ev.key == pygame.K_s:
+                    if ev.key == pygame.K_g:
+                        for u in self.units:
+                            if isinstance(u, Clown) and u.ability and u.level >= 2:
+                                if u.ability.ready():
+                                    u.ability.activate(self.enemies, self.effects)
+                                    break
                         self._debug_spawn = not getattr(self, '_debug_spawn', False)
                         if self._debug_spawn:
                             self.wave_mgr.state = "waiting"
@@ -9842,6 +12114,12 @@ class Game:
                             self.enemies.append(d)
                         else:
                             self.wave_mgr.state = "between"; self.wave_mgr.prep_timer = 0.1
+                    if ev.key == pygame.K_h:
+                        for u in self.units:
+                            if isinstance(u, Jason) and u.ability and u.level >= 9:
+                                if u.ability.ready():
+                                    u.ability.activate(self.enemies, self.effects)
+                                    break
 
             if not self.paused and not self.game_over:
                 # Auto-start: instantly skip inter-wave countdown
@@ -9912,6 +12190,44 @@ class Game:
 
         # units
         for u in self.units: u.update(dt,self.enemies,self.effects,self.money)
+
+        # -- InterDimensionalWardrobe: grant hidden_detection to towers in radius --
+        # Also apply wardrobe speed/reverse debuffs to enemies
+        wardrobe_time_mult = 1.0
+        for u in self.units:
+            if not isinstance(u, InterDimensionalWardrobe): continue
+            wardrobe_time_mult = max(wardrobe_time_mult, u.time_mult)
+            wr = u.range_tiles * TILE
+            for other in self.units:
+                if other is u: continue
+                if dist((other.px, other.py), (u.px, u.py)) <= wr:
+                    other._wardrobe_hd = True   # grant HD this frame
+        # Apply wardrobe HD flag (reset each frame)
+        for u in self.units:
+            if isinstance(u, InterDimensionalWardrobe): continue
+            if getattr(u, '_wardrobe_hd', False):
+                u._wardrobe_hd_active = True
+                u._wardrobe_hd = False
+            else:
+                u._wardrobe_hd_active = False
+        # Apply wardrobe enemy debuff timers
+        for e in self.enemies:
+            if not e.alive: continue
+            ws = getattr(e, '_wardrobe_speed_t', 0.0)
+            if ws > 0:
+                e._wardrobe_speed_t = max(0.0, ws - dt)
+                e.speed = e.__class__.BASE_SPEED * getattr(e, '_wardrobe_speed_mult', 1.0)
+            else:
+                if hasattr(e, '_wardrobe_speed_mult'):
+                    e.speed = e.__class__.BASE_SPEED
+            wr_rev = getattr(e, '_wardrobe_reverse_t', 0.0)
+            if wr_rev > 0:
+                e._wardrobe_reverse_t = max(0.0, wr_rev - dt)
+                e.x -= e.__class__.BASE_SPEED * 0.4 * dt   # walk back
+            if getattr(e, '_wardrobe_label_t', 0.0) > 0:
+                e._wardrobe_label_t = max(0.0, e._wardrobe_label_t - dt)
+        # Store wardrobe time mult for use in run loop dt scaling
+        self._wardrobe_time_mult = wardrobe_time_mult
 
         # tick Clown global confusion cooldown exactly once per frame
         if Clown._CONFUSE_CD > 0:
@@ -9991,20 +12307,24 @@ class Game:
         for e in self.enemies:
             if not e.alive and isinstance(e,BreakerEnemy):
                 Sp=random.choice(BREAKER_POOL); baby=Sp(self.wave_mgr.wave)
-                baby.x=e.x; baby.free_kill=True; new_enemies.append(baby)
+                baby.x=e.x; baby.y=e.y; baby._wp_index=e._wp_index; baby.free_kill=True; new_enemies.append(baby)
         # AbyssalSpawn death split (like Breaker)
         for e in self.enemies:
             if not e.alive and isinstance(e, AbyssalSpawn):
                 baby = HellHound(self.wave_mgr.wave)
-                baby.x = e.x + random.uniform(-20,20); baby.free_kill = True
+                baby.x = e.x + random.uniform(-20,20); baby.y = e.y; baby._wp_index = e._wp_index; baby.free_kill = True
                 new_enemies.append(baby)
         # -- Kill reward: grant KILL_REWARD coins for each enemy killed by towers --
+        kills_this_frame = 0
         for e in self.enemies:
             if not e.alive and not getattr(e, 'free_kill', False):
                 kr = getattr(e.__class__, 'KILL_REWARD', 0)
                 if kr > 0:
                     self.money += kr
                 self._stat_enemies_killed += 1
+                kills_this_frame += 1
+        if kills_this_frame > 0 and not getattr(self, '_sandbox_mode', False):
+            add_enemy_kills(kills_this_frame)
         self.enemies=[e for e in self.enemies if e.alive]+new_enemies
 
         # track waves survived
@@ -10046,7 +12366,7 @@ class Game:
     def draw(self):
         self.draw_map()
         # Башни с hidden_detection — обнаруживают только врагов в своём радиусе
-        hd_units = [u for u in self.units if getattr(u, 'hidden_detection', False)]
+        hd_units = [u for u in self.units if getattr(u, 'hidden_detection', False) or getattr(u, '_wardrobe_hd_active', False)]
         mx,my=pygame.mouse.get_pos()
         # -- Draw range indicators (clipped to game area, below UI) --
         _game_clip = pygame.Rect(0, 0, SCREEN_W, SLOT_AREA_Y)
@@ -10121,7 +12441,15 @@ class Game:
             pygame.draw.rect(self.screen,(255,192,70) if hov_skip else (192,132,42),btn_skip,2,border_radius=10)
             draw_rect_alpha(self.screen,(255,255,255),(btn_skip.x,btn_skip.y,btn_skip.w,4),16,brad=10)
             txt(self.screen,"SKIP",btn_skip.center,(255,220,110),font_md,center=True)
-        # -- Game Over / Win: Results Screen --
+        # -- Wardrobe time boost indicator --
+        wm = getattr(self, '_wardrobe_time_mult', 1.0)
+        if wm > 1.01:
+            wb_rect = pygame.Rect(26, 120, 115, 26)
+            draw_rect_alpha(self.screen, (60, 20, 110), wb_rect, 200, brad=7)
+            pygame.draw.rect(self.screen, (160, 80, 255), wb_rect, 1, border_radius=7)
+            pct = int((wm - 1.0) * 100)
+            txt(self.screen, f"⏩ +{pct}% TIME", wb_rect.center, (200, 140, 255),
+                pygame.font.SysFont("consolas", 12, bold=True), center=True)
         if self.game_over or self.win:
             t_res = self.anim_t
             is_win = self.win
@@ -10322,7 +12650,8 @@ class SandboxGame(Game):
                 base = getattr(ecls, 'BASE_HP', None)
                 if base is not None:
                     e.hp = base; e.maxhp = base
-                e.x = -80 - j * 55
+                e.x = float(ACTIVE_MAP_WAYPOINTS[0][0]) - 80 - j * 55
+                e.y = float(ACTIVE_MAP_WAYPOINTS[0][1])
                 self.enemies.append(e)
 
     def _build_sb_panel_rects(self):
@@ -10535,7 +12864,8 @@ class SandboxGame(Game):
                     base = getattr(ecls, 'BASE_HP', None)
                     if base is not None:
                         e.hp = base; e.maxhp = base
-                    e.x = -60 - j * 55
+                    e.x = float(ACTIVE_MAP_WAYPOINTS[0][0]) - 60 - j * 55
+                    e.y = float(ACTIVE_MAP_WAYPOINTS[0][1])
                     self.enemies.append(e)
                 self.ui.show_msg(f"Spawned {cnt}x {ecls.DISPLAY_NAME}!", 1.5)
                 return
@@ -10566,7 +12896,8 @@ class SandboxGame(Game):
 
         while self.running:
             raw_dt = min(self.clock.tick(FPS)/1000.0, 0.05)
-            dt = raw_dt * (2.0 if self.speed_x2 else 1.0)
+            _wardrobe_mult = getattr(self, '_wardrobe_time_mult', 1.0)
+            dt = raw_dt * (2.0 if self.speed_x2 else 1.0) * _wardrobe_mult
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
 
@@ -10628,7 +12959,18 @@ class SandboxGame(Game):
                                 if u.ability.ready():
                                     u.ability.activate(self.enemies, self.effects)
                                     break
-
+                    if ev.key == pygame.K_g:
+                        for u in self.units:
+                            if isinstance(u, Clown) and u.ability and u.level >= 2:
+                                if u.ability.ready():
+                                    u.ability.activate(self.enemies, self.effects)
+                                    break
+                    if ev.key == pygame.K_h:
+                        for u in self.units:
+                            if isinstance(u, Jason) and u.ability and u.level >= 9:
+                                if u.ability.ready():
+                                    u.ability.activate(self.enemies, self.effects)
+                                    break
             if not self.paused:
                 self._do_sandbox_update(dt)
             self.draw()
@@ -10645,7 +12987,12 @@ class SandboxGame(Game):
             if e.alive:
                 reached = e.update(dt)
                 if reached:
-                    e.x = -80  # loop enemy back to start
+                    # Reset to start of waypoint path
+                    wpts = ACTIVE_MAP_WAYPOINTS
+                    e.x = float(wpts[0][0])
+                    e.y = float(wpts[0][1])
+                    e._wp_index = 1
+                    e.alive = True
                     e.hp = e.maxhp  # reset HP
 
         # Remove dead enemies (killed by towers)
@@ -10654,6 +13001,33 @@ class SandboxGame(Game):
         # Units attack
         for u in self.units:
             u.update(dt, self.enemies, self.effects, self.money)
+
+        # -- InterDimensionalWardrobe sandbox support --
+        wardrobe_time_mult = 1.0
+        for u in self.units:
+            if not isinstance(u, InterDimensionalWardrobe): continue
+            wardrobe_time_mult = max(wardrobe_time_mult, u.time_mult)
+            wr = u.range_tiles * TILE
+            for other in self.units:
+                if other is u: continue
+                if dist((other.px, other.py), (u.px, u.py)) <= wr:
+                    other._wardrobe_hd = True
+        for u in self.units:
+            if isinstance(u, InterDimensionalWardrobe): continue
+            if getattr(u, '_wardrobe_hd', False):
+                u._wardrobe_hd_active = True; u._wardrobe_hd = False
+            else:
+                u._wardrobe_hd_active = False
+        for e in self.enemies:
+            if not e.alive: continue
+            if getattr(e, '_wardrobe_speed_t', 0.0) > 0:
+                e._wardrobe_speed_t = max(0.0, e._wardrobe_speed_t - dt)
+                e.speed = e.__class__.BASE_SPEED * getattr(e, '_wardrobe_speed_mult', 1.0)
+            if getattr(e, '_wardrobe_reverse_t', 0.0) > 0:
+                e._wardrobe_reverse_t = max(0.0, e._wardrobe_reverse_t - dt)
+                e.x -= e.__class__.BASE_SPEED * 0.4 * dt
+            if getattr(e, '_wardrobe_label_t', 0.0) > 0:
+                e._wardrobe_label_t = max(0.0, e._wardrobe_label_t - dt)
 
         # Clown global CD
         if Clown._CONFUSE_CD > 0:
@@ -10664,14 +13038,14 @@ class SandboxGame(Game):
         for e in self.enemies:
             if not e.alive and isinstance(e, BreakerEnemy):
                 Sp = random.choice(BREAKER_POOL)
-                baby = Sp(1); baby.x = e.x; new_enemies.append(baby)
+                baby = Sp(1); baby.x = e.x; baby.y = e.y; baby._wp_index = e._wp_index; new_enemies.append(baby)
         self.enemies = [e for e in self.enemies if e.alive] + new_enemies
 
         # SwarmBoss spawn scouts while alive
         swarm_spawns = []
         for e in self.enemies:
             if e.alive and isinstance(e, SwarmBoss) and e.should_spawn():
-                scout = ScoutEnemy(1); scout.x = e.x - 30
+                scout = ScoutEnemy(1); scout.x = e.x - 30; scout.y = e.y; scout._wp_index = e._wp_index
                 swarm_spawns.append(scout)
         self.enemies += swarm_spawns
 
@@ -10717,13 +13091,14 @@ class SandboxGame(Game):
         for e in self.enemies:
             if not e.alive and isinstance(e, AbyssalSpawn):
                 for _ in range(2):
-                    baby = HellHound(1); baby.x = e.x + random.uniform(-20,20)
+                    baby = HellHound(1); baby.x = e.x + random.uniform(-20,20); baby.y = e.y; baby._wp_index = e._wp_index
                     new_spawns.append(baby)
         self.enemies = [e for e in self.enemies if e.alive] + new_spawns
 
         self.effects = [ef for ef in self.effects if ef.update(dt)]
         self.ui.update(dt)
         self.money = 999_999_999
+        self._wardrobe_time_mult = wardrobe_time_mult
 
 
 def super_update_enemies_only(self, dt):
@@ -10751,4 +13126,7 @@ if __name__=="__main__":
             SandboxGame(sb_cfg=sb_cfg, screen_override=screen).run()
         else:
             difficulty, loadout = result
-            Game(difficulty=difficulty, loadout=loadout, screen_override=screen).run()
+            # Map is locked to difficulty: Easy→Forest, Hard→City, Hell→Volcano
+            DIFF_MAP = {"Easy": "Forest", "Hard": "City", "Hell": "Volcano"}
+            map_name = DIFF_MAP.get(difficulty, "Forest")
+            Game(difficulty=difficulty, loadout=loadout, map_name=map_name, screen_override=screen).run()
